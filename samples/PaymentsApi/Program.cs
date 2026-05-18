@@ -1,12 +1,15 @@
 // Multi-tenant payments processor sample for db-config.
-// NOT FOR PRODUCTION: uses a static API-key header for admin auth, in-memory mock for Stripe.
+// NOT FOR PRODUCTION: cookie login + static API-key header for admin auth, in-memory mock for Stripe.
 
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 using DbConfig.Core;
 using DbConfig.EntityFrameworkCore;
 using DbConfig.Http;
 using DbConfig.Provider.PostgreSql;
 using DbConfig.Ui;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using PaymentsApi;
@@ -38,16 +41,32 @@ builder.Services.Configure<FeatureFlagsOptions>(builder.Configuration.GetSection
 builder.Services.Configure<PaymentLimitsOptions>(builder.Configuration.GetSection("Limits"));
 builder.Services.Configure<NotificationsOptions>(builder.Configuration.GetSection("Notifications"));
 
-// --- Auth: static API-key for admin endpoints only (NOT FOR PROD) ---
-const string AdminPolicy = "ApiKey";
+// --- Auth: cookie login (browser) + static API-key header (curl) — NOT FOR PROD ---
+// Cookie scheme is default so browser navigation to /admin/dbconfig auto-redirects to /login.
+// API-key scheme accepts X-Admin-Api-Key for curl/Postman. Both satisfy AdminPolicy.
+const string AdminPolicy = "Admin";
 const string ApiKeyScheme = "ApiKey";
 
 builder.Services
-    .AddAuthentication(ApiKeyScheme)
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(o =>
+    {
+        o.Cookie.Name = "payments-demo-auth";
+        o.LoginPath = "/login";
+        o.LogoutPath = "/logout";
+        o.ExpireTimeSpan = TimeSpan.FromHours(8);
+        o.SlidingExpiration = true;
+        o.Cookie.HttpOnly = true;
+        o.Cookie.SameSite = SameSiteMode.Lax;
+    })
     .AddScheme<AuthenticationSchemeOptions, ApiKeyHandler>(ApiKeyScheme, null);
 
 builder.Services.AddAuthorization(o =>
-    o.AddPolicy(AdminPolicy, p => p.RequireAuthenticatedUser()));
+    o.AddPolicy(AdminPolicy, p =>
+    {
+        p.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme, ApiKeyScheme);
+        p.RequireAuthenticatedUser();
+    }));
 
 var app = builder.Build();
 
@@ -80,7 +99,76 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig").RequireAuthorization(Admin
 
 // --- Landing ---
 app.MapGet("/", () =>
-    "PaymentsApi sample for db-config. Admin UI at /admin/dbconfig (header: X-Admin-Api-Key). Try /api/diag/who.");
+    "PaymentsApi sample for db-config. Admin UI at /admin/dbconfig (browser: sign in at /login; curl: X-Admin-Api-Key). Try /api/diag/who.");
+
+// --- Demo login (cookie-based; for browser-driven UI walkthroughs) ---
+app.MapGet("/login", (string? error, string? ReturnUrl) =>
+{
+    var safeReturn = string.IsNullOrEmpty(ReturnUrl) || !ReturnUrl.StartsWith('/')
+        ? "/admin/dbconfig"
+        : ReturnUrl;
+    var errorBanner = error == "1"
+        ? "<p style='color:#b00020;margin:0 0 12px'>Invalid key. Try again.</p>"
+        : string.Empty;
+    var html = $$"""
+        <!doctype html>
+        <html><head><meta charset='utf-8'><title>db-config demo login</title>
+        <style>
+          body{font-family:system-ui;max-width:420px;margin:80px auto;padding:0 24px;color:#111}
+          h1{font-size:1.4rem;margin:0 0 6px}
+          p{color:#555;margin:0 0 18px}
+          input,button{font:inherit;padding:10px 12px;width:100%;box-sizing:border-box;margin-top:10px;border:1px solid #ccc;border-radius:6px}
+          button{background:#0070f3;color:#fff;border:0;cursor:pointer;font-weight:600}
+          code{background:#f4f4f4;padding:1px 6px;border-radius:4px}
+        </style></head><body>
+        <h1>db-config demo</h1>
+        <p>Sign in with the value of <code>Auth:ApiKey</code> from <code>appsettings.json</code> (default: <code>demo-admin-key-12345</code>).</p>
+        {{errorBanner}}
+        <form method='post' action='/login'>
+          <input type='hidden' name='returnUrl' value='{{HtmlEncoder.Default.Encode(safeReturn)}}' />
+          <input type='password' name='apiKey' placeholder='Admin API key' autofocus required />
+          <button type='submit'>Sign in</button>
+        </form>
+        </body></html>
+        """;
+
+    return Results.Content(html, "text/html");
+}).AllowAnonymous();
+
+app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg) =>
+{
+    var form = await ctx.Request.ReadFormAsync();
+    var apiKey = form["apiKey"].ToString();
+    var returnUrl = form["returnUrl"].ToString();
+    var expected = cfg["Auth:ApiKey"];
+
+    if (string.IsNullOrEmpty(expected) || !string.Equals(apiKey, expected, StringComparison.Ordinal))
+    {
+        return Results.Redirect("/login?error=1");
+    }
+
+    var identity = new ClaimsIdentity(
+        [new Claim(ClaimTypes.Name, "demo-admin")],
+        CookieAuthenticationDefaults.AuthenticationScheme);
+
+    await ctx.SignInAsync(
+        CookieAuthenticationDefaults.AuthenticationScheme,
+        new ClaimsPrincipal(identity));
+
+    if (string.IsNullOrEmpty(returnUrl) || !returnUrl.StartsWith('/'))
+    {
+        returnUrl = "/admin/dbconfig";
+    }
+
+    return Results.Redirect(returnUrl);
+}).AllowAnonymous();
+
+app.MapPost("/logout", async (HttpContext ctx) =>
+{
+    await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+    return Results.Redirect("/login");
+}).AllowAnonymous();
 
 // =====================================================================
 // Business endpoints — NO AUTH on these in the demo. Wire your own.
