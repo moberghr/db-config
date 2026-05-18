@@ -21,25 +21,25 @@
        Skipped when ../../../ui doesn't exist yet (e.g. early scaffold state). -->
   <Target Name="InstallUI"
           BeforeTargets="BuildUI"
-          Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)..\..\..\ui\package.json') And !Exists('$(ProjectDir)..\..\..\ui\node_modules')">
-    <Exec Command="npm install" WorkingDirectory="$(ProjectDir)..\..\..\ui" />
+          Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)../../../ui/package.json') And !Exists('$(ProjectDir)../../../ui/node_modules')">
+    <Exec Command="npm install" WorkingDirectory="$(ProjectDir)../../../ui" />
   </Target>
 
   <Target Name="BuildUI"
           BeforeTargets="CopyUIOutput"
-          Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)..\..\..\ui\package.json')">
-    <Exec Command="npm run build" WorkingDirectory="$(ProjectDir)..\..\..\ui" />
+          Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)../../../ui/package.json')">
+    <Exec Command="npm run build" WorkingDirectory="$(ProjectDir)../../../ui" />
   </Target>
 
   <!-- Copy the Vite output into dist/ next to the csproj so EmbeddedResource glob picks it up. -->
   <Target Name="CopyUIOutput"
           BeforeTargets="BeforeBuild"
-          Condition="Exists('$(ProjectDir)..\..\..\ui\dist')">
+          Condition="Exists('$(ProjectDir)../../../ui/dist')">
     <ItemGroup>
-      <UIDistFiles Include="$(ProjectDir)..\..\..\ui\dist\**\*" />
+      <UIDistFiles Include="$(ProjectDir)../../../ui/dist/**/*" />
     </ItemGroup>
     <Copy SourceFiles="@(UIDistFiles)"
-          DestinationFiles="@(UIDistFiles->'$(ProjectDir)dist\%(RecursiveDir)%(Filename)%(Extension)')"
+          DestinationFiles="@(UIDistFiles->'$(ProjectDir)dist/%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 
