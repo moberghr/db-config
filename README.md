@@ -2,6 +2,13 @@
 
 Database-backed `IConfiguration` provider for .NET with an embedded React editor UI.
 
+[![NuGet](https://img.shields.io/nuget/v/Moberg.DbConfig.Core?label=DbConfig.Core)](https://www.nuget.org/packages/Moberg.DbConfig.Core)
+[![NuGet](https://img.shields.io/nuget/v/Moberg.DbConfig.Http?label=DbConfig.Http)](https://www.nuget.org/packages/Moberg.DbConfig.Http)
+[![NuGet](https://img.shields.io/nuget/v/Moberg.DbConfig.Ui?label=DbConfig.Ui)](https://www.nuget.org/packages/Moberg.DbConfig.Ui)
+[![NuGet](https://img.shields.io/nuget/v/Moberg.DbConfig.Provider.SqlServer?label=Provider.SqlServer)](https://www.nuget.org/packages/Moberg.DbConfig.Provider.SqlServer)
+[![NuGet](https://img.shields.io/nuget/v/Moberg.DbConfig.Provider.PostgreSql?label=Provider.PostgreSql)](https://www.nuget.org/packages/Moberg.DbConfig.Provider.PostgreSql)
+[![Docs](https://img.shields.io/badge/docs-moberghr.github.io%2Fdb--config-blue)](https://moberghr.github.io/db-config/)
+
 > Mimics the ergonomics of a secrets manager, but persists configuration in your
 > existing application database. No additional external service required.
 
