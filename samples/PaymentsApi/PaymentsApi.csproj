@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>PaymentsApi</RootNamespace>
+    <AssemblyName>PaymentsApi</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <UserSecretsId>payments-api-sample</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\core\DbConfig.Core\DbConfig.Core.csproj" />
+    <ProjectReference Include="..\..\src\core\DbConfig.EntityFrameworkCore\DbConfig.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\core\DbConfig.Http\DbConfig.Http.csproj" />
+    <ProjectReference Include="..\..\src\core\DbConfig.Ui\DbConfig.Ui.csproj" />
+    <ProjectReference Include="..\..\src\core\providers\DbConfig.Provider.PostgreSql\DbConfig.Provider.PostgreSql.csproj" />
+  </ItemGroup>
+
+</Project>

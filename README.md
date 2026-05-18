@@ -22,6 +22,21 @@ Database-backed `IConfiguration` provider for .NET with an embedded React editor
 | `Moberg.DbConfig.Provider.SqlServer` | SQL Server EF Core provider + dialect specifics |
 | `Moberg.DbConfig.Provider.PostgreSql` | PostgreSQL (Npgsql) EF Core provider + dialect specifics |
 
+## Try it out
+
+A runnable sample app — multi-tenant payments processor — lives at
+[`samples/PaymentsApi/`](samples/PaymentsApi/). Demonstrates per-tenant
+config overrides, `IOptionsSnapshot<T>` binding, at-rest encryption,
+audit log, and live reload via the embedded admin UI.
+
+```bash
+cd samples/PaymentsApi
+docker compose up -d
+dotnet run
+```
+
+Then open `http://localhost:5000/admin/dbconfig`.
+
 ## Security
 
 Per-entry encryption via `IsSecret` flag:
@@ -85,8 +100,10 @@ The connection string must be present before `AddDbConfig` is called. If it is m
 `InvalidOperationException` is thrown at startup — the provider does not silently return empty
 values.
 
-See `src/demo/DbConfig.Demo.WebApp/` for a full working example including migrations, an
-API-key auth handler, and user-secrets setup instructions.
+See [`samples/PaymentsApi/`](samples/PaymentsApi/) for a full working example —
+multi-tenant payments processor demonstrating per-tenant overrides,
+`IOptionsSnapshot<T>` binding, at-rest encryption, audit log, and live reload
+via the embedded admin UI.
 
 ### Shared scopes
 

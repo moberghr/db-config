@@ -17,7 +17,4 @@
   <Folder Name="/tests/">
     <Project Path="tests/DbConfig.Tests/DbConfig.Tests.csproj" />
   </Folder>
-  <Folder Name="/demo/">
-    <Project Path="demo/DbConfig.Demo.WebApp/DbConfig.Demo.WebApp.csproj" />
-  </Folder>
 </Solution>
