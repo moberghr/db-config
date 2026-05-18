@@ -2,6 +2,8 @@
 sidebar_position: 3
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # History and diff
 
 Every entry has a full audit history accessible from the entries list. DbConfig records
@@ -12,13 +14,7 @@ two consecutive values.
 
 Click the clock icon on any row to open the `EntryHistoryDialog`.
 
-#### Light:
-
-![Entry history dialog showing a list of audit rows with action, who, and when](/img/screenshots/05-history-dialog.png)
-
-#### Dark:
-
-![Entry history dialog in dark theme](/img/screenshots/05-history-dialog-dark.png)
+<Screenshot light="/img/screenshots/05-history-dialog.png" dark="/img/screenshots/05-history-dialog-dark.png" alt="Entry history dialog showing a list of audit rows with action, who, and when" />
 
 Each row in the history dialog shows:
 - **Action chip** — color-coded: Insert (green), Update (blue), Delete (red), Read (grey)
@@ -34,13 +30,7 @@ prior value).
 
 Click "Compare to previous" to open the inline diff panel.
 
-#### Light:
-
-![Side-by-side diff view showing character-level changes between two values](/img/screenshots/06-history-diff.png)
-
-#### Dark:
-
-![Side-by-side diff view in dark theme](/img/screenshots/06-history-diff-dark.png)
+<Screenshot light="/img/screenshots/06-history-diff.png" dark="/img/screenshots/06-history-diff-dark.png" alt="Side-by-side diff view showing character-level changes between two values" />
 
 The diff panel shows:
 - **Left column** — OldValue

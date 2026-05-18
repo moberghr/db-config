@@ -2,6 +2,8 @@
 sidebar_position: 6
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # Scopes in UI
 
 The scope selector controls which entries the UI loads and which scope new entries are
@@ -9,13 +11,7 @@ written to.
 
 ## Scope selector
 
-#### Light:
-
-![Scope selector showing AppName, Environment, and IncludeScopes fields](/img/screenshots/09-scope-selector.png)
-
-#### Dark:
-
-![Scope selector in dark theme](/img/screenshots/09-scope-selector-dark.png)
+<Screenshot light="/img/screenshots/09-scope-selector.png" dark="/img/screenshots/09-scope-selector-dark.png" alt="Scope selector showing AppName, Environment, and IncludeScopes fields" />
 
 The scope selector panel has three fields:
 
@@ -73,13 +69,7 @@ In addition to the flat table, the UI offers a **tree view** that groups entries
 colon-separated key prefix. Toggle between views using the **Flat | Tree** segmented
 control in the toolbar.
 
-#### Light:
-
-![Tree view showing entries grouped by key prefix with expand/collapse chevrons](/img/screenshots/11-tree-view.png)
-
-#### Dark:
-
-![Tree view in dark theme](/img/screenshots/11-tree-view-dark.png)
+<Screenshot light="/img/screenshots/11-tree-view.png" dark="/img/screenshots/11-tree-view-dark.png" alt="Tree view showing entries grouped by key prefix with expand/collapse chevrons" />
 
 In tree view, keys like `Stripe:Payment:Foo`, `Stripe:Payment:Bar`, and `Stripe:Auth:Baz`
 are grouped under a `Stripe` parent node with `Payment (2)` and `Auth (1)` child groups.
@@ -101,13 +91,7 @@ The Flat | Tree preference is persisted to `localStorage` via the scope store.
 
 v0.9.0 adds a **Tenant** input to the scope selector alongside AppName, Environment, and IncludeScopes.
 
-#### Light:
-
-![Scope selector with Tenant field filled with Acme](/img/screenshots/12-tenant-selector.png)
-
-#### Dark:
-
-![Scope selector with Tenant field in dark theme](/img/screenshots/12-tenant-selector-dark.png)
+<Screenshot light="/img/screenshots/12-tenant-selector.png" dark="/img/screenshots/12-tenant-selector-dark.png" alt="Scope selector with Tenant field filled with Acme" />
 
 The **Tenant** field controls which tenant's entries are loaded:
 
@@ -123,25 +107,13 @@ The entries table shows a **Tenant** column with a badge for each row:
 - **Default** — grey badge; the entry applies to all tenants that do not have a specific override.
 - **Tenant name** (e.g. `Acme`) — colored badge; the entry is a tenant-specific override.
 
-#### Entries view showing Default and tenant badges:
-
-![Entries table with Default and Acme tenant badges](/img/screenshots/13-tenant-entries-view.png)
-
-#### Dark:
-
-![Entries table with tenant badges in dark theme](/img/screenshots/13-tenant-entries-view-dark.png)
+<Screenshot light="/img/screenshots/13-tenant-entries-view.png" dark="/img/screenshots/13-tenant-entries-view-dark.png" alt="Entries table with Default and Acme tenant badges" />
 
 ### Creating a tenant-specific entry
 
 When a tenant is selected in the scope selector, the **New Entry** dialog pre-fills the **Tenant ID** field with that tenant. This prevents accidental writes to the global default when working in a tenant-scoped session.
 
-#### Create dialog with Tenant ID pre-filled:
-
-![Create Entry dialog with TenantId field showing Acme](/img/screenshots/14-create-with-tenant-dialog.png)
-
-#### Dark:
-
-![Create Entry dialog with TenantId field in dark theme](/img/screenshots/14-create-with-tenant-dialog-dark.png)
+<Screenshot light="/img/screenshots/14-create-with-tenant-dialog.png" dark="/img/screenshots/14-create-with-tenant-dialog-dark.png" alt="Create Entry dialog with TenantId field showing Acme" />
 
 The Tenant ID field in the dialog can be changed before submitting — this lets you write to a different tenant than the one currently selected in the scope selector (useful for admin workflows). Leaving it empty writes a global default entry.
 

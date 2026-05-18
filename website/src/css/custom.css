@@ -20,3 +20,7 @@
   --ifm-color-primary-lightest: #dbeafe;
   --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
 }
+
+/* ── Themed screenshots ─────────────────────────────────────────────────── */
+[data-theme='light'] img[data-theme-target='dark']  { display: none !important; }
+[data-theme='dark']  img[data-theme-target='light'] { display: none !important; }

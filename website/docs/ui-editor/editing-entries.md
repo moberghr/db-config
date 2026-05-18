@@ -2,19 +2,15 @@
 sidebar_position: 2
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # Editing entries
 
 ## Edit dialog
 
 Click the pencil icon on any row to open the edit dialog.
 
-#### Light:
-
-![Edit value dialog showing the key, value field, and IsSecret toggle](/img/screenshots/02-edit-value.png)
-
-#### Dark:
-
-![Edit value dialog in dark theme](/img/screenshots/02-edit-value-dark.png)
+<Screenshot light="/img/screenshots/02-edit-value.png" dark="/img/screenshots/02-edit-value-dark.png" alt="Edit value dialog showing the key, value field, and IsSecret toggle" />
 
 The edit dialog shows:
 - **Key** — read-only; keys cannot be renamed (delete and re-create instead)
@@ -36,13 +32,7 @@ server returns `403` (for example, because the row belongs to a different scope 
 
 Click the "New entry" button in the toolbar to open the create dialog.
 
-#### Light:
-
-![Create entry dialog with scope picker, key field, value field, and IsSecret toggle](/img/screenshots/03-create-entry.png)
-
-#### Dark:
-
-![Create entry dialog in dark theme](/img/screenshots/03-create-entry-dark.png)
+<Screenshot light="/img/screenshots/03-create-entry.png" dark="/img/screenshots/03-create-entry-dark.png" alt="Create entry dialog with scope picker, key field, value field, and IsSecret toggle" />
 
 The create dialog includes:
 - **Scope picker** — select the target `AppName` (defaults to the current scope; only
@@ -57,13 +47,7 @@ The create dialog includes:
 Secret entries show `•••••` in the entries list and in dialogs. Click the eye icon to
 reveal the decrypted value.
 
-#### Light:
-
-![Secret value revealed showing the plaintext connection string](/img/screenshots/04-secret-revealed.png)
-
-#### Dark:
-
-![Secret value revealed in dark theme](/img/screenshots/04-secret-revealed-dark.png)
+<Screenshot light="/img/screenshots/04-secret-revealed.png" dark="/img/screenshots/04-secret-revealed-dark.png" alt="Secret value revealed showing the plaintext connection string" />
 
 The reveal is client-side only — the server always returns the decrypted value in the JSON
 response. The `•••••` masking is a UI affordance to prevent accidental screen sharing

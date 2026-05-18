@@ -2,6 +2,8 @@
 sidebar_position: 5
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # Import and export
 
 The UI provides import and export buttons in the toolbar for bulk-loading configuration
@@ -49,13 +51,7 @@ any special treatment.
 
 ## Import
 
-#### Light:
-
-![Import dialog showing file picker, preview table, and collision policy selector](/img/screenshots/08-import-dialog.png)
-
-#### Dark:
-
-![Import dialog in dark theme](/img/screenshots/08-import-dialog-dark.png)
+<Screenshot light="/img/screenshots/08-import-dialog.png" dark="/img/screenshots/08-import-dialog-dark.png" alt="Import dialog showing file picker, preview table, and collision policy selector" />
 
 Click the import button to open the import dialog:
 

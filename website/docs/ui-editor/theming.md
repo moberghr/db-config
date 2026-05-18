@@ -2,18 +2,14 @@
 sidebar_position: 8
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # Theming
 
 The UI editor supports light and dark themes. A sun/moon toggle lives in the page header
 next to the Reload button.
 
-#### Light:
-
-![Theme toggle (light)](/img/screenshots/01-entries-list.png)
-
-#### Dark:
-
-![Theme toggle (dark)](/img/screenshots/01-entries-list-dark.png)
+<Screenshot light="/img/screenshots/01-entries-list.png" dark="/img/screenshots/01-entries-list-dark.png" alt="Theme toggle" />
 
 ## How the toggle works
 

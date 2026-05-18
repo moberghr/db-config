@@ -2,6 +2,8 @@
 sidebar_position: 1
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # UI editor overview
 
 DbConfig ships a full-featured React editor UI as embedded static assets in
@@ -26,13 +28,7 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig")
 
 ## Entries list
 
-#### Light:
-
-![DbConfig entries list showing keys, values, scope badges, and action buttons](/img/screenshots/01-entries-list.png)
-
-#### Dark:
-
-![DbConfig entries list in dark theme](/img/screenshots/01-entries-list-dark.png)
+<Screenshot light="/img/screenshots/01-entries-list.png" dark="/img/screenshots/01-entries-list-dark.png" alt="DbConfig entries list showing keys, values, scope badges, and action buttons" />
 
 The main view shows all configuration entries for the current scope. Each row displays:
 

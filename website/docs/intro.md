@@ -2,6 +2,8 @@
 sidebar_position: 1
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # Introduction
 
 DbConfig is a database-backed `IConfiguration` provider for .NET 8. It lets you store
@@ -12,14 +14,7 @@ It is **not** a hosted secrets manager like Azure Key Vault or AWS Secrets Manag
 is no extra service to run. Everything lives in your app's own database, behind your own
 auth policy.
 
-![DbConfig entries list](/img/screenshots/01-entries-list.png)
-
-<details>
-<summary>Dark theme</summary>
-
-![DbConfig entries list in dark theme](/img/screenshots/01-entries-list-dark.png)
-
-</details>
+<Screenshot light="/img/screenshots/01-entries-list.png" dark="/img/screenshots/01-entries-list-dark.png" alt="DbConfig entries list" />
 
 ## Quick example
 

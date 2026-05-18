@@ -2,6 +2,8 @@
 sidebar_position: 4
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # Bulk operations
 
 The UI supports selecting multiple rows and performing batch actions on them — toggling
@@ -14,13 +16,7 @@ Each row in the entries list has a checkbox in the leftmost column. The header r
 
 When one or more rows are selected, the `BulkActionsToolbar` appears above the table.
 
-#### Light:
-
-![Bulk actions toolbar showing Toggle IsSecret, Move to scope, and Delete selected buttons with 3 rows selected](/img/screenshots/07-bulk-edit-toolbar.png)
-
-#### Dark:
-
-![Bulk actions toolbar in dark theme](/img/screenshots/07-bulk-edit-toolbar-dark.png)
+<Screenshot light="/img/screenshots/07-bulk-edit-toolbar.png" dark="/img/screenshots/07-bulk-edit-toolbar-dark.png" alt="Bulk actions toolbar showing Toggle IsSecret, Move to scope, and Delete selected buttons with 3 rows selected" />
 
 Cross-scope rows (from included scopes) can be selected. This is intentional for the
 "Move to scope" operation, which reads from one scope and writes to another.
