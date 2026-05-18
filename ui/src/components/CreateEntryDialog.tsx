@@ -21,18 +21,26 @@ interface CreateEntryDialogProps {
 export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
   const upsert = useEntriesStore((s) => s.upsert)
   const appName = useScopeStore((s) => s.appName)
+  const environment = useScopeStore((s) => s.environment)
   const includeScopes = useScopeStore((s) => s.includeScopes)
   const scopeTenantId = useScopeStore((s) => s.tenantId)
 
-  const scopeOptions = [appName, ...includeScopes.filter((s) => s !== appName)]
+  // When the user has set an AppName filter, expose include-scope options too.
+  // When the filter is empty (multi-scope "show all" mode), the user must type
+  // the target AppName + Environment explicitly.
+  const filteredScopeOptions = appName
+    ? [appName, ...includeScopes.filter((s) => s !== appName)]
+    : []
 
-  const [selectedScope, setSelectedScope] = useState(appName)
+  const [selectedApp, setSelectedApp] = useState(appName)
+  const [selectedEnv, setSelectedEnv] = useState(environment)
   const [tenantId, setTenantId] = useState(scopeTenantId)
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
   const [isSecret, setIsSecret] = useState(false)
   const [saving, setSaving] = useState(false)
   const [keyError, setKeyError] = useState<string | null>(null)
+  const [scopeError, setScopeError] = useState<string | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
 
   function validateKey(k: string): string | null {
@@ -41,27 +49,47 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
     return null
   }
 
+  function validateScope(app: string, env: string): string | null {
+    if (!app.trim()) return 'AppName is required'
+    if (!env.trim()) return 'Environment is required'
+    return null
+  }
+
   function handleClose() {
     setKey('')
     setValue('')
     setIsSecret(false)
     setKeyError(null)
+    setScopeError(null)
     setApiError(null)
-    setSelectedScope(appName)
+    setSelectedApp(appName)
+    setSelectedEnv(environment)
     setTenantId(scopeTenantId)
     onClose()
   }
 
   async function handleCreate() {
-    const err = validateKey(key)
-    if (err) {
-      setKeyError(err)
+    const keyErr = validateKey(key)
+    if (keyErr) {
+      setKeyError(keyErr)
+      return
+    }
+    const scopeErr = validateScope(selectedApp, selectedEnv)
+    if (scopeErr) {
+      setScopeError(scopeErr)
       return
     }
     setSaving(true)
     setApiError(null)
     try {
-      await upsert(key.trim(), value || null, isSecret, selectedScope || appName, tenantId.trim() || undefined)
+      await upsert({
+        appName: selectedApp.trim(),
+        environment: selectedEnv.trim(),
+        tenantId: tenantId.trim(),
+        key: key.trim(),
+        value: value || null,
+        isSecret,
+      })
       handleClose()
     } catch (e: unknown) {
       let message = e instanceof Error ? e.message : 'Failed to create entry'
@@ -85,25 +113,49 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
           <DialogTitle>New Entry</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {scopeOptions.length > 1 && (
+          {filteredScopeOptions.length > 1 ? (
             <div>
               <label className="block text-sm font-medium mb-1" htmlFor="create-scope">
-                Scope
+                Scope (AppName)
               </label>
               <select
                 id="create-scope"
-                value={selectedScope}
-                onChange={(e) => setSelectedScope(e.target.value)}
+                value={selectedApp}
+                onChange={(e) => { setSelectedApp(e.target.value); setScopeError(null) }}
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                {scopeOptions.map((scope) => (
+                {filteredScopeOptions.map((scope) => (
                   <option key={scope} value={scope}>
                     {scope}{scope === appName ? ' (own)' : ' (shared)'}
                   </option>
                 ))}
               </select>
             </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="create-app">
+                AppName
+              </label>
+              <Input
+                id="create-app"
+                value={selectedApp}
+                onChange={(e) => { setSelectedApp(e.target.value); setScopeError(null) }}
+                placeholder="e.g. PaymentsApi"
+              />
+            </div>
           )}
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="create-env">
+              Environment
+            </label>
+            <Input
+              id="create-env"
+              value={selectedEnv}
+              onChange={(e) => { setSelectedEnv(e.target.value); setScopeError(null) }}
+              placeholder="e.g. Production"
+            />
+          </div>
+          {scopeError && <p className="text-xs text-destructive">{scopeError}</p>}
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="create-tenant">
               Tenant (leave empty for global default)

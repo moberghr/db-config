@@ -25,6 +25,7 @@ interface EntryHistoryDialogProps {
   onClose: () => void
   appName: string
   environment: string
+  tenantId: string
   entryKey: string
   entryIsSecret: boolean
 }
@@ -79,6 +80,7 @@ export function EntryHistoryDialog({
   onClose,
   appName,
   environment,
+  tenantId,
   entryKey,
   entryIsSecret,
 }: EntryHistoryDialogProps) {
@@ -92,14 +94,14 @@ export function EntryHistoryDialog({
     setLoading(true)
     setError(null)
     setHistory([])
-    getAuditHistory(appName, environment, entryKey, 50)
+    getAuditHistory(appName, environment, entryKey, 50, tenantId || undefined)
       .then((data) => setHistory(data))
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Failed to load history'
         setError(message)
       })
       .finally(() => setLoading(false))
-  }, [open, appName, environment, entryKey])
+  }, [open, appName, environment, tenantId, entryKey])
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>

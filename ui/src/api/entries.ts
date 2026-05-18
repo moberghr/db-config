@@ -171,7 +171,7 @@ export async function getAuditHistory(
     params.tenantId = tenantId
   }
   const response = await api.get<ConfigAuditEntry[]>(
-    `/audit/${encodeURIComponent(appName)}/${encodeURIComponent(environment)}/${encodeKey(key)}`,
+    `/${encodeURIComponent(appName)}/${encodeURIComponent(environment)}/audit/${encodeKey(key)}`,
     { params }
   )
   return response.data

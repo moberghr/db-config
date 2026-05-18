@@ -8,6 +8,22 @@ import {
 } from '@/api/entries'
 import { useScopeStore } from './scopeStore'
 
+export interface UpsertCoords {
+  appName: string
+  environment: string
+  tenantId: string
+  key: string
+  value: string | null
+  isSecret: boolean
+}
+
+export interface RemoveCoords {
+  appName: string
+  environment: string
+  tenantId: string
+  key: string
+}
+
 interface EntriesState {
   entries: ConfigEntry[]
   loading: boolean
@@ -23,8 +39,16 @@ interface EntriesState {
    *   values are read from `useScopeStore.getState()` as usual.
    */
   refresh: (overrides?: { appName?: string; environment?: string; tenantId?: string }) => Promise<void>
-  upsert: (key: string, value: string | null, isSecret: boolean, targetAppName?: string, tenantId?: string) => Promise<void>
-  remove: (key: string, targetAppName?: string, tenantId?: string) => Promise<void>
+  /**
+   * Upsert an entry. Callers MUST pass the full coordinates of the target
+   * entry — appName, environment, tenantId, key. The scopeStore is only a
+   * UI filter and may be empty when the user is in "show all" mode.
+   */
+  upsert: (coords: UpsertCoords) => Promise<void>
+  /**
+   * Delete an entry by its full coordinates.
+   */
+  remove: (coords: RemoveCoords) => Promise<void>
   reload: () => Promise<void>
   toggleSelection: (compositeKey: string) => void
   selectAll: (compositeKeys: string[]) => void
@@ -67,20 +91,14 @@ export const useEntriesStore = create<EntriesState>((set) => ({
     }
   },
 
-  upsert: async (key, value, isSecret, targetAppName, tenantId) => {
-    const { appName, environment, tenantId: scopeTenantId } = useScopeStore.getState()
-    const scopeToWrite = targetAppName ?? appName
-    const resolvedTenantId = tenantId ?? scopeTenantId
-    await upsertEntry(scopeToWrite, environment, key, value, isSecret, resolvedTenantId || undefined)
+  upsert: async ({ appName, environment, tenantId, key, value, isSecret }) => {
+    await upsertEntry(appName, environment, key, value, isSecret, tenantId || undefined)
     const entries = await reloadEntriesForCurrentScope()
     set({ entries })
   },
 
-  remove: async (key, targetAppName, tenantId) => {
-    const { appName, environment, tenantId: scopeTenantId } = useScopeStore.getState()
-    const scopeToDelete = targetAppName ?? appName
-    const resolvedTenantId = tenantId ?? scopeTenantId
-    await deleteEntry(scopeToDelete, environment, key, resolvedTenantId || undefined)
+  remove: async ({ appName, environment, tenantId, key }) => {
+    await deleteEntry(appName, environment, key, tenantId || undefined)
     const entries = await reloadEntriesForCurrentScope()
     set({ entries })
   },

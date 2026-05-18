@@ -25,7 +25,6 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
   const clearSelection = useEntriesStore((s) => s.clearSelection)
   const refresh = useEntriesStore((s) => s.refresh)
   const currentAppName = useScopeStore((s) => s.appName)
-  const environment = useScopeStore((s) => s.environment)
   const includeScopes = useScopeStore((s) => s.includeScopes)
 
   const [activeAction, setActiveAction] = useState<BulkAction>(null)
@@ -34,40 +33,52 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
 
   if (selectedKeys.size === 0) return null
 
-  // Resolve selected entries from visibleEntries
+  // Resolve selected entries from visibleEntries — use the same composite key
+  // as the table builds (appName|environment|tenantId|key).
   function getSelectedEntries(): ConfigEntry[] {
     return visibleEntries.filter((e) => {
-      const ck = `${e.appName}|${e.environment}|${e.key}`
+      const ck = `${e.appName}|${e.environment}|${e.tenantId}|${e.key}`
       return selectedKeys.has(ck)
     })
   }
 
   const selectedEntries = getSelectedEntries()
 
-  // Scope options for move picker
-  const scopeOptions = [currentAppName, ...includeScopes.filter((s) => s !== currentAppName)]
+  // Scope options for move picker — pulled from the current selection so the
+  // user can move across whatever scopes are visible even if scopeStore is empty.
+  const scopeOptions = (() => {
+    const set = new Set<string>()
+    if (currentAppName) set.add(currentAppName)
+    for (const s of includeScopes) {
+      if (s) set.add(s)
+    }
+    for (const entry of selectedEntries) {
+      if (entry.appName) set.add(entry.appName)
+    }
+    return [...set]
+  })()
 
-  // Toggle IsSecret
+  // Toggle IsSecret — use entry's own coords (env + tenantId).
   async function executeToggleSecret(entry: ConfigEntry): Promise<void> {
-    await upsertEntry(entry.appName, entry.environment, entry.key, entry.value, !entry.isSecret)
+    await upsertEntry(entry.appName, entry.environment, entry.key, entry.value, !entry.isSecret, entry.tenantId || undefined)
   }
 
-  // Move: PUT to new scope, then DELETE from old scope only when PUT succeeded.
-  // Axios throws on non-2xx by default, but we add an explicit status check as a
-  // belt-and-suspenders guard against proxies that swallow error status codes.
+  // Move: PUT to new scope (same env + tenant as the source entry), then DELETE
+  // from the source only when PUT succeeded. Axios throws on non-2xx by default,
+  // but we add an explicit status check as a belt-and-suspenders guard.
   async function executeMove(entry: ConfigEntry): Promise<void> {
-    const putResponse = await upsertEntry(targetScope, environment, entry.key, entry.value, entry.isSecret)
+    const putResponse = await upsertEntry(targetScope, entry.environment, entry.key, entry.value, entry.isSecret, entry.tenantId || undefined)
     if (putResponse.status < 200 || putResponse.status >= 300) {
       throw new Error(`Move failed: PUT returned status ${putResponse.status}`)
     }
     if (entry.appName !== targetScope) {
-      await deleteEntry(entry.appName, entry.environment, entry.key)
+      await deleteEntry(entry.appName, entry.environment, entry.key, entry.tenantId || undefined)
     }
   }
 
-  // Delete
+  // Delete — use entry's own coords (env + tenantId).
   async function executeDelete(entry: ConfigEntry): Promise<void> {
-    await deleteEntry(entry.appName, entry.environment, entry.key)
+    await deleteEntry(entry.appName, entry.environment, entry.key, entry.tenantId || undefined)
   }
 
   function afterBulkClose() {

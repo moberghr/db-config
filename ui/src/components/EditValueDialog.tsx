@@ -32,7 +32,14 @@ export function EditValueDialog({ entry, onClose }: EditValueDialogProps) {
     setSaving(true)
     setError(null)
     try {
-      await upsert(entry.key, value || null, isSecret, undefined, entry.tenantId || undefined)
+      await upsert({
+        appName: entry.appName,
+        environment: entry.environment,
+        tenantId: entry.tenantId,
+        key: entry.key,
+        value: value || null,
+        isSecret,
+      })
       onClose()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save'

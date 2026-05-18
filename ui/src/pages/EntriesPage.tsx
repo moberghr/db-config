@@ -28,7 +28,7 @@ export function EntriesPage() {
   const listMode = useScopeStore((s) => s.listMode)
 
   const [editingEntry, setEditingEntry] = useState<ConfigEntry | null>(null)
-  const [deletingEntry, setDeletingEntry] = useState<{ key: string; appName: string } | null>(null)
+  const [deletingEntry, setDeletingEntry] = useState<ConfigEntry | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [historyEntry, setHistoryEntry] = useState<ConfigEntry | null>(null)
   const [importOpen, setImportOpen] = useState(false)
@@ -38,8 +38,17 @@ export function EntriesPage() {
   }, [refresh])
 
   const visibleEntries: ConfigEntry[] = entries.filter((entry) => {
-    if (viewMode === 'mine') return entry.appName === appName
-    if (viewMode === 'shared') return entry.appName !== appName
+    // When the user hasn't filtered by AppName, "mine" and "shared" are
+    // meaningless — show everything regardless of viewMode.
+    if (!appName) {
+      return true
+    }
+    if (viewMode === 'mine') {
+      return entry.appName === appName
+    }
+    if (viewMode === 'shared') {
+      return entry.appName !== appName
+    }
     return true // 'all'
   })
 
@@ -72,14 +81,14 @@ export function EntriesPage() {
         {listMode === 'tree' ? (
           <EntriesTreeView
             onEdit={setEditingEntry}
-            onDelete={(key, entryAppName) => setDeletingEntry({ key, appName: entryAppName })}
+            onDelete={setDeletingEntry}
             onHistory={setHistoryEntry}
             visibleEntries={visibleEntries}
           />
         ) : (
           <EntriesTable
             onEdit={setEditingEntry}
-            onDelete={(key, entryAppName) => setDeletingEntry({ key, appName: entryAppName })}
+            onDelete={setDeletingEntry}
             onHistory={setHistoryEntry}
             visibleEntries={visibleEntries}
           />
@@ -94,8 +103,7 @@ export function EntriesPage() {
         onClose={() => setCreateOpen(false)}
       />
       <DeleteEntryDialog
-        entryKey={deletingEntry?.key ?? null}
-        entryAppName={deletingEntry?.appName}
+        entry={deletingEntry}
         onClose={() => setDeletingEntry(null)}
       />
       <EntryHistoryDialog
@@ -103,6 +111,7 @@ export function EntriesPage() {
         onClose={() => setHistoryEntry(null)}
         appName={historyEntry?.appName ?? ''}
         environment={historyEntry?.environment ?? ''}
+        tenantId={historyEntry?.tenantId ?? ''}
         entryKey={historyEntry?.key ?? ''}
         entryIsSecret={historyEntry?.isSecret ?? false}
       />

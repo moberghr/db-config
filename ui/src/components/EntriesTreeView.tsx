@@ -19,13 +19,18 @@ import { cn } from '@/lib/utils'
 const CROSS_SCOPE_TITLE =
   'Cross-scope edits are not allowed in this UI. Switch to that scope or use a host with platform-admin access.'
 
+// Per-depth padding step. 28px reads more clearly than 20 at typical table
+// densities. Paired with a left border guide on the indented `<span>` for an
+// explicit hierarchy cue (see TableCell below).
+const INDENT_PX = 28
+
 function compositeKey(entry: ConfigEntry): string {
-  return `${entry.appName}|${entry.environment}|${entry.key}`
+  return `${entry.appName}|${entry.environment}|${entry.tenantId}|${entry.key}`
 }
 
 interface EntriesTreeViewProps {
   onEdit: (entry: ConfigEntry) => void
-  onDelete: (key: string, entryAppName: string) => void
+  onDelete: (entry: ConfigEntry) => void
   onHistory: (entry: ConfigEntry) => void
   visibleEntries: ConfigEntry[]
 }
@@ -51,11 +56,37 @@ interface TreeRowsProps {
   expandedPrefixes: Set<string>
   onToggle: (fullPrefix: string) => void
   onEdit: (entry: ConfigEntry) => void
-  onDelete: (key: string, entryAppName: string) => void
+  onDelete: (entry: ConfigEntry) => void
   onHistory: (entry: ConfigEntry) => void
   selectedKeys: Set<string>
   toggleSelection: (ck: string) => void
   currentAppName: string
+}
+
+/**
+ * Render a left-side indent guide for a row at the given depth.
+ * Each depth level draws a thin vertical bar so nesting is unambiguous even
+ * when ancestor segments are off-screen.
+ */
+function IndentGuide({ depth }: { depth: number }) {
+  if (depth === 0) {
+    return null
+  }
+  return (
+    <span
+      aria-hidden
+      className="inline-flex items-stretch"
+      style={{ width: `${depth * INDENT_PX}px` }}
+    >
+      {Array.from({ length: depth }, (_, i) => (
+        <span
+          key={i}
+          className="block w-0 border-l border-border/60"
+          style={{ width: `${INDENT_PX}px` }}
+        />
+      ))}
+    </span>
+  )
 }
 
 function TreeRows({
@@ -70,21 +101,19 @@ function TreeRows({
   toggleSelection,
   currentAppName,
 }: TreeRowsProps) {
-  const indentPx = depth * 20
-
   return (
     <>
       {nodes.map((node) => {
         if (node.entry !== null) {
           // Leaf row — render like EntriesTable row
           const entry = node.entry
-          const isOwn = entry.appName === currentAppName
+          const isOwn = !currentAppName || entry.appName === currentAppName
           const ck = compositeKey(entry)
           const isSelected = selectedKeys.has(ck)
 
           return (
             <TableRow
-              key={`leaf-${entry.appName}:${entry.key}`}
+              key={`leaf-${ck}`}
               className={cn('cursor-pointer', !isOwn && 'opacity-80', isSelected && 'bg-primary/5')}
               onClick={() => { if (isOwn) onEdit(entry) }}
             >
@@ -98,39 +127,31 @@ function TreeRows({
                   aria-label={`Select ${entry.key}`}
                 />
               </TableCell>
-              {/* Key — indented */}
+              {/* Key — indented with vertical guide lines */}
               <TableCell className="font-mono text-xs font-medium">
-                <span style={{ paddingLeft: `${indentPx}px` }}>
-                  {node.segment}
+                <span className="inline-flex items-center">
+                  <IndentGuide depth={depth} />
+                  <span>{node.segment}</span>
                 </span>
               </TableCell>
               {/* Value */}
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
               </TableCell>
-              {/* Scope */}
+              {/* AppName */}
               <TableCell onClick={(e) => e.stopPropagation()}>
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                    isOwn
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-secondary text-secondary-foreground'
-                  )}
-                >
-                  {entry.appName}
-                </span>
+                <span className="text-xs text-foreground">{entry.appName}</span>
+              </TableCell>
+              {/* Environment */}
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                <span className="text-xs text-foreground">{entry.environment}</span>
               </TableCell>
               {/* Tenant */}
               <TableCell onClick={(e) => e.stopPropagation()}>
                 {entry.tenantId ? (
-                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary">
-                    {entry.tenantId}
-                  </span>
+                  <span className="text-xs text-foreground">{entry.tenantId}</span>
                 ) : (
-                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground">
-                    Default
-                  </span>
+                  <span className="text-xs text-muted-foreground italic">default</span>
                 )}
               </TableCell>
               {/* Modified */}
@@ -169,7 +190,7 @@ function TreeRows({
                     className="h-7 w-7 text-destructive hover:text-destructive"
                     title={isOwn ? 'Delete' : CROSS_SCOPE_TITLE}
                     disabled={!isOwn}
-                    onClick={() => { if (isOwn) onDelete(entry.key, entry.appName) }}
+                    onClick={() => { if (isOwn) onDelete(entry) }}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -191,12 +212,10 @@ function TreeRows({
             >
               {/* Checkbox placeholder — no checkbox for groups */}
               <TableCell />
-              {/* Group label with chevron, indented */}
-              <TableCell colSpan={6}>
-                <span
-                  className="inline-flex items-center gap-1.5 font-medium text-sm"
-                  style={{ paddingLeft: `${indentPx}px` }}
-                >
+              {/* Group label with chevron, indented with vertical guides */}
+              <TableCell colSpan={7}>
+                <span className="inline-flex items-center gap-1.5 font-medium text-sm">
+                  <IndentGuide depth={depth} />
                   <ChevronRight
                     className={cn(
                       'h-4 w-4 text-muted-foreground transition-transform duration-150',
@@ -317,7 +336,8 @@ export function EntriesTreeView({ onEdit, onDelete, onHistory, visibleEntries }:
             <TableHead className="w-10" />
             <TableHead>Key</TableHead>
             <TableHead>Value</TableHead>
-            <TableHead>Scope</TableHead>
+            <TableHead>AppName</TableHead>
+            <TableHead>Environment</TableHead>
             <TableHead>Tenant</TableHead>
             <TableHead>Modified</TableHead>
             <TableHead>Modified By</TableHead>

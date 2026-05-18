@@ -295,17 +295,37 @@ static async Task SeedDemoDataAsync(IConfigStore store, string env, string appNa
         new(appName, env, "", "Limits:MaxChargeAmount", "50000", false, now, "seed"),
         new(appName, env, "", "Features:BetaSplitPayments", "false", false, now, "seed"),
 
+        // 3-level nested: Notifications:Email:* — gives the tree view real hierarchy
+        new(appName, env, "", "Notifications:Email:Templates:Welcome", "Hi {name}, welcome to PaymentsApi.", false, now, "seed"),
+        new(appName, env, "", "Notifications:Email:Templates:PaymentFailed", "Your payment of {amount} failed.", false, now, "seed"),
+        new(appName, env, "", "Notifications:Email:Smtp:Host", "smtp.sendgrid.net", false, now, "seed"),
+        new(appName, env, "", "Notifications:Email:Smtp:Port", "587", false, now, "seed"),
+        new(appName, env, "", "Notifications:Email:Smtp:UseTls", "true", false, now, "seed"),
+        new(appName, env, "", "Notifications:Email:Smtp:Username", "apikey", false, now, "seed"),
+        new(appName, env, "", "Notifications:Email:Smtp:Password", "SG.DEMO-PASSWORD-NOT-REAL", true, now, "seed"),
+
+        // 4-level nested experiment tree
+        new(appName, env, "", "Features:Experiments:Checkout:V2:Enabled", "false", false, now, "seed"),
+        new(appName, env, "", "Features:Experiments:Checkout:V2:RolloutPct", "0", false, now, "seed"),
+
         // Tenant Acme overrides
         new(appName, env, "Acme", "Stripe:ApiKey", "sk_test_DEMO_acme_key", true, now, "seed"),
         new(appName, env, "Acme", "Stripe:DefaultCurrency", "EUR", false, now, "seed"),
         new(appName, env, "Acme", "Features:NewCheckout", "true", false, now, "seed"),
         new(appName, env, "Acme", "Notifications:SlackWebhook", "https://hooks.slack.com/acme/DEMO", true, now, "seed"),
         new(appName, env, "Acme", "Notifications:OnFailureEmail", "ops@acme.example", false, now, "seed"),
+        new(appName, env, "Acme", "Notifications:Email:Templates:Welcome", "Welcome to Acme via PaymentsApi.", false, now, "seed"),
 
         // Tenant Globex overrides
         new(appName, env, "Globex", "Stripe:ApiKey", "sk_test_DEMO_globex_key", true, now, "seed"),
         new(appName, env, "Globex", "Limits:MaxChargeAmount", "100000", false, now, "seed"),
         new(appName, env, "Globex", "Features:Require3DS", "true", false, now, "seed"),
+
+        // A second app's entries — exercises the flat /entries endpoint's
+        // cross-AppName view in the admin UI.
+        new("Notifications", env, "", "Email:Smtp:Host", "smtp.gmail.com", false, now, "seed"),
+        new("Notifications", env, "", "Slack:DefaultChannel", "#alerts", false, now, "seed"),
+        new("Notifications", env, "Acme", "Slack:DefaultChannel", "#acme-alerts", false, now, "seed"),
     };
 
     foreach (var entry in entries)

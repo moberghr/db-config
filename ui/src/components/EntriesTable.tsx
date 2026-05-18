@@ -18,12 +18,12 @@ const CROSS_SCOPE_TITLE =
   'Cross-scope edits are not allowed in this UI. Switch to that scope or use a host with platform-admin access.'
 
 function compositeKey(entry: ConfigEntry): string {
-  return `${entry.appName}|${entry.environment}|${entry.key}`
+  return `${entry.appName}|${entry.environment}|${entry.tenantId}|${entry.key}`
 }
 
 interface EntriesTableProps {
   onEdit: (entry: ConfigEntry) => void
-  onDelete: (key: string, entryAppName: string) => void
+  onDelete: (entry: ConfigEntry) => void
   onHistory: (entry: ConfigEntry) => void
   visibleEntries: ConfigEntry[]
 }
@@ -89,7 +89,8 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
           </TableHead>
           <TableHead>Key</TableHead>
           <TableHead>Value</TableHead>
-          <TableHead>Scope</TableHead>
+          <TableHead>AppName</TableHead>
+          <TableHead>Environment</TableHead>
           <TableHead>Tenant</TableHead>
           <TableHead>Modified</TableHead>
           <TableHead>Modified By</TableHead>
@@ -98,12 +99,14 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
       </TableHeader>
       <TableBody>
         {visibleEntries.map((entry) => {
-          const isOwn = entry.appName === currentAppName
+          // "Own" means the entry's AppName matches the currently-filtered scope.
+          // When no scope filter is set (multi-scope mode), every entry is editable.
+          const isOwn = !currentAppName || entry.appName === currentAppName
           const ck = compositeKey(entry)
           const isSelected = selectedKeys.has(ck)
           return (
             <TableRow
-              key={`${entry.appName}:${entry.key}`}
+              key={ck}
               className={cn('cursor-pointer', !isOwn && 'opacity-80', isSelected && 'bg-primary/5')}
               onClick={() => { if (isOwn) onEdit(entry) }}
             >
@@ -121,26 +124,16 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
                 <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
               </TableCell>
               <TableCell onClick={(e) => e.stopPropagation()}>
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                    isOwn
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-secondary text-secondary-foreground'
-                  )}
-                >
-                  {entry.appName}
-                </span>
+                <span className="text-xs text-foreground">{entry.appName}</span>
+              </TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                <span className="text-xs text-foreground">{entry.environment}</span>
               </TableCell>
               <TableCell onClick={(e) => e.stopPropagation()}>
                 {entry.tenantId ? (
-                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary">
-                    {entry.tenantId}
-                  </span>
+                  <span className="text-xs text-foreground">{entry.tenantId}</span>
                 ) : (
-                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground">
-                    Default
-                  </span>
+                  <span className="text-xs text-muted-foreground italic">default</span>
                 )}
               </TableCell>
               <TableCell className="text-muted-foreground text-xs">
@@ -176,7 +169,7 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
                     className="h-7 w-7 text-destructive hover:text-destructive"
                     title={isOwn ? 'Delete' : CROSS_SCOPE_TITLE}
                     disabled={!isOwn}
-                    onClick={() => { if (isOwn) onDelete(entry.key, entry.appName) }}
+                    onClick={() => { if (isOwn) onDelete(entry) }}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>

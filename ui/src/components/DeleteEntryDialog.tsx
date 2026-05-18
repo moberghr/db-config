@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ConfigEntry } from '@/api/entries'
 import { useEntriesStore } from '@/store/entriesStore'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,24 +12,28 @@ import {
 } from '@/components/ui/dialog'
 
 interface DeleteEntryDialogProps {
-  entryKey: string | null
-  entryAppName?: string | null
+  entry: ConfigEntry | null
   onClose: () => void
 }
 
-export function DeleteEntryDialog({ entryKey, entryAppName, onClose }: DeleteEntryDialogProps) {
+export function DeleteEntryDialog({ entry, onClose }: DeleteEntryDialogProps) {
   const remove = useEntriesStore((s) => s.remove)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const open = entryKey !== null
+  const open = entry !== null
 
   async function handleDelete() {
-    if (!entryKey) return
+    if (!entry) return
     setDeleting(true)
     setError(null)
     try {
-      await remove(entryKey, entryAppName ?? undefined)
+      await remove({
+        appName: entry.appName,
+        environment: entry.environment,
+        tenantId: entry.tenantId,
+        key: entry.key,
+      })
       onClose()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to delete'
@@ -38,14 +43,19 @@ export function DeleteEntryDialog({ entryKey, entryAppName, onClose }: DeleteEnt
     }
   }
 
+  const description = entry
+    ? entry.tenantId
+      ? `Are you sure you want to delete "${entry.key}" in ${entry.appName} / ${entry.environment} (tenant: ${entry.tenantId})? This action cannot be undone.`
+      : `Are you sure you want to delete "${entry.key}" in ${entry.appName} / ${entry.environment}? This action cannot be undone.`
+    : ''
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Delete Entry</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete <strong>{entryKey}</strong>?
-            This action cannot be undone.
+            {description}
           </DialogDescription>
         </DialogHeader>
         {error && <p className="text-sm text-destructive mt-2">{error}</p>}
