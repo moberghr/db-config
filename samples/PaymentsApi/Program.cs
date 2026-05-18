@@ -1,15 +1,13 @@
 // Multi-tenant payments processor sample for db-config.
-// NOT FOR PRODUCTION: cookie login + static API-key header for admin auth, in-memory mock for Stripe.
+// NOT FOR PRODUCTION: built-in cookie login (UI) + static API-key header (curl admin),
+// in-memory mock for Stripe.
 
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 using DbConfig.Core;
 using DbConfig.EntityFrameworkCore;
 using DbConfig.Http;
 using DbConfig.Provider.PostgreSql;
 using DbConfig.Ui;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using PaymentsApi;
@@ -23,6 +21,10 @@ var connectionString = builder.Configuration.GetConnectionString("PaymentsApi")
 
 var appName = builder.Configuration["DbConfig:AppName"] ?? "PaymentsApi";
 var reloadSeconds = int.TryParse(builder.Configuration["DbConfig:ReloadIntervalSeconds"], out var r) ? r : 5;
+
+// Apply EF migrations BEFORE AddDbConfig — the polling provider's first Load() runs
+// synchronously during AddDbConfig, and Load() queries DbConfig_Entries.
+await ApplyMigrationsAsync(connectionString);
 
 builder.Services.AddHttpContextAccessor();
 
@@ -41,49 +43,27 @@ builder.Services.Configure<FeatureFlagsOptions>(builder.Configuration.GetSection
 builder.Services.Configure<PaymentLimitsOptions>(builder.Configuration.GetSection("Limits"));
 builder.Services.Configure<NotificationsOptions>(builder.Configuration.GetSection("Notifications"));
 
-// --- Auth: cookie login (browser) + static API-key header (curl) — NOT FOR PROD ---
-// Cookie scheme is default so browser navigation to /admin/dbconfig auto-redirects to /login.
-// API-key scheme accepts X-Admin-Api-Key for curl/Postman. Both satisfy AdminPolicy.
-const string AdminPolicy = "Admin";
+// --- Auth wiring (NOT FOR PROD) ---
+// UI surface (/admin/dbconfig): uses db-config's built-in cookie login. The validator
+// checks the submitted password against Auth:Password from appsettings.json.
+//   builder.Services.AddScoped<IDbConfigCredentialValidator, AppSettingsCredentialValidator>();
+// HTTP API surface (/api/dbconfig): uses a static X-Admin-Api-Key header so curl/Postman
+// can drive the API without going through the cookie flow. The two surfaces share the
+// same Auth:Password value for demo convenience; production hosts would split them.
+builder.Services.AddScoped<IDbConfigCredentialValidator, AppSettingsCredentialValidator>();
+
+const string ApiKeyPolicy = "ApiKey";
 const string ApiKeyScheme = "ApiKey";
-
 builder.Services
-    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(o =>
-    {
-        o.Cookie.Name = "payments-demo-auth";
-        o.LoginPath = "/login";
-        o.LogoutPath = "/logout";
-        o.ExpireTimeSpan = TimeSpan.FromHours(8);
-        o.SlidingExpiration = true;
-        o.Cookie.HttpOnly = true;
-        o.Cookie.SameSite = SameSiteMode.Lax;
-    })
+    .AddAuthentication(ApiKeyScheme)
     .AddScheme<AuthenticationSchemeOptions, ApiKeyHandler>(ApiKeyScheme, null);
-
 builder.Services.AddAuthorization(o =>
-    o.AddPolicy(AdminPolicy, p =>
-    {
-        p.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme, ApiKeyScheme);
-        p.RequireAuthenticatedUser();
-    }));
+    o.AddPolicy(ApiKeyPolicy, p => p.RequireAuthenticatedUser()));
 
 var app = builder.Build();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Apply EF migrations on startup (demo only).
-var migrateOptions = new DbContextOptionsBuilder<DbConfigDbContext>()
-    .UseNpgsql(
-        connectionString,
-        npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
-    .Options;
-
-await using (var ctx = new DbConfigDbContext(migrateOptions))
-{
-    await ctx.Database.MigrateAsync();
-}
 
 // Idempotent seed — runs once if the store is empty.
 using (var scope = app.Services.CreateScope())
@@ -93,82 +73,21 @@ using (var scope = app.Services.CreateScope())
     await SeedDemoDataAsync(store, app.Environment.EnvironmentName, appName, logger);
 }
 
-// --- DbConfig admin surface — gated by ApiKey policy ---
-app.MapDbConfigHttp("/api/dbconfig").RequireAuthorization(AdminPolicy);
-app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig").RequireAuthorization(AdminPolicy);
+// --- DbConfig admin surfaces ---
+// UI: built-in cookie login provided by Moberg.DbConfig.Ui. Form lives at
+// /admin/dbconfig/login; sign in with any username + the value of Auth:Password.
+app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
+    opts.UseBuiltInLogin<AppSettingsCredentialValidator>());
+
+// HTTP API: gated by the static API-key policy (X-Admin-Api-Key header).
+app.MapDbConfigHttp("/api/dbconfig").RequireAuthorization(ApiKeyPolicy);
 
 // --- Landing ---
 app.MapGet("/", () =>
-    "PaymentsApi sample for db-config. Admin UI at /admin/dbconfig (browser: sign in at /login; curl: X-Admin-Api-Key). Try /api/diag/who.");
-
-// --- Demo login (cookie-based; for browser-driven UI walkthroughs) ---
-app.MapGet("/login", (string? error, string? ReturnUrl) =>
-{
-    var safeReturn = string.IsNullOrEmpty(ReturnUrl) || !ReturnUrl.StartsWith('/')
-        ? "/admin/dbconfig"
-        : ReturnUrl;
-    var errorBanner = error == "1"
-        ? "<p style='color:#b00020;margin:0 0 12px'>Invalid key. Try again.</p>"
-        : string.Empty;
-    var html = $$"""
-        <!doctype html>
-        <html><head><meta charset='utf-8'><title>db-config demo login</title>
-        <style>
-          body{font-family:system-ui;max-width:420px;margin:80px auto;padding:0 24px;color:#111}
-          h1{font-size:1.4rem;margin:0 0 6px}
-          p{color:#555;margin:0 0 18px}
-          input,button{font:inherit;padding:10px 12px;width:100%;box-sizing:border-box;margin-top:10px;border:1px solid #ccc;border-radius:6px}
-          button{background:#0070f3;color:#fff;border:0;cursor:pointer;font-weight:600}
-          code{background:#f4f4f4;padding:1px 6px;border-radius:4px}
-        </style></head><body>
-        <h1>db-config demo</h1>
-        <p>Sign in with the value of <code>Auth:ApiKey</code> from <code>appsettings.json</code> (default: <code>demo-admin-key-12345</code>).</p>
-        {{errorBanner}}
-        <form method='post' action='/login'>
-          <input type='hidden' name='returnUrl' value='{{HtmlEncoder.Default.Encode(safeReturn)}}' />
-          <input type='password' name='apiKey' placeholder='Admin API key' autofocus required />
-          <button type='submit'>Sign in</button>
-        </form>
-        </body></html>
-        """;
-
-    return Results.Content(html, "text/html");
-}).AllowAnonymous();
-
-app.MapPost("/login", async (HttpContext ctx, IConfiguration cfg) =>
-{
-    var form = await ctx.Request.ReadFormAsync();
-    var apiKey = form["apiKey"].ToString();
-    var returnUrl = form["returnUrl"].ToString();
-    var expected = cfg["Auth:ApiKey"];
-
-    if (string.IsNullOrEmpty(expected) || !string.Equals(apiKey, expected, StringComparison.Ordinal))
-    {
-        return Results.Redirect("/login?error=1");
-    }
-
-    var identity = new ClaimsIdentity(
-        [new Claim(ClaimTypes.Name, "demo-admin")],
-        CookieAuthenticationDefaults.AuthenticationScheme);
-
-    await ctx.SignInAsync(
-        CookieAuthenticationDefaults.AuthenticationScheme,
-        new ClaimsPrincipal(identity));
-
-    if (string.IsNullOrEmpty(returnUrl) || !returnUrl.StartsWith('/'))
-    {
-        returnUrl = "/admin/dbconfig";
-    }
-
-    return Results.Redirect(returnUrl);
-}).AllowAnonymous();
-
-app.MapPost("/logout", async (HttpContext ctx) =>
-{
-    await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-    return Results.Redirect("/login");
-}).AllowAnonymous();
+    "PaymentsApi sample for db-config. Admin UI at /admin/dbconfig (browser flow uses "
+    + "the built-in cookie login; sign in with any username and the value of Auth:Password "
+    + "from appsettings.json). HTTP API at /api/dbconfig (use X-Admin-Api-Key header). "
+    + "Try /api/diag/who.");
 
 // =====================================================================
 // Business endpoints — NO AUTH on these in the demo. Wire your own.
@@ -353,6 +272,16 @@ await app.RunAsync();
 // ====================================================================
 // Local helpers (top-level methods are emitted as static on Program).
 // ====================================================================
+
+static async Task ApplyMigrationsAsync(string connectionString)
+{
+    var opts = new DbContextOptionsBuilder<DbConfigDbContext>()
+        .UseNpgsql(connectionString, npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
+        .Options;
+
+    await using var ctx = new DbConfigDbContext(opts);
+    await ctx.Database.MigrateAsync();
+}
 
 static async Task SeedDemoDataAsync(IConfigStore store, string env, string appName, ILogger logger)
 {

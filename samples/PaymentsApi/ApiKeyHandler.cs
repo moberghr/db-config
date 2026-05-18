@@ -20,7 +20,7 @@ internal sealed class ApiKeyHandler(
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
-        var expected = configuration["Auth:ApiKey"];
+        var expected = configuration["Auth:Password"];
         if (string.IsNullOrEmpty(expected) || !string.Equals(provided, expected, StringComparison.Ordinal))
         {
             return Task.FromResult(AuthenticateResult.Fail("Invalid API key"));

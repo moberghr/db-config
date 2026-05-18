@@ -213,23 +213,54 @@ Never put `DbConfigDbContext` back into `Core` — the package would pull
 `Microsoft.EntityFrameworkCore.Relational` transitively onto all consumers, including those
 who write custom non-EF stores.
 
-## §2.8 — Host-Owned Authorization
+## §2.8 — Authorization Composition
 
-`MapDbConfigHttp` returns `RouteGroupBuilder`. The host applies authorization:
+Both `MapDbConfigHttp` and `MapDbConfigUi` return `RouteGroupBuilder`. Hosts have
+two complementary ways to enforce auth.
+
+### Option A — Compose with the host's existing pipeline
 
 ```csharp
 app.MapDbConfigHttp("/api/dbconfig").RequireAuthorization("DbConfigAdmin");
-```
-
-`MapDbConfigUi` also returns `RouteGroupBuilder` for the same reason:
-
-```csharp
 app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig").RequireAuthorization("DbConfigAdmin");
 ```
 
-The packages ship NO `[Authorize]` attributes, NO hard-coded policies, NO authentication
-middleware. The host owns identity and policy entirely. This mirrors the principle in
-CLAUDE.md §0.3.
+The packages ship NO `[Authorize]` attributes, NO hard-coded policies. This is the
+canonical pattern when the host already has an identity story (OIDC, Windows Auth,
+JWT). Both endpoints surface as endpoint metadata so `RequireAuthorization` composes
+exactly as it does on any other minimal-API route group.
+
+### Option B — Built-in UI auth (v0.10.0+)
+
+`Moberg.DbConfig.Ui` ships an opt-in auth surface for hosts that don't want to wire
+their own. Configure via the four-arg `MapDbConfigUi` overload:
+
+```csharp
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+
+app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
+{
+    opts.UseBuiltInLogin<MyValidator>();
+});
+```
+
+Internally this:
+1. Auto-wires a `CookieAuthorizationFilter` (signed via `IDataProtectionProvider`,
+   purpose `Moberg.DbConfig.Ui.Auth`).
+2. Registers `GET /login`, `POST /login`, `POST /logout` inside the route group.
+3. Attaches a `DbConfigUiAuthFilter` endpoint filter that redirects unauthorized
+   browser requests to `/login?returnUrl=...` and returns 401 to non-browser callers.
+
+Alternative shapes on the same `DbConfigUiOptions` surface:
+- `opts.Authorization = new MyFilter()` — any `IDbConfigAuthorizationFilter` (e.g.
+  the shipped `LocalRequestsOnlyAuthorizationFilter` for dev).
+- `opts.UnauthorizedRedirectUrl = "/my-login"` — redirect browser requests to the
+  consumer's own login page; combine with an authorization filter that inspects
+  the consumer's auth state.
+
+`MapDbConfigHttp` does NOT have a built-in auth surface. The HTTP API is
+intentionally headless — hosts wire their own scheme via `RequireAuthorization`.
+This mirrors CLAUDE.md §0.3.
 
 ## §2.9 — UI Embedding Pipeline
 

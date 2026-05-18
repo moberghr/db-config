@@ -17,8 +17,8 @@ Database-backed `IConfiguration` provider for .NET with an embedded React editor
 | Package | Purpose |
 |---|---|
 | `Moberg.DbConfig.Core` | `IConfigurationSource` / `IConfigurationProvider`, `IConfigStore` abstraction, options |
-| `Moberg.DbConfig.Http` | JSON API endpoints (`MapDbConfigHttp`), host-owned authorization |
-| `Moberg.DbConfig.Ui` | React editor UI shipped as embedded static assets (`MapDbConfigUi`) |
+| `Moberg.DbConfig.Http` | JSON API endpoints (`MapDbConfigHttp`); auth is host-owned via `RequireAuthorization` |
+| `Moberg.DbConfig.Ui` | React editor UI shipped as embedded static assets (`MapDbConfigUi`); optional built-in cookie login since v0.10.0 |
 | `Moberg.DbConfig.Provider.SqlServer` | SQL Server EF Core provider + dialect specifics |
 | `Moberg.DbConfig.Provider.PostgreSql` | PostgreSQL (Npgsql) EF Core provider + dialect specifics |
 
@@ -104,6 +104,35 @@ See [`samples/PaymentsApi/`](samples/PaymentsApi/) for a full working example â€
 multi-tenant payments processor demonstrating per-tenant overrides,
 `IOptionsSnapshot<T>` binding, at-rest encryption, audit log, and live reload
 via the embedded admin UI.
+
+### Authentication
+
+Both `MapDbConfigHttp` and `MapDbConfigUi` are open by default and return
+`RouteGroupBuilder`. Four supported patterns:
+
+| Pattern | When |
+|---|---|
+| Open (no auth) | Private network, dev only |
+| `.RequireAuthorization("policy")` | The host already has OIDC / Windows Auth / JWT |
+| `opts.UseBuiltInLogin<TValidator>()` | Small admin sites without an existing pipeline |
+| `opts.Authorization = new MyFilter()` | Header-based, IP allowlist, custom JWT cookie |
+
+Built-in cookie login is opt-in via the new four-arg `MapDbConfigUi` overload:
+
+```csharp
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+
+app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
+{
+    opts.UseBuiltInLogin<MyValidator>();
+});
+```
+
+`MapDbConfigHttp` has no built-in auth surface; gate it via
+`RequireAuthorization` or rely on an existing scheme.
+
+See [Authentication & authorization](https://moberg.github.io/db-config/configuration/auth)
+for the full walkthrough.
 
 ### Shared scopes
 

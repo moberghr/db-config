@@ -126,20 +126,27 @@ tools, migrations) skip this signal and are therefore invisible until the waterm
 Document this in any tooling that directly mutates `DbConfig_Entries`. Never attempt to
 "fix" it inside the provider — the invariant is by design for v0.1.0.
 
-## §8.7 — Static API Key Auth in Demo (NOT for Production)
+## §8.7 — Demo Auth (NOT for Production)
 
-`src/demo/DbConfig.Demo.WebApp/` registers a static API key authentication handler for local
-development and demo purposes only. It accepts `X-Api-Key: <value>` from `appsettings.json`
-(via user secrets in real deployment).
+`samples/PaymentsApi/` demonstrates two demo-friendly auth patterns:
 
-This handler MUST NOT be copied into production hosts. Production hosts are expected to
-integrate with the existing identity system (OAuth2, OpenID Connect, Windows Auth, etc.) and
-apply `RequireAuthorization("DbConfigAdmin")` (or equivalent) to the groups returned by
-`MapDbConfigHttp` and `MapDbConfigUi`.
+1. **Built-in cookie login** for the UI (`opts.UseBuiltInLogin<AppSettingsCredentialValidator>()`).
+   The validator checks the submitted password against `Auth:Password` in
+   `appsettings.json`. Convenient for local browser walkthroughs.
+2. **Static `X-Admin-Api-Key` header** for the HTTP API (`ApiKeyHandler.cs`).
+   The handler reads the same `Auth:Password` value for demo simplicity.
 
-The demo exists to show the composition pattern, not to provide a reference auth
-implementation. See CLAUDE.md §0.3 for the non-negotiable rule: never bake auth into the
-package.
+Neither pattern is production-grade. Production hosts should either:
+- Integrate the built-in cookie login with a real `IDbConfigCredentialValidator`
+  that hashes/verifies passwords against a database or identity provider, or
+- Skip the built-in surface entirely and use the v0.9.0 pattern —
+  `.RequireAuthorization("DbConfigAdmin")` with an existing OIDC / Windows Auth /
+  JWT scheme on the host.
+
+See CLAUDE.md §0.3 for the layered auth options and `architecture.md` §2.8 for the
+composition patterns. The package never owns identity; the consumer-implemented
+`IDbConfigCredentialValidator` is the security boundary for the built-in cookie
+flow.
 
 ## §8.8 — Shared Scopes: Conventions and Authorization
 

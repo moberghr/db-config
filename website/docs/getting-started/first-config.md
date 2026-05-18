@@ -33,6 +33,14 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig");
 await app.RunAsync();
 ```
 
+:::tip Authentication
+Both `MapDbConfigHttp` and `MapDbConfigUi` are **open by default** and return
+`RouteGroupBuilder`. Hosts have four options — open access, compose with the
+existing pipeline via `RequireAuthorization`, use the built-in cookie login
+(`opts.UseBuiltInLogin<TValidator>()`), or plug in a custom
+`IDbConfigAuthorizationFilter`. See [Authentication & authorization](../configuration/auth.md).
+:::
+
 ### In a worker service (`HostApplicationBuilder`)
 
 The same single call works for a generic host. `AddDbConfig` is an extension on

@@ -1,8 +1,9 @@
 # PaymentsApi — db-config feature showcase
 
-> **NOT FOR PRODUCTION.** Static API-key admin auth, mocked Stripe integration,
-> ephemeral Data Protection key ring. This is a runnable demo, not a hardened
-> service.
+> **NOT FOR PRODUCTION.** Built-in cookie login for the UI (single shared
+> password from `appsettings.json`), static API-key header for the HTTP API,
+> mocked Stripe integration, ephemeral Data Protection key ring. This is a
+> runnable demo, not a hardened service.
 
 A multi-tenant SaaS that processes Stripe payments on behalf of merchants.
 Each merchant (tenant) has their own Stripe account. Some config is global
@@ -25,7 +26,9 @@ redeploy needed.
 - **Audit log** writing one row per Insert/Update/Delete in the SAME
   transaction as the mutation. Visible via the UI's per-row History button.
 - **`MapDbConfigUi` + `MapDbConfigHttp`** mounted under `/admin/dbconfig` and
-  `/api/dbconfig`, gated by a host-owned `ApiKey` authorization policy.
+  `/api/dbconfig`. The UI uses db-config's built-in cookie login
+  (`opts.UseBuiltInLogin<AppSettingsCredentialValidator>()`); the HTTP API
+  uses a host-owned `ApiKey` policy for curl/Postman access.
 - **Live reload** through the polling provider (5s interval here) — change a
   value in the admin UI, see the next request resolve to the new value
   without a redeploy.
@@ -43,10 +46,12 @@ docker compose up -d
 dotnet run
 ```
 
-Open `http://localhost:5000/admin/dbconfig` and sign in with the API key
-`demo-admin-key-12345` (header: `X-Admin-Api-Key`). The store seeds itself
-with ~14 entries on first boot — global defaults plus two tenants (`Acme`,
-`Globex`).
+Open `http://localhost:5000/admin/dbconfig` in a browser — the built-in
+cookie login form (`/admin/dbconfig/login`) appears. Sign in with any
+username and the password `demo-admin-key-12345` (value of
+`Auth:Password`). For curl/Postman the HTTP API at `/api/dbconfig` accepts
+`X-Admin-Api-Key: demo-admin-key-12345`. The store seeds itself with ~14
+entries on first boot — global defaults plus two tenants (`Acme`, `Globex`).
 
 ## Try these requests
 
@@ -113,7 +118,7 @@ curl http://localhost:5000/api/diag/who -H "X-Tenant-Id: Acme"
 
 ## Live reload demo
 
-1. Open `http://localhost:5000/admin/dbconfig` (sign in with the API key).
+1. Open `http://localhost:5000/admin/dbconfig` (sign in via the built-in cookie form).
 2. Switch the scope dropdown to `Acme`.
 3. Edit `Stripe:DefaultCurrency` from `EUR` to `GBP` and save.
 4. Re-run the Acme charge curl above within ~5s.
@@ -134,8 +139,9 @@ Behind the scenes:
 | `ITenantResolver` (X-Tenant-Id header) | `HeaderTenantResolver.cs` |
 | `AddDbConfig` (single-call wireup) | `Program.cs` ~line 25 |
 | `IOptionsSnapshot<T>` registrations | `Program.cs` ~line 35 |
-| Admin auth (`X-Admin-Api-Key`) | `ApiKeyHandler.cs` |
-| Mounted DbConfig HTTP + UI | `Program.cs` ~line 78 |
+| UI admin auth (built-in cookie login) | `AppSettingsCredentialValidator.cs` |
+| HTTP API admin auth (`X-Admin-Api-Key`) | `ApiKeyHandler.cs` |
+| Mounted DbConfig HTTP + UI | `Program.cs` ~line 80 |
 | Demo data seed (idempotent) | `Program.cs` `SeedDemoDataAsync` |
 | Business endpoints | `Program.cs` `/api/charges`, `/api/refunds`, `/webhooks/stripe`, `/api/diag/*` |
 | Typed options | `Options/*.cs` |
@@ -145,9 +151,10 @@ Behind the scenes:
 - No real Stripe integration — `/api/charges`, `/api/refunds`, and
   `/webhooks/stripe` are mocked. Real code would use `Stripe-Signature`
   HMAC verification and a `StripeClient`.
-- Business endpoints are UNAUTHENTICATED. Only the admin surface
-  (`/api/dbconfig`, `/admin/dbconfig`) sits behind the API-key policy.
-  Wire your own auth on the business endpoints before doing anything real.
+- Business endpoints are UNAUTHENTICATED. Only the admin surfaces
+  (`/admin/dbconfig` cookie-gated, `/api/dbconfig` ApiKey-gated) are
+  protected. Wire your own auth on the business endpoints before doing
+  anything real.
 - The Data Protection key ring is ephemeral and process-scoped. Restarting
   the host invalidates all existing ciphertext. For multi-instance or
   restart-stable encryption, call

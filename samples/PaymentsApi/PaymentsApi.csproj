@@ -8,6 +8,9 @@
     <AssemblyName>PaymentsApi</AssemblyName>
     <IsPackable>false</IsPackable>
     <UserSecretsId>payments-api-sample</UserSecretsId>
+    <!-- Library targets net8.0 (LTS). Sample rolls forward to any newer major so it runs
+         on machines that only have .NET 9 or 10 installed. -->
+    <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 
   <ItemGroup>
