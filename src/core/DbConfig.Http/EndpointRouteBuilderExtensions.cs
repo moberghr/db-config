@@ -28,11 +28,53 @@ public static class EndpointRouteBuilderExtensions
         string prefix = "/api/dbconfig",
         string? scopeFilter = null)
     {
+        Action<DbConfigHttpOptions>? configure = scopeFilter is null
+            ? null
+            : o => o.ScopeFilter = scopeFilter;
+
+        return MapDbConfigHttp(endpoints, prefix, configure);
+    }
+
+    /// <summary>
+    /// Maps the DbConfig JSON API under <paramref name="prefix"/> with optional configuration.
+    /// When <paramref name="configure"/> is <c>null</c> the behavior is identical to the
+    /// two-argument overload (open access, no scope filter).
+    /// </summary>
+    /// <remarks>
+    /// Use this overload to wire an <see cref="IDbConfigAuthorizationFilter"/> directly onto
+    /// the HTTP API route group — typically the cookie filter shared with <c>MapDbConfigUi</c>
+    /// in unified-mount scenarios. <c>MapDbConfigAdmin</c> calls this internally.
+    /// </remarks>
+    public static RouteGroupBuilder MapDbConfigHttp(
+        this IEndpointRouteBuilder endpoints,
+        string prefix,
+        Action<DbConfigHttpOptions>? configure)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+
+        var options = new DbConfigHttpOptions();
+        configure?.Invoke(options);
+
         var group = endpoints.MapGroup(prefix);
 
-        if (scopeFilter is not null)
+        if (options.Authorization is not null)
         {
-            var capturedFilter = scopeFilter;
+            var capturedAuth = options.Authorization;
+            group.AddEndpointFilter(async (context, next) =>
+            {
+                var authorized = await capturedAuth.IsAuthorizedAsync(context.HttpContext);
+                if (!authorized)
+                {
+                    return Results.StatusCode(StatusCodes.Status401Unauthorized);
+                }
+
+                return await next(context);
+            });
+        }
+
+        if (options.ScopeFilter is not null)
+        {
+            var capturedFilter = options.ScopeFilter;
             group.AddEndpointFilter(async (context, next) =>
             {
                 var routeAppName = context.HttpContext.Request.RouteValues["appName"] as string;

@@ -7,13 +7,42 @@ sidebar_position: 6
 DbConfig does not own identity. Both `MapDbConfigHttp` and `MapDbConfigUi` are
 open by default and return a `RouteGroupBuilder` so hosts can compose any
 auth pipeline they already have. v0.10.0 adds an **opt-in built-in cookie
-login** for the UI surface so demos and small deployments can avoid wiring
-their own scheme.
+login** plus a **unified `MapDbConfigAdmin`** mount that gates the UI and
+HTTP API with one cookie.
 
-There are four supported patterns, listed from "least invasive" to "most
-built-in".
+There are five supported patterns, listed from "most built-in" to "least
+invasive".
 
-## 1. Open access (default)
+## 1. Unified `MapDbConfigAdmin` with built-in cookie login (recommended)
+
+The common case — one call mounts UI and HTTP API under one prefix, one
+cookie covers both:
+
+```csharp
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+{
+    opts.UseBuiltInLogin<MyValidator>();
+});
+// → UI  at /admin/dbconfig
+// → API at /admin/dbconfig/api
+```
+
+The React app calls its own backend at `/admin/dbconfig/api/*` right after
+sign-in with no separate auth dance — the cookie's `Path` defaults to the
+unified prefix. `MapDbConfigAdmin` returns a
+`DbConfigAdminEndpoints(Ui, Api)` record so consumers can chain per-surface
+customizations:
+
+```csharp
+var endpoints = app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+    opts.UseBuiltInLogin<MyValidator>());
+
+endpoints.Api.RequireRateLimiting("admin");
+```
+
+## 2. Open access (default)
 
 The v0.9.0 shape continues to work unchanged:
 
@@ -25,7 +54,7 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig");
 Both surfaces are reachable by anyone who can reach the process. Use only on
 private networks or for local development.
 
-## 2. Compose with the host's existing auth pipeline
+## 3. Compose with the host's existing auth pipeline
 
 ```csharp
 builder.Services.AddAuthentication(...).AddOpenIdConnect(...);
@@ -41,13 +70,15 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig").RequireAuthorization("DbCo
 
 This is the canonical pattern when the host already has OIDC, Windows Auth,
 JWT bearer, or a similar scheme. Nothing about DbConfig changes — the route
-groups behave like any other minimal-API group.
+groups behave like any other minimal-API group. Use this shape when UI and
+API need to live at different prefixes (UI behind a CDN, API on a different
+subdomain, etc.).
 
-## 3. Built-in cookie login (`UseBuiltInLogin<T>`)
+## 4. Built-in cookie login on split prefixes (`UseBuiltInLogin<T>`)
 
-For hosts without an existing identity story (small services, on-prem tools,
-internal admin sites), `Moberg.DbConfig.Ui` ships a cookie scheme and login
-form you can opt into.
+When the unified `MapDbConfigAdmin` (pattern 1) doesn't fit — for example,
+the UI and HTTP API need different route prefixes — you can still use the
+built-in login form on a split deployment.
 
 ```csharp
 // 1. Implement IDbConfigCredentialValidator.
@@ -99,10 +130,25 @@ Override via `opts.CookieName` / `opts.CookieExpireTimeSpan`.
 (`//evil.example/...`), CRLF injection, and any URL that doesn't start with
 `/`. Invalid values fall back to the configured prefix.
 
-`MapDbConfigHttp` has no built-in auth surface — gate it via
-`RequireAuthorization(...)` or rely on an existing scheme.
+Shared cookie for the sibling HTTP API: capture the auto-wired filter and
+pass it to a new `MapDbConfigHttp` overload:
 
-## 4. Custom authorization filter
+```csharp
+IDbConfigAuthorizationFilter? sharedFilter = null;
+app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
+{
+    opts.UseBuiltInLogin<MyValidator>();
+    opts.CookiePath = "/";   // broaden so /api/dbconfig sees the cookie
+    sharedFilter = opts.Authorization;
+});
+
+app.MapDbConfigHttp("/api/dbconfig", http => http.Authorization = sharedFilter);
+```
+
+For the simple case (UI + API under one prefix), prefer pattern 1 —
+`MapDbConfigAdmin` does this wiring automatically.
+
+## 5. Custom authorization filter
 
 When neither a cookie nor a redirect fits — for example, header-based service
 tokens, IP allowlists, or a custom JWT cookie — implement
@@ -138,14 +184,16 @@ example (allows loopback addresses; convenient for dev).
 
 | Pattern | Identity owner | Built-in form | Redirect on 401 |
 |---|---|---|---|
+| `MapDbConfigAdmin` + `UseBuiltInLogin<T>` | Consumer-implemented validator | yes | yes (`/login`) |
 | Open access | (none) | n/a | n/a |
 | `RequireAuthorization` | Host's existing auth pipeline | (consumer's) | (consumer's) |
-| `UseBuiltInLogin<T>()` | Consumer-implemented validator | yes | yes (`/login`) |
+| Split prefixes + `UseBuiltInLogin<T>` | Consumer-implemented validator | yes | yes (`/login`) |
 | Custom filter + `UnauthorizedRedirectUrl` | Consumer-implemented filter | no | yes (consumer's URL) |
 
-Pick option 2 if your host already has an auth pipeline. Pick option 3 if it
-doesn't and you want a quick admin login. Pick option 4 for header-based or
-IP-allowlist scenarios.
+Pick pattern 1 when starting fresh. Pick pattern 3 if your host already has
+an auth pipeline. Pick pattern 4 when the UI and HTTP API need different
+prefixes but still want the built-in form. Pick pattern 5 for header-based
+or IP-allowlist scenarios.
 
 ## Security boundaries
 

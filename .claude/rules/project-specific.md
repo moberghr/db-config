@@ -128,20 +128,22 @@ Document this in any tooling that directly mutates `DbConfig_Entries`. Never att
 
 ## §8.7 — Demo Auth (NOT for Production)
 
-`samples/PaymentsApi/` demonstrates two demo-friendly auth patterns:
+`samples/PaymentsApi/` demonstrates the **unified `MapDbConfigAdmin`** mount
+with built-in cookie login (`opts.UseBuiltInLogin<AppSettingsCredentialValidator>()`).
+The validator checks the submitted password against `Auth:Password` in
+`appsettings.json`. One cookie covers both the UI (`/admin/dbconfig`) and the
+HTTP API (`/admin/dbconfig/api`) — the React app calls its own backend right
+after sign-in with no separate auth scheme.
 
-1. **Built-in cookie login** for the UI (`opts.UseBuiltInLogin<AppSettingsCredentialValidator>()`).
-   The validator checks the submitted password against `Auth:Password` in
-   `appsettings.json`. Convenient for local browser walkthroughs.
-2. **Static `X-Admin-Api-Key` header** for the HTTP API (`ApiKeyHandler.cs`).
-   The handler reads the same `Auth:Password` value for demo simplicity.
-
-Neither pattern is production-grade. Production hosts should either:
+This pattern is NOT production-grade — a single shared password is fine for a
+demo but real deployments need per-user credentials. Production hosts should
+either:
 - Integrate the built-in cookie login with a real `IDbConfigCredentialValidator`
   that hashes/verifies passwords against a database or identity provider, or
-- Skip the built-in surface entirely and use the v0.9.0 pattern —
+- Skip the built-in surface entirely and use pattern 3 from the auth docs —
   `.RequireAuthorization("DbConfigAdmin")` with an existing OIDC / Windows Auth /
-  JWT scheme on the host.
+  JWT scheme on the host (works on both the unified `MapDbConfigAdmin` return
+  values and the v0.9.0 split form).
 
 See CLAUDE.md §0.3 for the layered auth options and `architecture.md` §2.8 for the
 composition patterns. The package never owns identity; the consumer-implemented

@@ -1,13 +1,13 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 
-namespace DbConfig.Ui;
+namespace DbConfig.Http;
 
 /// <summary>
 /// Consumer-implemented validator for the built-in cookie login form
-/// (enabled via <see cref="DbConfigUiOptions.UseBuiltInLogin{TValidator}"/>).
-/// Register in DI as scoped — implementations may inject a DbContext or any
-/// other scoped service for async credential lookups.
+/// (enabled via <c>opts.UseBuiltInLogin&lt;TValidator&gt;()</c> on
+/// <c>MapDbConfigUi</c> / <c>MapDbConfigAdmin</c>). Register in DI as scoped
+/// — implementations may inject a DbContext or any other scoped service for
+/// async credential lookups.
 /// </summary>
 public interface IDbConfigCredentialValidator
 {

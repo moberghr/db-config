@@ -142,11 +142,13 @@ Moberg.DbConfig.Provider.PostgreSql
 
 Moberg.DbConfig.Http
   └─ MapDbConfigHttp (returns RouteGroupBuilder), endpoint handlers
+     IDbConfigAuthorizationFilter, IDbConfigCredentialValidator, DbConfigHttpOptions
      ← references Core
 
 Moberg.DbConfig.Ui
-  └─ MapDbConfigUi (returns RouteGroupBuilder), EmbeddedStaticFileMiddleware
-     ← references Core (for apiPrefix injection into index.html)
+  └─ MapDbConfigUi, MapDbConfigAdmin (unified UI + API mount)
+     EmbeddedStaticFileMiddleware, built-in cookie login
+     ← references Core + Http
 ```
 
 **Why `EntityFrameworkCore` is its own package** (the v0.3.0 extraction): it ships ~500 lines
@@ -215,25 +217,43 @@ who write custom non-EF stores.
 
 ## §2.8 — Authorization Composition
 
-Both `MapDbConfigHttp` and `MapDbConfigUi` return `RouteGroupBuilder`. Hosts have
-two complementary ways to enforce auth.
+The packages ship NO `[Authorize]` attributes, NO hard-coded policies, NO authentication
+middleware. The host owns identity and policy entirely. This mirrors CLAUDE.md §0.3.
+Hosts have three composition shapes.
 
-### Option A — Compose with the host's existing pipeline
+### Option A (common case, v0.10.0+) — Unified `MapDbConfigAdmin`
+
+```csharp
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+{
+    opts.UseBuiltInLogin<MyValidator>();
+});
+// → UI at  /admin/dbconfig
+// → API at /admin/dbconfig/api
+```
+
+One call mounts both surfaces under one prefix. The same cookie filter that gates the UI
+also gates the API; the cookie `Path` defaults to the unified prefix so the React app can
+call its own backend (`/admin/dbconfig/api/*`) right after sign-in. Returns a
+`DbConfigAdminEndpoints(Ui, Api)` record exposing both `RouteGroupBuilder`s for further
+composition.
+
+### Option B — Compose with the host's existing pipeline
 
 ```csharp
 app.MapDbConfigHttp("/api/dbconfig").RequireAuthorization("DbConfigAdmin");
 app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig").RequireAuthorization("DbConfigAdmin");
 ```
 
-The packages ship NO `[Authorize]` attributes, NO hard-coded policies. This is the
-canonical pattern when the host already has an identity story (OIDC, Windows Auth,
+The canonical pattern when the host already has an identity story (OIDC, Windows Auth,
 JWT). Both endpoints surface as endpoint metadata so `RequireAuthorization` composes
-exactly as it does on any other minimal-API route group.
+exactly as it does on any other minimal-API route group. Use this shape when the UI and
+HTTP API live at different prefixes (e.g. UI behind a CDN, API on a different subdomain).
 
-### Option B — Built-in UI auth (v0.10.0+)
+### Option C — Built-in UI auth (split prefixes)
 
-`Moberg.DbConfig.Ui` ships an opt-in auth surface for hosts that don't want to wire
-their own. Configure via the four-arg `MapDbConfigUi` overload:
+When the unified mount doesn't fit but you still want the built-in login form:
 
 ```csharp
 builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
@@ -242,12 +262,18 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
 {
     opts.UseBuiltInLogin<MyValidator>();
 });
+
+// Share the same cookie filter with the HTTP API at its own prefix:
+app.MapDbConfigHttp("/api/dbconfig", http =>
+{
+    http.Authorization = uiOpts.Authorization;   // captured from the UI configure callback
+});
 ```
 
-Internally this:
+Internally `UseBuiltInLogin` :
 1. Auto-wires a `CookieAuthorizationFilter` (signed via `IDataProtectionProvider`,
    purpose `Moberg.DbConfig.Ui.Auth`).
-2. Registers `GET /login`, `POST /login`, `POST /logout` inside the route group.
+2. Registers `GET /login`, `POST /login`, `POST /logout` inside the UI route group.
 3. Attaches a `DbConfigUiAuthFilter` endpoint filter that redirects unauthorized
    browser requests to `/login?returnUrl=...` and returns 401 to non-browser callers.
 
@@ -257,10 +283,15 @@ Alternative shapes on the same `DbConfigUiOptions` surface:
 - `opts.UnauthorizedRedirectUrl = "/my-login"` — redirect browser requests to the
   consumer's own login page; combine with an authorization filter that inspects
   the consumer's auth state.
+- `opts.CookiePath = "/"` — broaden cookie scope (e.g. when UI and API are siblings
+  outside the same prefix). `MapDbConfigAdmin` sets this to its prefix automatically.
 
-`MapDbConfigHttp` does NOT have a built-in auth surface. The HTTP API is
-intentionally headless — hosts wire their own scheme via `RequireAuthorization`.
-This mirrors CLAUDE.md §0.3.
+**Interface ownership:** `IDbConfigAuthorizationFilter` and `IDbConfigCredentialValidator`
+live in `Moberg.DbConfig.Http` (not `Moberg.DbConfig.Ui`). They are auth contracts shared
+by the unified mount, the UI built-in login, and any consumer that wants to attach a
+filter directly to `MapDbConfigHttp` via the new
+`MapDbConfigHttp(prefix, Action<DbConfigHttpOptions>)` overload without taking a UI
+dependency.
 
 ## §2.9 — UI Embedding Pipeline
 

@@ -1,13 +1,12 @@
 // Multi-tenant payments processor sample for db-config.
-// NOT FOR PRODUCTION: built-in cookie login (UI) + static API-key header (curl admin),
-// in-memory mock for Stripe.
+// NOT FOR PRODUCTION: built-in cookie login (one shared password) for the unified
+// admin surface, in-memory mock for Stripe.
 
 using DbConfig.Core;
 using DbConfig.EntityFrameworkCore;
 using DbConfig.Http;
 using DbConfig.Provider.PostgreSql;
 using DbConfig.Ui;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using PaymentsApi;
@@ -44,26 +43,13 @@ builder.Services.Configure<PaymentLimitsOptions>(builder.Configuration.GetSectio
 builder.Services.Configure<NotificationsOptions>(builder.Configuration.GetSection("Notifications"));
 
 // --- Auth wiring (NOT FOR PROD) ---
-// UI surface (/admin/dbconfig): uses db-config's built-in cookie login. The validator
-// checks the submitted password against Auth:Password from appsettings.json.
-//   builder.Services.AddScoped<IDbConfigCredentialValidator, AppSettingsCredentialValidator>();
-// HTTP API surface (/api/dbconfig): uses a static X-Admin-Api-Key header so curl/Postman
-// can drive the API without going through the cookie flow. The two surfaces share the
-// same Auth:Password value for demo convenience; production hosts would split them.
+// The unified admin surface (UI + HTTP API under one prefix) uses db-config's built-in
+// cookie login. The validator checks the submitted password against Auth:Password from
+// appsettings.json. One cookie covers both /admin/dbconfig (UI) and /admin/dbconfig/api
+// (the React app's HTTP backend).
 builder.Services.AddScoped<IDbConfigCredentialValidator, AppSettingsCredentialValidator>();
 
-const string ApiKeyPolicy = "ApiKey";
-const string ApiKeyScheme = "ApiKey";
-builder.Services
-    .AddAuthentication(ApiKeyScheme)
-    .AddScheme<AuthenticationSchemeOptions, ApiKeyHandler>(ApiKeyScheme, null);
-builder.Services.AddAuthorization(o =>
-    o.AddPolicy(ApiKeyPolicy, p => p.RequireAuthenticatedUser()));
-
 var app = builder.Build();
-
-app.UseAuthentication();
-app.UseAuthorization();
 
 // Idempotent seed — runs once if the store is empty.
 using (var scope = app.Services.CreateScope())
@@ -73,20 +59,21 @@ using (var scope = app.Services.CreateScope())
     await SeedDemoDataAsync(store, app.Environment.EnvironmentName, appName, logger);
 }
 
-// --- DbConfig admin surfaces ---
-// UI: built-in cookie login provided by Moberg.DbConfig.Ui. Form lives at
+// --- DbConfig admin surface (one call, unified) ---
+// MapDbConfigAdmin mounts:
+//   - UI at  /admin/dbconfig
+//   - API at /admin/dbconfig/api
+// Both share the same cookie (Path = /admin/dbconfig) so the React app can call its own
+// backend right after sign-in with no separate auth dance. Form lives at
 // /admin/dbconfig/login; sign in with any username + the value of Auth:Password.
-app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
     opts.UseBuiltInLogin<AppSettingsCredentialValidator>());
-
-// HTTP API: gated by the static API-key policy (X-Admin-Api-Key header).
-app.MapDbConfigHttp("/api/dbconfig").RequireAuthorization(ApiKeyPolicy);
 
 // --- Landing ---
 app.MapGet("/", () =>
     "PaymentsApi sample for db-config. Admin UI at /admin/dbconfig (browser flow uses "
     + "the built-in cookie login; sign in with any username and the value of Auth:Password "
-    + "from appsettings.json). HTTP API at /api/dbconfig (use X-Admin-Api-Key header). "
+    + "from appsettings.json). HTTP API at /admin/dbconfig/api (same cookie). "
     + "Try /api/diag/who.");
 
 // =====================================================================

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
+using DbConfig.Http;
 using DbConfig.Tests.TestData;
 using DbConfig.Ui;
 using Microsoft.AspNetCore.Builder;

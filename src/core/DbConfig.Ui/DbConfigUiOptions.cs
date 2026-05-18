@@ -1,3 +1,5 @@
+using DbConfig.Http;
+
 namespace DbConfig.Ui;
 
 /// <summary>
@@ -32,6 +34,15 @@ public class DbConfigUiOptions
     /// Sliding cookie expiry for the built-in login. Default <c>7 days</c>.
     /// </summary>
     public TimeSpan CookieExpireTimeSpan { get; set; } = TimeSpan.FromDays(7);
+
+    /// <summary>
+    /// Path scope for the auth cookie. <c>null</c> (default) = the UI prefix.
+    /// Override when the UI and the HTTP API live under a common ancestor path
+    /// (e.g. set to <c>"/admin/dbconfig"</c> when UI is at <c>/admin/dbconfig</c>
+    /// and API is at <c>/admin/dbconfig/api</c>). <c>MapDbConfigAdmin</c> sets
+    /// this automatically.
+    /// </summary>
+    public string? CookiePath { get; set; }
 
     /// <summary>
     /// Type of the <see cref="IDbConfigCredentialValidator"/> implementation

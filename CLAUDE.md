@@ -24,12 +24,19 @@
   compliance trails ("who read which secret"). The UI access-warning banner remains —
   "Configuration values may be visible to anyone with database access if they are
   not marked IsSecret."
-- **§0.3 — Authorization is opt-in via `DbConfigUiOptions`.** The package does not
-  require any auth: by default `MapDbConfigUi` and `MapDbConfigHttp` are open. Three
-  built-in options on the UI side (since v0.10.0):
+- **§0.3 — Authorization is opt-in.** The package does not require any auth: by
+  default `MapDbConfigAdmin`, `MapDbConfigUi`, and `MapDbConfigHttp` are open.
+  The recommended shape since v0.10.0 is the **unified** `MapDbConfigAdmin`
+  mount, which puts UI and HTTP API under one prefix with one shared cookie:
+  - `app.MapDbConfigAdmin("/admin/dbconfig", opts => opts.UseBuiltInLogin<T>())`
+    — UI at `/admin/dbconfig`, API at `/admin/dbconfig/api`, one cookie covers
+    both. The React app calls its own backend with no separate auth dance.
+
+  Three built-in options on the (now shared) `DbConfigUiOptions` surface:
   - `opts.UseBuiltInLogin<TValidator>()` — wires the package's cookie scheme + `/login`
-    form; consumer implements `IDbConfigCredentialValidator` and registers it in DI
-    (typically scoped) before calling `MapDbConfigUi`.
+    form; consumer implements `IDbConfigCredentialValidator` (in `DbConfig.Http`)
+    and registers it in DI (typically scoped) before calling
+    `MapDbConfigAdmin` / `MapDbConfigUi`.
   - `opts.UnauthorizedRedirectUrl = "/my-login"` — redirect browser requests to the
     consumer's own login page (combine with an `IDbConfigAuthorizationFilter` that
     checks the consumer's auth state).
@@ -38,9 +45,10 @@
     `LocalRequestsOnlyAuthorizationFilter` for dev/demo use.
 
   Hosts can still skip all of this and chain `.RequireAuthorization("policy")` on the
-  returned `RouteGroupBuilder` to compose with an existing ASP.NET Core auth pipeline —
-  the v0.9.0 pattern continues to work. `MapDbConfigHttp` still has no built-in
-  auth surface; it remains host-owned via `.RequireAuthorization(...)`.
+  returned `RouteGroupBuilder` (or the two builders inside `DbConfigAdminEndpoints`) to
+  compose with an existing ASP.NET Core auth pipeline — the v0.9.0 pattern continues
+  to work. `MapDbConfigHttp` now also accepts a configure callback that sets an
+  `IDbConfigAuthorizationFilter` directly for split-deployment scenarios.
 - **§0.4 — NEVER block on the configuration provider's first load.** ASP.NET Core builds the configuration system synchronously at host construction; the DB store MUST tolerate transient unavailability with a clear, in-process exception (`InvalidOperationException` with the connection details redacted) rather than hanging or silently returning empty values.
 - **§0.5 — NEVER let the React UI reach the database directly.** All UI traffic goes through `Moberg.DbConfig.Http`'s JSON endpoints, even in the demo host. The store abstraction is a server-only surface.
 - **§0.6 — NEVER write to a scope outside your `scopeFilter` from the same host.** When

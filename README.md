@@ -87,9 +87,14 @@ builder.AddDbConfig(b =>
     b.UseSqlServer(connectionString); // or b.UsePostgreSql(connectionString)
 });
 
-// 2. Map the API + UI
-app.MapDbConfigHttp("/api/dbconfig").RequireAuthorization("DbConfigAdmin");
-app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig");
+// 2. Map the admin surface (UI + API under one prefix, one cookie)
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+{
+    opts.UseBuiltInLogin<MyValidator>();
+});
+// → UI at  /admin/dbconfig
+// → API at /admin/dbconfig/api
 ```
 
 `AddDbConfig` is an extension on `IHostApplicationBuilder`, so it works for both
@@ -107,29 +112,20 @@ via the embedded admin UI.
 
 ### Authentication
 
-Both `MapDbConfigHttp` and `MapDbConfigUi` are open by default and return
-`RouteGroupBuilder`. Four supported patterns:
+`MapDbConfigAdmin`, `MapDbConfigHttp`, and `MapDbConfigUi` are all open by
+default and return `RouteGroupBuilder`. Five supported patterns:
 
 | Pattern | When |
 |---|---|
+| `MapDbConfigAdmin(prefix, opts => opts.UseBuiltInLogin<T>())` | Recommended — one cookie covers UI + API |
 | Open (no auth) | Private network, dev only |
 | `.RequireAuthorization("policy")` | The host already has OIDC / Windows Auth / JWT |
-| `opts.UseBuiltInLogin<TValidator>()` | Small admin sites without an existing pipeline |
+| Split prefixes + `opts.UseBuiltInLogin<T>()` | UI behind CDN, API at different origin |
 | `opts.Authorization = new MyFilter()` | Header-based, IP allowlist, custom JWT cookie |
 
-Built-in cookie login is opt-in via the new four-arg `MapDbConfigUi` overload:
-
-```csharp
-builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
-
-app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
-{
-    opts.UseBuiltInLogin<MyValidator>();
-});
-```
-
-`MapDbConfigHttp` has no built-in auth surface; gate it via
-`RequireAuthorization` or rely on an existing scheme.
+The unified `MapDbConfigAdmin` is the common case as of v0.10.0 — one call
+mounts UI and HTTP API under one prefix with one shared cookie, so the React
+app can call its own backend right after sign-in.
 
 See [Authentication & authorization](https://moberg.github.io/db-config/configuration/auth)
 for the full walkthrough.

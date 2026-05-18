@@ -25,19 +25,27 @@ builder.AddDbConfig(b =>
     b.UseSqlServer(connectionString); // or b.UsePostgreSql(connectionString)
 });
 
+// Unified admin surface: UI + HTTP API under one prefix with one cookie.
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+
 var app = builder.Build();
 
-app.MapDbConfigHttp("/api/dbconfig").RequireAuthorization("DbConfigAdmin");
-app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig");
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+{
+    opts.UseBuiltInLogin<MyValidator>();
+});
+// → UI at  /admin/dbconfig
+// → API at /admin/dbconfig/api
 
 await app.RunAsync();
 ```
 
 :::tip Authentication
-Both `MapDbConfigHttp` and `MapDbConfigUi` are **open by default** and return
-`RouteGroupBuilder`. Hosts have four options — open access, compose with the
-existing pipeline via `RequireAuthorization`, use the built-in cookie login
-(`opts.UseBuiltInLogin<TValidator>()`), or plug in a custom
+`MapDbConfigAdmin`, `MapDbConfigHttp`, and `MapDbConfigUi` are all **open by
+default** and return `RouteGroupBuilder`. Hosts have five options — open
+access, compose with the existing pipeline via `RequireAuthorization`, use
+the unified `MapDbConfigAdmin` + built-in cookie login (recommended), split
+prefixes with `opts.UseBuiltInLogin<T>()`, or plug in a custom
 `IDbConfigAuthorizationFilter`. See [Authentication & authorization](../configuration/auth.md).
 :::
 
@@ -75,17 +83,18 @@ return empty values when the database is unreachable at startup.
 With the app running, write a configuration entry using `curl`:
 
 ```bash
-curl -X PUT http://localhost:5000/api/dbconfig/MyApp/Development/Database:ConnectionString \
+curl -X PUT http://localhost:5000/admin/dbconfig/api/MyApp/Development/Database:ConnectionString \
   -H "Content-Type: application/json" \
-  -H "X-Admin-Token: your-token-here" \
+  -b "dbconfig-auth=$COOKIE" \
   -d '{"value": "Server=localhost;Database=mydb;Integrated Security=true", "isSecret": true}'
 ```
 
-The route format is `/{appName}/{environment}/{*key}`. The key segment uses `:` as the
+The route format is `/{appName}/{environment}/{*key}` under the configured API prefix
+(`/admin/dbconfig/api` when using `MapDbConfigAdmin`). The key segment uses `:` as the
 hierarchy separator (matching `IConfiguration` convention). Forward slashes in the URL
 path are normalized to `:` automatically, so
-`/api/dbconfig/MyApp/Development/Database/ConnectionString` is equivalent to the example
-above.
+`/admin/dbconfig/api/MyApp/Development/Database/ConnectionString` is equivalent to the
+example above.
 
 The request body:
 

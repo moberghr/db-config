@@ -1,3 +1,4 @@
+using DbConfig.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -58,19 +59,38 @@ public static class EndpointRouteBuilderExtensions
         var options = new DbConfigUiOptions();
         configure?.Invoke(options);
 
-        // When the consumer enables built-in cookie login, auto-wire a CookieAuthorizationFilter
-        // unless they also supplied their own. This mirrors Warp's pattern where the cookie
-        // check is the implicit authorization mechanism for the built-in flow.
-        if (options.CredentialValidatorType is not null && options.Authorization is null)
-        {
-            var protector = endpoints.ServiceProvider
-                .GetRequiredService<IDataProtectionProvider>()
-                .CreateProtector(BuiltInLoginEndpoints.ProtectorPurpose);
+        AutoWireCookieAuthFilter(endpoints, options);
 
-            options.Authorization = new CookieAuthorizationFilter(protector, options.CookieName);
+        return MapUiInternal(endpoints, prefix, apiPrefix, options);
+    }
+
+    /// <summary>
+    /// When the consumer enables built-in cookie login and didn't supply their own
+    /// authorization filter, wire up <see cref="CookieAuthorizationFilter"/> automatically.
+    /// Shared between <see cref="MapDbConfigUi(IEndpointRouteBuilder, string, string, Action{DbConfigUiOptions}?)"/>
+    /// and <see cref="MapDbConfigAdminExtensions.MapDbConfigAdmin"/>.
+    /// </summary>
+    internal static void AutoWireCookieAuthFilter(IEndpointRouteBuilder endpoints, DbConfigUiOptions options)
+    {
+        if (options.CredentialValidatorType is null || options.Authorization is not null)
+        {
+            return;
         }
 
-        var middleware = new EmbeddedStaticFileMiddleware(apiPrefix);
+        var protector = endpoints.ServiceProvider
+            .GetRequiredService<IDataProtectionProvider>()
+            .CreateProtector(BuiltInLoginEndpoints.ProtectorPurpose);
+
+        options.Authorization = new CookieAuthorizationFilter(protector, options.CookieName);
+    }
+
+    internal static RouteGroupBuilder MapUiInternal(
+        IEndpointRouteBuilder endpoints,
+        string prefix,
+        string apiPrefix,
+        DbConfigUiOptions options)
+    {
+        var middleware = new EmbeddedStaticFileMiddleware(prefix, apiPrefix);
         var group = endpoints.MapGroup(prefix);
 
         // Auth filter runs first for every endpoint in the group. When no Authorization is

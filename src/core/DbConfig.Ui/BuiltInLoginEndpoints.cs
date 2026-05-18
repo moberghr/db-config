@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Encodings.Web;
+using DbConfig.Http;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,7 +70,7 @@ internal static class BuiltInLoginEndpoints
             HttpOnly = true,
             SameSite = SameSiteMode.Strict,
             Secure = context.Request.IsHttps,
-            Path = prefix,
+            Path = options.CookiePath ?? prefix,
             Expires = DateTimeOffset.UtcNow.Add(options.CookieExpireTimeSpan),
         });
 
@@ -83,7 +84,7 @@ internal static class BuiltInLoginEndpoints
             HttpOnly = true,
             SameSite = SameSiteMode.Strict,
             Secure = context.Request.IsHttps,
-            Path = prefix,
+            Path = options.CookiePath ?? prefix,
         });
         context.Response.Redirect($"{prefix}/login");
 

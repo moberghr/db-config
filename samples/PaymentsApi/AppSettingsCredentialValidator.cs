@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using DbConfig.Ui;
+using DbConfig.Http;
 
 namespace PaymentsApi;
 

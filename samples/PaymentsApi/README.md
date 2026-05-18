@@ -1,9 +1,9 @@
 # PaymentsApi — db-config feature showcase
 
-> **NOT FOR PRODUCTION.** Built-in cookie login for the UI (single shared
-> password from `appsettings.json`), static API-key header for the HTTP API,
-> mocked Stripe integration, ephemeral Data Protection key ring. This is a
-> runnable demo, not a hardened service.
+> **NOT FOR PRODUCTION.** Built-in cookie login covers both the UI and the
+> HTTP API under a single unified mount (`MapDbConfigAdmin`), single shared
+> password from `appsettings.json`, mocked Stripe integration, ephemeral
+> Data Protection key ring. This is a runnable demo, not a hardened service.
 
 A multi-tenant SaaS that processes Stripe payments on behalf of merchants.
 Each merchant (tenant) has their own Stripe account. Some config is global
@@ -25,10 +25,11 @@ redeploy needed.
   debuggability.
 - **Audit log** writing one row per Insert/Update/Delete in the SAME
   transaction as the mutation. Visible via the UI's per-row History button.
-- **`MapDbConfigUi` + `MapDbConfigHttp`** mounted under `/admin/dbconfig` and
-  `/api/dbconfig`. The UI uses db-config's built-in cookie login
-  (`opts.UseBuiltInLogin<AppSettingsCredentialValidator>()`); the HTTP API
-  uses a host-owned `ApiKey` policy for curl/Postman access.
+- **`MapDbConfigAdmin`** mounts both the admin UI and HTTP API under a single
+  prefix (`/admin/dbconfig` and `/admin/dbconfig/api`). One built-in cookie
+  login (`opts.UseBuiltInLogin<AppSettingsCredentialValidator>()`) gates both
+  surfaces — the React app calls its own backend right after sign-in with no
+  extra auth dance.
 - **Live reload** through the polling provider (5s interval here) — change a
   value in the admin UI, see the next request resolve to the new value
   without a redeploy.
@@ -48,10 +49,12 @@ dotnet run
 
 Open `http://localhost:5000/admin/dbconfig` in a browser — the built-in
 cookie login form (`/admin/dbconfig/login`) appears. Sign in with any
-username and the password `demo-admin-key-12345` (value of
-`Auth:Password`). For curl/Postman the HTTP API at `/api/dbconfig` accepts
-`X-Admin-Api-Key: demo-admin-key-12345`. The store seeds itself with ~14
-entries on first boot — global defaults plus two tenants (`Acme`, `Globex`).
+username and the password `demo-admin-key-12345` (value of `Auth:Password`).
+The HTTP API lives at `/admin/dbconfig/api` and is covered by the same
+cookie. For curl/Postman: either sign in via the browser first and reuse
+the cookie, or wire your own auth scheme onto the route group with
+`.RequireAuthorization(...)`. The store seeds itself with ~14 entries on
+first boot — global defaults plus two tenants (`Acme`, `Globex`).
 
 ## Try these requests
 
@@ -139,9 +142,8 @@ Behind the scenes:
 | `ITenantResolver` (X-Tenant-Id header) | `HeaderTenantResolver.cs` |
 | `AddDbConfig` (single-call wireup) | `Program.cs` ~line 25 |
 | `IOptionsSnapshot<T>` registrations | `Program.cs` ~line 35 |
-| UI admin auth (built-in cookie login) | `AppSettingsCredentialValidator.cs` |
-| HTTP API admin auth (`X-Admin-Api-Key`) | `ApiKeyHandler.cs` |
-| Mounted DbConfig HTTP + UI | `Program.cs` ~line 80 |
+| Unified admin auth (built-in cookie login) | `AppSettingsCredentialValidator.cs` |
+| Mounted DbConfig admin (UI + API) | `Program.cs` `app.MapDbConfigAdmin(...)` |
 | Demo data seed (idempotent) | `Program.cs` `SeedDemoDataAsync` |
 | Business endpoints | `Program.cs` `/api/charges`, `/api/refunds`, `/webhooks/stripe`, `/api/diag/*` |
 | Typed options | `Options/*.cs` |
@@ -151,10 +153,9 @@ Behind the scenes:
 - No real Stripe integration — `/api/charges`, `/api/refunds`, and
   `/webhooks/stripe` are mocked. Real code would use `Stripe-Signature`
   HMAC verification and a `StripeClient`.
-- Business endpoints are UNAUTHENTICATED. Only the admin surfaces
-  (`/admin/dbconfig` cookie-gated, `/api/dbconfig` ApiKey-gated) are
-  protected. Wire your own auth on the business endpoints before doing
-  anything real.
+- Business endpoints are UNAUTHENTICATED. Only the admin surfaces under
+  `/admin/dbconfig` (UI + `/admin/dbconfig/api`) are cookie-gated. Wire your
+  own auth on the business endpoints before doing anything real.
 - The Data Protection key ring is ephemeral and process-scoped. Restarting
   the host invalidates all existing ciphertext. For multi-instance or
   restart-stable encryption, call
