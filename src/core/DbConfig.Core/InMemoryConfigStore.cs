@@ -431,6 +431,52 @@ public sealed class InMemoryConfigStore : IConfigStore
         }
     }
 
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+        string? appName,
+        string? environment,
+        string? tenantId,
+        string? keyPrefix,
+        int take,
+        CancellationToken ct)
+    {
+        lock (_lock)
+        {
+            var query = _entries.Values.AsEnumerable();
+
+            if (appName is not null)
+            {
+                query = query.Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (environment is not null)
+            {
+                query = query.Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (tenantId is not null)
+            {
+                query = query.Where(x => string.Equals(x.TenantId, tenantId, StringComparison.Ordinal));
+            }
+
+            if (keyPrefix is not null)
+            {
+                query = query.Where(x => x.Key.StartsWith(keyPrefix, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var result = query
+                .OrderBy(x => x.AppName, StringComparer.Ordinal)
+                .ThenBy(x => x.Environment, StringComparer.Ordinal)
+                .ThenBy(x => x.TenantId, StringComparer.Ordinal)
+                .ThenBy(x => x.Key, StringComparer.Ordinal)
+                .Take(take)
+                .Select(DecryptEntry)
+                .ToList();
+
+            return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
+        }
+    }
+
     private ConfigEntry EncryptEntry(ConfigEntry entry)
     {
         if (!entry.IsSecret || entry.Value is null)

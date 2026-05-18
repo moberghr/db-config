@@ -518,5 +518,9 @@ public sealed class TypeMappedEncryptorTests
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
             IReadOnlyList<string> appNames, string environment, CancellationToken ct)
             => GetLatestModifiedUtcScopedAsync(appNames, environment, ct);
+
+        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+            string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => throw new NotSupportedException("RawValueStore does not implement QueryAsync.");
     }
 }

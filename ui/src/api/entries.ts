@@ -35,6 +35,14 @@ export interface UpsertEntryRequest {
   tenantId?: string
 }
 
+export interface EntriesQuery {
+  appName?: string
+  environment?: string
+  tenantId?: string
+  keyPrefix?: string
+  take?: number
+}
+
 // ============================================================
 // Demo-client lazy initialisation
 //
@@ -60,6 +68,30 @@ function encodeKey(key: string): string {
 // ============================================================
 // Public API — same signatures as before; callers see no change
 // ============================================================
+
+/**
+ * Flat-query the entries API root with optional filters.
+ *
+ * Used by the admin UI on first paint to show "all entries" without requiring
+ * AppName + Environment input. Each non-empty field of `q` narrows the result
+ * server-side (AND semantics). Empty `q` returns everything (capped by the
+ * server's default take of 1000).
+ */
+export async function queryEntries(q: EntriesQuery = {}): Promise<ConfigEntry[]> {
+  if (isDemoMode) {
+    const client = await getDemoClient()
+    return client.queryEntries(q)
+  }
+  const params = new URLSearchParams()
+  if (q.appName) params.set('appName', q.appName)
+  if (q.environment) params.set('environment', q.environment)
+  if (q.tenantId) params.set('tenantId', q.tenantId)
+  if (q.keyPrefix) params.set('keyPrefix', q.keyPrefix)
+  if (q.take) params.set('take', String(q.take))
+  const qs = params.toString()
+  const response = await api.get<ConfigEntry[]>(qs ? `/?${qs}` : '/')
+  return response.data
+}
 
 export async function listEntries(app: string, env: string, includeScopes?: string[], tenantId?: string, allTenants?: boolean): Promise<ConfigEntry[]> {
   if (isDemoMode) {

@@ -11,7 +11,7 @@
  * running backend.
  */
 
-import type { ConfigEntry, ConfigAuditEntry, ConfigAuditAction } from '@/api/entries'
+import type { ConfigEntry, ConfigAuditEntry, ConfigAuditAction, EntriesQuery } from '@/api/entries'
 import { DEMO_ENTRIES, DEMO_AUDIT_HISTORY } from './data'
 
 // ============================================================
@@ -19,6 +19,7 @@ import { DEMO_ENTRIES, DEMO_AUDIT_HISTORY } from './data'
 // ============================================================
 
 export interface DemoClient {
+  queryEntries(q: EntriesQuery): Promise<ConfigEntry[]>
   listEntries(app: string, env: string, includeScopes?: string[], tenantId?: string, allTenants?: boolean): Promise<ConfigEntry[]>
   getEntry(app: string, env: string, key: string, tenantId?: string): Promise<ConfigEntry | null>
   upsertEntry(app: string, env: string, key: string, value: string | null, isSecret: boolean, tenantId?: string): Promise<{ data: ConfigEntry; status: number; headers: Record<string, string> }>
@@ -75,6 +76,29 @@ export function createDemoClient(): DemoClient {
    * If allTenants is true, return all entries regardless of tenant.
    * Default (no tenantId, no allTenants): return global-default (tenantId === '') entries only.
    */
+  // Mirror the server's flat-query semantics: AND across filters, default take=1000,
+  // case-insensitive keyPrefix, ordered by (AppName, Environment, TenantId, Key) ascending.
+  async function queryEntries(q: EntriesQuery): Promise<ConfigEntry[]> {
+    const take = q.take ?? 1000
+    const cappedTake = Math.min(Math.max(take, 1), 10000)
+    const keyPrefixLower = q.keyPrefix ? q.keyPrefix.toLowerCase() : null
+    const result: ConfigEntry[] = []
+    for (const entry of entries.values()) {
+      if (q.appName && entry.appName.toLowerCase() !== q.appName.toLowerCase()) continue
+      if (q.environment && entry.environment.toLowerCase() !== q.environment.toLowerCase()) continue
+      if (q.tenantId !== undefined && entry.tenantId !== q.tenantId) continue
+      if (keyPrefixLower && !entry.key.toLowerCase().startsWith(keyPrefixLower)) continue
+      result.push({ ...entry })
+    }
+    result.sort((a, b) =>
+      a.appName.localeCompare(b.appName)
+      || a.environment.localeCompare(b.environment)
+      || a.tenantId.localeCompare(b.tenantId)
+      || a.key.localeCompare(b.key)
+    )
+    return result.slice(0, cappedTake)
+  }
+
   async function listEntries(app: string, env: string, includeScopes?: string[], tenantId?: string, allTenants?: boolean): Promise<ConfigEntry[]> {
     const scopeOrder: string[] = [...(includeScopes ?? []), app]
     const result: ConfigEntry[] = []
@@ -170,5 +194,5 @@ export function createDemoClient(): DemoClient {
       .map((a) => ({ ...a }))
   }
 
-  return { listEntries, getEntry, upsertEntry, deleteEntry, triggerReload, getAuditHistory }
+  return { queryEntries, listEntries, getEntry, upsertEntry, deleteEntry, triggerReload, getAuditHistory }
 }

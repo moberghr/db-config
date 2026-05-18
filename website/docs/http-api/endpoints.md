@@ -11,6 +11,7 @@ return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp`.
 
 | Method | Path | Body | Success | Description |
 |--------|------|------|---------|-------------|
+| `GET` | `/` | — | 200 / 403 | Flat-query all entries with optional filters |
 | `GET` | `/{appName}/{environment}` | — | 200 | List all entries for a scope |
 | `GET` | `/{appName}/{environment}/{*key}` | — | 200 / 404 | Get a single entry |
 | `PUT` | `/{appName}/{environment}/{*key}` | `UpsertEntryRequest` | 204 | Create or update an entry |
@@ -20,6 +21,44 @@ return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp`.
 
 All paths are relative to the prefix passed to `MapDbConfigHttp`. With prefix
 `/api/dbconfig`, the list endpoint is `GET /api/dbconfig/MyApp/Production`.
+
+## `GET /` — flat query (v0.10.0+)
+
+Returns every entry across all apps, environments, and tenants with optional
+query-string filters. Used by the admin UI on first paint so operators see data
+immediately without having to enter `AppName` + `Environment` first.
+
+**Optional query string filters (AND semantics — each narrows the result):**
+
+| Param | Behaviour |
+|---|---|
+| `appName` | Equality match on `AppName` |
+| `environment` | Equality match on `Environment` |
+| `tenantId` | Case-sensitive equality on `TenantId`. Empty string matches global defaults |
+| `keyPrefix` | Case-insensitive `StartsWith` match on `Key` |
+| `take` | Result cap. Default `1000`, max `10000`. Out-of-range values are clamped |
+
+**Ordering:** `(AppName, Environment, TenantId, Key)` ascending. Stable across
+repeated calls with the same data — safe for paging.
+
+**Scope filter:** when the group was mounted with `MapDbConfigHttp(scopeFilter: "X")`,
+the endpoint forces `appName=X`. A caller-supplied `appName` that mismatches the filter
+returns `403 Forbidden`; an omitted `appName` is silently substituted with the filter.
+
+**Response:** `200 OK` with a JSON array of `ConfigEntry` (empty array when no rows
+match — never `404`). Secret entries are returned **decrypted** in plaintext, just
+like the existing single-key `GET` endpoint.
+
+```bash
+# All entries (capped at 1000)
+curl http://localhost:5000/api/dbconfig/
+
+# Narrow by app + key prefix
+curl "http://localhost:5000/api/dbconfig/?appName=MyApp&keyPrefix=Stripe:"
+
+# Per-tenant view
+curl "http://localhost:5000/api/dbconfig/?tenantId=Acme&take=50"
+```
 
 ## `GET /{appName}/{environment}` — list entries
 

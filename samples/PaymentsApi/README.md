@@ -50,9 +50,12 @@ dotnet run
 Open `http://localhost:5000/admin/dbconfig` in a browser — the built-in
 cookie login form (`/admin/dbconfig/login`) appears. Sign in with any
 username and the password `demo-admin-key-12345` (value of `Auth:Password`).
-The HTTP API lives at `/admin/dbconfig/api` and is covered by the same
-cookie. For curl/Postman: either sign in via the browser first and reuse
-the cookie, or wire your own auth scheme onto the route group with
+**The UI loads all entries immediately after sign-in** (no AppName +
+Environment input required as of v0.10.0). Use the toolbar filter fields
+to narrow by AppName, Environment, or Tenant when needed. The HTTP API
+lives at `/admin/dbconfig/api` and is covered by the same cookie. For
+curl/Postman: either sign in via the browser first and reuse the cookie,
+or wire your own auth scheme onto the route group with
 `.RequireAuthorization(...)`. The store seeds itself with ~14 entries on
 first boot — global defaults plus two tenants (`Acme`, `Globex`).
 
@@ -122,8 +125,10 @@ curl http://localhost:5000/api/diag/who -H "X-Tenant-Id: Acme"
 ## Live reload demo
 
 1. Open `http://localhost:5000/admin/dbconfig` (sign in via the built-in cookie form).
-2. Switch the scope dropdown to `Acme`.
-3. Edit `Stripe:DefaultCurrency` from `EUR` to `GBP` and save.
+   The UI loads every entry — global defaults plus the `Acme` and `Globex` tenant rows.
+2. Find the `Stripe:DefaultCurrency` entry in the `Acme` tenant row (sortable by tenant
+   column, or filter via the toolbar with `Tenant: Acme`).
+3. Edit it from `EUR` to `GBP` and save.
 4. Re-run the Acme charge curl above within ~5s.
 5. Response now shows `currency: "GBP"` — no redeploy, no process restart.
 

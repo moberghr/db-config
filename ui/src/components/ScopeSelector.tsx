@@ -32,18 +32,21 @@ export function ScopeSelector() {
     if (e.key === 'Enter') handleSwitch()
   }
 
+  const isFilteringAll = !localApp.trim() && !localEnv.trim()
+
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <label className="text-sm font-medium text-muted-foreground" htmlFor="scope-app">
-        App:
+        Filter App:
       </label>
       <Input
         id="scope-app"
         value={localApp}
         onChange={(e) => setLocalApp(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="MyApp"
+        placeholder="(all)"
         className="w-40"
+        title="Filter by AppName — leave empty to show entries from every app"
       />
       <label className="text-sm font-medium text-muted-foreground" htmlFor="scope-env">
         Env:
@@ -53,8 +56,9 @@ export function ScopeSelector() {
         value={localEnv}
         onChange={(e) => setLocalEnv(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Production"
+        placeholder="(all)"
         className="w-40"
+        title="Filter by Environment — leave empty to show entries from every environment"
       />
       <label className="text-sm font-medium text-muted-foreground" htmlFor="scope-tenant">
         Tenant:
@@ -64,7 +68,7 @@ export function ScopeSelector() {
         value={localTenant}
         onChange={(e) => setLocalTenant(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Global defaults"
+        placeholder="(global defaults)"
         className="w-40"
         title="Tenant identifier — leave empty for global defaults"
       />
@@ -78,11 +82,14 @@ export function ScopeSelector() {
         onKeyDown={handleKeyDown}
         placeholder="Shared, PlatformDefaults"
         className="w-52"
-        title="Comma-separated list of additional scopes to include"
+        title="Comma-separated list of additional scopes to include (requires App + Env)"
       />
       <Button onClick={handleSwitch} size="sm">
-        Switch
+        Apply
       </Button>
+      {isFilteringAll ? (
+        <span className="text-xs text-muted-foreground italic">showing all entries</span>
+      ) : null}
     </div>
   )
 }

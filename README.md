@@ -35,7 +35,9 @@ docker compose up -d
 dotnet run
 ```
 
-Then open `http://localhost:5000/admin/dbconfig`.
+Then open `http://localhost:5000/admin/dbconfig` — the UI loads all your
+entries immediately and the filter fields in the toolbar narrow by
+AppName, Environment, or Tenant.
 
 ## Security
 

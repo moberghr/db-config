@@ -70,10 +70,14 @@ app.MapDbConfigAdmin("/admin/dbconfig", opts =>
     opts.UseBuiltInLogin<AppSettingsCredentialValidator>());
 
 // --- Landing ---
+// The admin UI now loads every entry across all apps + environments + tenants on first paint
+// (via the flat /admin/dbconfig/api/ endpoint added in v0.10.0). Operators can narrow with the
+// optional filter fields in the toolbar — useful for production hosts with many apps.
 app.MapGet("/", () =>
-    "PaymentsApi sample for db-config. Admin UI at /admin/dbconfig (browser flow uses "
-    + "the built-in cookie login; sign in with any username and the value of Auth:Password "
-    + "from appsettings.json). HTTP API at /admin/dbconfig/api (same cookie). "
+    "PaymentsApi sample for db-config. Admin UI at /admin/dbconfig (loads all entries "
+    + "immediately after sign-in — no AppName/Environment input required). Browser flow "
+    + "uses the built-in cookie login; sign in with any username and the value of "
+    + "Auth:Password from appsettings.json. HTTP API at /admin/dbconfig/api (same cookie). "
     + "Try /api/diag/who.");
 
 // =====================================================================

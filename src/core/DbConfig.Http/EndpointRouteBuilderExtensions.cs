@@ -1,7 +1,10 @@
+using DbConfig.Core;
 using DbConfig.Http.Endpoints;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 
 namespace DbConfig.Http;
 
@@ -94,6 +97,37 @@ public static class EndpointRouteBuilderExtensions
                 return await next(context);
             });
         }
+
+        // Flat-query endpoint at the group root. Closure-captures the scopeFilter so the
+        // endpoint can enforce it without depending on the route-level filter (which runs
+        // off the {appName} route value — absent here because we use query strings).
+        var capturedScopeFilter = options.ScopeFilter;
+        group.MapGet("/", (
+            HttpContext httpContext,
+            [FromQuery] string? appName,
+            [FromQuery] string? environment,
+            [FromQuery] string? tenantId,
+            [FromQuery] string? keyPrefix,
+            [FromQuery] int? take,
+            IConfigStore store,
+            [FromServices] IConfigAuditStore? auditStore,
+            [FromServices] DbConfigOptions? dbOptions,
+            [FromServices] ILogger<QueryEntriesEndpointMarker>? logger,
+            [FromServices] TimeProvider? timeProvider,
+            CancellationToken ct) => QueryEntriesEndpoint.HandleAsync(
+                httpContext,
+                appName,
+                environment,
+                tenantId,
+                keyPrefix,
+                take,
+                store,
+                capturedScopeFilter,
+                auditStore,
+                dbOptions,
+                logger,
+                timeProvider,
+                ct));
 
         group.MapGet("/{appName}/{environment}", ListEntriesEndpoint.HandleAsync);
         group.MapGet("/{appName}/{environment}/audit/{**key}", GetAuditHistoryEndpoint.HandleAsync);

@@ -247,5 +247,9 @@ public sealed class ReloadFailureResilienceTests
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
             IReadOnlyList<string> appNames, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(appNames, environment, ct);
+
+        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+            string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => _inner.QueryAsync(appName, environment, tenantId, keyPrefix, take, ct);
     }
 }

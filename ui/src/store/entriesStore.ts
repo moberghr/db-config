@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { ConfigEntry } from '@/api/entries'
 import {
   listEntries,
+  queryEntries,
   upsertEntry,
   deleteEntry,
   triggerReload,
@@ -31,6 +32,23 @@ interface EntriesState {
   clearSelection: () => void
 }
 
+async function reloadEntriesForCurrentScope(): Promise<ConfigEntry[]> {
+  const { appName, environment, includeScopes, tenantId } = useScopeStore.getState()
+  if (!appName || !environment) {
+    return queryEntries({
+      appName: appName || undefined,
+      environment: environment || undefined,
+      tenantId: tenantId || undefined,
+    })
+  }
+  return listEntries(
+    appName,
+    environment,
+    includeScopes.length > 0 ? includeScopes : undefined,
+    tenantId || undefined
+  )
+}
+
 export const useEntriesStore = create<EntriesState>((set) => ({
   entries: [],
   loading: false,
@@ -43,18 +61,25 @@ export const useEntriesStore = create<EntriesState>((set) => ({
     const environment = overrides?.environment ?? storeState.environment
     const includeScopes = overrides?.includeScopes ?? storeState.includeScopes
     const tenantId = overrides?.tenantId ?? storeState.tenantId
-    if (!appName || !environment) {
-      set({ entries: [], error: null })
-      return
-    }
     set({ loading: true, error: null })
     try {
-      const entries = await listEntries(
-        appName,
-        environment,
-        includeScopes.length > 0 ? includeScopes : undefined,
-        tenantId || undefined
-      )
+      let entries
+      if (!appName || !environment) {
+        // No scope chosen — flat query everything (server caps at 1000 rows by default).
+        // The toolbar fields become optional filters instead of required preconditions.
+        entries = await queryEntries({
+          appName: appName || undefined,
+          environment: environment || undefined,
+          tenantId: tenantId || undefined,
+        })
+      } else {
+        entries = await listEntries(
+          appName,
+          environment,
+          includeScopes.length > 0 ? includeScopes : undefined,
+          tenantId || undefined
+        )
+      }
       set({ entries, loading: false })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load entries'
@@ -63,45 +88,27 @@ export const useEntriesStore = create<EntriesState>((set) => ({
   },
 
   upsert: async (key, value, isSecret, targetAppName, tenantId) => {
-    const { appName, environment, includeScopes, tenantId: scopeTenantId } = useScopeStore.getState()
+    const { appName, environment, tenantId: scopeTenantId } = useScopeStore.getState()
     const scopeToWrite = targetAppName ?? appName
     const resolvedTenantId = tenantId ?? scopeTenantId
     await upsertEntry(scopeToWrite, environment, key, value, isSecret, resolvedTenantId || undefined)
-    const entries = await listEntries(
-      appName,
-      environment,
-      includeScopes.length > 0 ? includeScopes : undefined,
-      scopeTenantId || undefined
-    )
+    const entries = await reloadEntriesForCurrentScope()
     set({ entries })
   },
 
   remove: async (key, targetAppName, tenantId) => {
-    const { appName, environment, includeScopes, tenantId: scopeTenantId } = useScopeStore.getState()
+    const { appName, environment, tenantId: scopeTenantId } = useScopeStore.getState()
     const scopeToDelete = targetAppName ?? appName
     const resolvedTenantId = tenantId ?? scopeTenantId
     await deleteEntry(scopeToDelete, environment, key, resolvedTenantId || undefined)
-    const entries = await listEntries(
-      appName,
-      environment,
-      includeScopes.length > 0 ? includeScopes : undefined,
-      scopeTenantId || undefined
-    )
+    const entries = await reloadEntriesForCurrentScope()
     set({ entries })
   },
 
   reload: async () => {
-    const { appName, environment, includeScopes, tenantId } = useScopeStore.getState()
     await triggerReload()
-    if (appName && environment) {
-      const entries = await listEntries(
-        appName,
-        environment,
-        includeScopes.length > 0 ? includeScopes : undefined,
-        tenantId || undefined
-      )
-      set({ entries })
-    }
+    const entries = await reloadEntriesForCurrentScope()
+    set({ entries })
   },
 
   toggleSelection: (compositeKey) => set((state) => {

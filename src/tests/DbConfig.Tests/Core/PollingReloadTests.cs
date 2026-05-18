@@ -239,6 +239,10 @@ public sealed class PollingReloadTests
             _nextCallTcs?.TrySetResult(true);
             return result;
         }
+
+        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+            string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => _inner.QueryAsync(appName, environment, tenantId, keyPrefix, take, ct);
     }
 
     [TimedFact]

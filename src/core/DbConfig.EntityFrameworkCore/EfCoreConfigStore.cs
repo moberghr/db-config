@@ -533,6 +533,74 @@ public sealed class EfCoreConfigStore : IConfigStore
         return new DateTimeOffset(latestModifiedUtc.Value, TimeSpan.Zero);
     }
 
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+        string? appName,
+        string? environment,
+        string? tenantId,
+        string? keyPrefix,
+        int take,
+        CancellationToken ct)
+    {
+        await using var context = await _factory.CreateDbContextAsync(ct);
+
+        var query = context.ConfigEntries
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (appName is not null)
+        {
+            // Server-side equality. Matches the existing EF Core convention in this store
+            // (GetAllAsync, GetAsync, etc.) — the columns carry case-sensitive collation
+            // post-v0.5.0, so this comparison is effectively ordinal. The InMemory store
+            // uses OrdinalIgnoreCase for parity with the legacy app-name convention; the
+            // discrepancy is documented in §8.14 and aligns with how real production
+            // databases would resolve the lookup.
+            query = query.Where(x => x.AppName == appName);
+        }
+
+        if (environment is not null)
+        {
+            query = query.Where(x => x.Environment == environment);
+        }
+
+        if (tenantId is not null)
+        {
+            // Tenants are case-sensitive (§8.14). Use the column's native collation.
+            query = query.Where(x => x.TenantId == tenantId);
+        }
+
+        if (keyPrefix is not null)
+        {
+            // Use EF.Functions.Like to issue a server-side LIKE 'prefix%'. The Key column
+            // post-v0.5.0 carries a case-sensitive collation; the InMemory store does
+            // OrdinalIgnoreCase prefix-matching, so callers that need strict UI parity
+            // must lowercase their seed data. See §8.14.
+            var pattern = EscapeLikePattern(keyPrefix) + "%";
+            query = query.Where(x => EF.Functions.Like(x.Key, pattern));
+        }
+
+        var entities = await query
+            .OrderBy(x => x.AppName)
+            .ThenBy(x => x.Environment)
+            .ThenBy(x => x.TenantId)
+            .ThenBy(x => x.Key)
+            .Take(take)
+            .Select(x =>
+                new ConfigEntry(
+                    x.AppName,
+                    x.Environment,
+                    x.TenantId,
+                    x.Key,
+                    x.Value,
+                    x.IsSecret,
+                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedBy))
+            .ToListAsync(ct);
+
+        return [.. entities.Select(DecryptEntry)];
+    }
+
     private ConfigEntry DecryptEntry(ConfigEntry entry)
     {
         if (!entry.IsSecret || entry.Value is null)
@@ -541,6 +609,21 @@ public sealed class EfCoreConfigStore : IConfigStore
         }
 
         return entry with { Value = _encryptor.Unprotect(entry.Value) };
+    }
+
+    /// <summary>
+    /// Escapes the SQL LIKE wildcard characters (<c>%</c> and <c>_</c>) so a caller-supplied
+    /// prefix string is matched literally. EF Core does not auto-escape LIKE input.
+    /// </summary>
+    private static string EscapeLikePattern(string input)
+    {
+        // Order matters: escape backslash first so we don't double-escape the escapes below.
+        // Then escape the wildcard characters. The resulting pattern is paired with EF.Functions.Like
+        // which uses ESCAPE '\' by convention on both providers.
+        return input
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
     }
 
     private static ConfigAuditEntryEntity BuildAuditEntity(
