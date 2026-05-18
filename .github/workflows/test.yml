@@ -49,6 +49,14 @@ jobs:
         working-directory: ui
         run: npm ci
 
+      # Must run before `dotnet build` — the EmbeddedResource glob in DbConfig.Ui.csproj
+      # is evaluated at MSBuild project-load time. If ui/dist/ doesn't exist by then,
+      # the glob matches nothing and the embedded React bundle is empty, breaking the
+      # UI static-asset serving tests.
+      - name: Build UI bundle
+        working-directory: ui
+        run: npm run build
+
       - name: Restore
         working-directory: src
         run: dotnet restore tests/DbConfig.Tests/DbConfig.Tests.csproj
