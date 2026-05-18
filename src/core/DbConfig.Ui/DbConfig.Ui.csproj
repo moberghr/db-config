@@ -16,9 +16,9 @@
     <EmbeddedResource Include="dist/**/*" />
   </ItemGroup>
 
-  <!-- Rebuild React UI before embedding. Auto-bootstraps node_modules on first build so
-       checking out the repo + building doesn't require a separate npm install step.
-       Skipped when ../../../ui doesn't exist yet (e.g. early scaffold state). -->
+  <!-- Rebuild React UI before embedding. Vite writes directly into this project's dist/
+       folder (configured in ui/vite.config.ts → outDir). Auto-bootstraps node_modules so
+       a fresh checkout + dotnet build does not require a separate npm install step. -->
   <Target Name="InstallUI"
           BeforeTargets="BuildUI"
           Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)../../../ui/package.json') And !Exists('$(ProjectDir)../../../ui/node_modules')">
@@ -26,21 +26,9 @@
   </Target>
 
   <Target Name="BuildUI"
-          BeforeTargets="CopyUIOutput"
+          BeforeTargets="BeforeBuild"
           Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)../../../ui/package.json')">
     <Exec Command="npm run build" WorkingDirectory="$(ProjectDir)../../../ui" />
-  </Target>
-
-  <!-- Copy the Vite output into dist/ next to the csproj so EmbeddedResource glob picks it up. -->
-  <Target Name="CopyUIOutput"
-          BeforeTargets="BeforeBuild"
-          Condition="Exists('$(ProjectDir)../../../ui/dist')">
-    <ItemGroup>
-      <UIDistFiles Include="$(ProjectDir)../../../ui/dist/**/*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(UIDistFiles)"
-          DestinationFiles="@(UIDistFiles->'$(ProjectDir)dist/%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
   </Target>
 
   <ItemGroup>

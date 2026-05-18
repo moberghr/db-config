@@ -17,7 +17,9 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist',
+    // Write directly into the DbConfig.Ui project so MSBuild's static EmbeddedResource
+    // glob picks the bundle up at project-load time. Mirrors Warp's pattern.
+    outDir: '../src/core/DbConfig.Ui/dist',
     emptyOutDir: true,
   },
   server: {
