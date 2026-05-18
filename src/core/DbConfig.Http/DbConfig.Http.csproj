@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>Moberg.DbConfig.Http</PackageId>
+    <Title>Moberg.DbConfig (HTTP)</Title>
+    <Description>Minimal-API HTTP endpoints for DbConfig: CRUD over config entries, per-scope authorization composition (scopeFilter), read/write audit log endpoints, in-process reload signal. Host-owned identity and policy — package ships no auth attributes.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbConfig.Core\DbConfig.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbConfig.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,265 @@
+{
+  "spec_path": "docs/specs/2026-05-17-v0.4.0-shared-scopes.md",
+  "plan_path": "docs/plans/2026-05-17-v0.4.0-shared-scopes.md",
+  "todo_path": "tasks/todo.md",
+  "scope_classification": "substantial",
+  "security_impact": "low-medium",
+  "open_decisions": [],
+  "out_of_scope": [
+    "Parent/inheritance column (Option C)",
+    "Visibility tags (Option D)",
+    "Cross-environment sharing",
+    "Automatic shared-scope discovery",
+    "At-rest encryption (still v0.5.0+)"
+  ],
+  "public_contracts": [
+    "DbConfig.Core: DbConfigOptions.IncludeScopes (new IReadOnlyList<string>); IConfigStore.GetAllScopedAsync (new required); IConfigStore.GetLatestModifiedUtcScopedAsync (new required)",
+    "DbConfig.Http: MapDbConfigHttp gains optional scopeFilter parameter; ListEntriesEndpoint accepts ?includeScopes query string"
+  ],
+  "change_manifest": [
+    "src/core/DbConfig.Core/DbConfigOptions.cs",
+    "src/core/DbConfig.Core/IConfigStore.cs",
+    "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+    "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs",
+    "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+    "src/core/DbConfig.Http/EndpointRouteBuilderExtensions.cs",
+    "src/core/DbConfig.Http/Endpoints/ListEntriesEndpoint.cs",
+    "ui/src/api/client.ts",
+    "ui/src/api/entries.ts",
+    "ui/src/store/scopeStore.ts",
+    "ui/src/store/entriesStore.ts",
+    "ui/src/components/EntriesTable.tsx",
+    "ui/src/components/ViewModeToggle.tsx",
+    "ui/src/components/CreateEntryDialog.tsx",
+    "ui/src/components/ScopeSelector.tsx",
+    "ui/src/pages/EntriesPage.tsx",
+    "src/tests/DbConfig.Tests/Core/IncludeScopesPrecedenceTests.cs",
+    "src/tests/DbConfig.Tests/Core/InMemoryStoreScopedTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreScopedTests.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreScopedTests.cs",
+    "src/tests/DbConfig.Tests/Http/ListEndpointIncludeScopesTests.cs",
+    "src/tests/DbConfig.Tests/Http/MapDbConfigHttpScopeFilterTests.cs",
+    "README.md",
+    ".claude/rules/architecture.md",
+    ".claude/rules/project-specific.md",
+    "CLAUDE.md",
+    "tasks/lessons.md",
+    "tasks/todo.md"
+  ],
+  "plan": {
+    "batches": [
+      {
+        "id": "B15",
+        "title": "Core: IncludeScopes + scoped IConfigStore methods + polling merge",
+        "files": [
+          "src/core/DbConfig.Core/DbConfigOptions.cs",
+          "src/core/DbConfig.Core/IConfigStore.cs",
+          "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs",
+          "src/tests/DbConfig.Tests/Core/IncludeScopesPrecedenceTests.cs",
+          "src/tests/DbConfig.Tests/Core/InMemoryStoreScopedTests.cs"
+        ],
+        "acceptance": [
+          "DbConfigOptions.IncludeScopes default empty; non-empty triggers scoped polling",
+          "Polling loop merges entries lowest-precedence-first; own AppName last (wins ties)",
+          "Watermark reload triggers on any included scope's ModifiedUtc advance",
+          "Test doubles (FaultyWrapperStore, CountingWatermarkStore) get mechanical stubs"
+        ],
+        "verification": ["dotnet build clean", "Suite 85 → ~91"],
+        "boundary": "DbConfig.Core + Core test folder",
+        "depends": []
+      },
+      {
+        "id": "B16",
+        "title": "EF Core: scoped query implementations + dual-DB integration tests",
+        "files": [
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreScopedTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreScopedTests.cs"
+        ],
+        "acceptance": [
+          "GetAllScopedAsync issues a single SELECT with WHERE AppName IN (...) (verified via EF query logging)",
+          "GetLatestModifiedUtcScopedAsync issues a single SELECT MAX(ModifiedUtc) over the IN set",
+          "Parity tests on both SQL Server and PostgreSQL"
+        ],
+        "verification": ["dotnet build clean", "Suite ~91 → ~97"],
+        "boundary": "DbConfig.EntityFrameworkCore + SqlServer/PostgreSql test folders",
+        "depends": ["B15"]
+      },
+      {
+        "id": "B17",
+        "title": "HTTP API: ?includeScopes query string on list endpoint",
+        "files": [
+          "src/core/DbConfig.Http/Endpoints/ListEntriesEndpoint.cs",
+          "src/tests/DbConfig.Tests/Http/ListEndpointIncludeScopesTests.cs"
+        ],
+        "acceptance": [
+          "GET /{app}/{env}?includeScopes=Shared,PlatformDefaults returns rows from all listed scopes",
+          "Each row's AppName field indicates source scope",
+          "Default (no query string) is unchanged: only own scope returned",
+          "Server does NOT merge — returns all rows; UI/consumer merges"
+        ],
+        "verification": ["dotnet build clean", "Suite ~97 → ~100"],
+        "boundary": "DbConfig.Http + Http test folder",
+        "depends": ["B15"]
+      },
+      {
+        "id": "B18",
+        "title": "MapDbConfigHttp scopeFilter overload",
+        "files": [
+          "src/core/DbConfig.Http/EndpointRouteBuilderExtensions.cs",
+          "src/tests/DbConfig.Tests/Http/MapDbConfigHttpScopeFilterTests.cs"
+        ],
+        "acceptance": [
+          "scopeFilter parameter accepted, default null",
+          "When set, an IEndpointFilter at the group level rejects mismatched {appName} routes with 403",
+          "Reload endpoint (no appName in route) always allowed",
+          "Without scopeFilter, behavior is unchanged (regression)"
+        ],
+        "verification": ["dotnet build clean", "Suite ~100 → ~104"],
+        "boundary": "DbConfig.Http + Http test folder",
+        "depends": ["B17"]
+      },
+      {
+        "id": "B19",
+        "title": "UI: scope badge + view filter + per-row write guard",
+        "files": [
+          "ui/src/api/client.ts",
+          "ui/src/api/entries.ts",
+          "ui/src/store/scopeStore.ts",
+          "ui/src/store/entriesStore.ts",
+          "ui/src/components/EntriesTable.tsx",
+          "ui/src/components/ViewModeToggle.tsx",
+          "ui/src/components/CreateEntryDialog.tsx",
+          "ui/src/components/ScopeSelector.tsx",
+          "ui/src/pages/EntriesPage.tsx"
+        ],
+        "acceptance": [
+          "ScopeSelector accepts comma-separated IncludeScopes; persists to localStorage",
+          "EntriesTable shows Scope column with colored badge (own = primary, shared = secondary)",
+          "ViewModeToggle (Mine/Shared/All) filters the visible rows",
+          "Edit/Delete buttons disabled on rows where row.appName !== ownScope",
+          "CreateEntryDialog includes scope selector (defaults to own)",
+          "npm run build clean"
+        ],
+        "verification": ["cd ui && npm run build → 0 errors"],
+        "boundary": "ui/src/ only",
+        "depends": ["B17", "B18"]
+      },
+      {
+        "id": "B20",
+        "title": "Docs: README, architecture.md, project-specific.md, CLAUDE.md, lessons, todo, sidecar",
+        "files": [
+          "README.md",
+          ".claude/rules/architecture.md",
+          ".claude/rules/project-specific.md",
+          "CLAUDE.md",
+          "tasks/lessons.md",
+          "tasks/todo.md"
+        ],
+        "acceptance": [
+          "README Getting Started covers shared scopes with a worked example",
+          "architecture.md gains §2.11 (scope merging and precedence); §2.1 mentions IncludeScopes",
+          "project-specific.md gains §8.8 (shared scopes conventions)",
+          "CLAUDE.md gains §0.6 (scopeFilter + auth pattern)",
+          "lessons.md appends v0.4.0 lessons",
+          "todo.md ticks v0.4.0 items"
+        ],
+        "verification": ["dotnet build still clean (no code touched)"],
+        "boundary": "Docs only",
+        "depends": ["B15", "B16", "B17", "B18", "B19"]
+      }
+    ]
+  },
+  "implement": {
+    "model": "sonnet",
+    "completed_batches": [
+      {
+        "batch_id": "B15",
+        "actual_files": [
+          "src/core/DbConfig.Core/DbConfigOptions.cs",
+          "src/core/DbConfig.Core/IConfigStore.cs",
+          "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs",
+          "src/tests/DbConfig.Tests/Core/IncludeScopesPrecedenceTests.cs",
+          "src/tests/DbConfig.Tests/Core/InMemoryStoreScopedTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors" },
+        "tests": { "ok": true, "evidence": "94/94 pass (+9 vs 85 baseline)" },
+        "behavioral_diff": "DbConfigOptions gains IncludeScopes; IConfigStore gains GetAllScopedAsync and GetLatestModifiedUtcScopedAsync as required methods; polling provider merges entries lowest-precedence-first with own AppName always winning ties; InMemoryConfigStore gets mechanical scoped implementations.",
+        "deviations": [
+          { "kind": "extra-file", "detail": "FaultyWrapperStore and CountingWatermarkStore test doubles received mechanical GetAllScopedAsync and GetLatestModifiedUtcScopedAsync stubs", "justification": "Interface-compliance addition required by the new required methods; no logic change." }
+        ]
+      },
+      {
+        "batch_id": "B16",
+        "actual_files": [
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreScopedTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreScopedTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors" },
+        "tests": { "ok": true, "evidence": "108/108 pass (+14 vs 94)" },
+        "behavioral_diff": "EfCoreConfigStore.GetAllScopedAsync issues a single SELECT with WHERE AppName IN (...) then re-orders results in memory to match input list order (SQL IN does not preserve order); GetLatestModifiedUtcScopedAsync issues a single SELECT MAX(ModifiedUtc) over the IN set. Parity tests on both SQL Server and PostgreSQL.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B17",
+        "actual_files": [
+          "src/core/DbConfig.Http/Endpoints/ListEntriesEndpoint.cs",
+          "src/tests/DbConfig.Tests/Http/ListEndpointIncludeScopesTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors" },
+        "tests": { "ok": true, "evidence": "114/114 pass (+6 vs 108)" },
+        "behavioral_diff": "ListEntriesEndpoint accepts optional ?includeScopes query string; when present it calls GetAllScopedAsync with the appName list (path appName appended last); server returns raw ordered rows — no server-side merging; each row's AppName field identifies the source scope. Default behavior (no query string) is unchanged.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B18",
+        "actual_files": [
+          "src/core/DbConfig.Http/EndpointRouteBuilderExtensions.cs",
+          "src/tests/DbConfig.Tests/Http/MapDbConfigHttpScopeFilterTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors" },
+        "tests": { "ok": true, "evidence": "122/122 pass (+8 vs 114)" },
+        "behavioral_diff": "MapDbConfigHttp gains optional scopeFilter parameter; when set an IEndpointFilter at the group level rejects requests whose {appName} route value differs from the filter with 403; the /reload endpoint (no appName route value) is always allowed; without scopeFilter behavior is unchanged.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B19",
+        "actual_files": [
+          "ui/src/api/client.ts",
+          "ui/src/api/entries.ts",
+          "ui/src/store/scopeStore.ts",
+          "ui/src/store/entriesStore.ts",
+          "ui/src/components/EntriesTable.tsx",
+          "ui/src/components/ViewModeToggle.tsx",
+          "ui/src/components/CreateEntryDialog.tsx",
+          "ui/src/components/ScopeSelector.tsx",
+          "ui/src/pages/EntriesPage.tsx"
+        ],
+        "build": { "ok": true, "evidence": "npm run build 0 errors" },
+        "tests": { "ok": true, "evidence": "122/122 (UI build only; no new .NET tests)" },
+        "behavioral_diff": "React UI gains: ScopeSelector persists IncludeScopes to localStorage; EntriesTable shows Scope column with colored badge (own = primary, shared = secondary); ViewModeToggle (Mine/Shared/All) filters visible rows; Edit/Delete buttons disabled on rows where entry.AppName !== ownScope; CreateEntryDialog includes scope selector defaulting to own scope.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B20",
+        "actual_files": [
+          "README.md",
+          ".claude/rules/architecture.md",
+          ".claude/rules/project-specific.md",
+          "CLAUDE.md",
+          "tasks/lessons.md",
+          "tasks/todo.md",
+          "docs/specs/2026-05-17-v0.4.0-shared-scopes.json"
+        ],
+        "build": { "ok": true, "evidence": "no code touched" },
+        "tests": { "ok": true, "evidence": "122/122 unchanged" },
+        "behavioral_diff": "Docs-only: README gains Shared scopes subsection with worked example and per-scope auth pattern; Status updated to v0.4.0; Known Limitations updated (single-scope constraint removed, UseCustomStore deferred to v0.5.0). architecture.md gains §2.11 (scope merging and precedence) and §2.1 updated to mention IncludeScopes. project-specific.md gains §8.8 (shared scopes conventions and auth). CLAUDE.md gains §0.6 (scopeFilter auth rule) and Standards Reference table updated to v0.4.0 with section ranges. lessons.md appends L18-L20. todo.md ticks all v0.4.0 batches and adds Deferred to v0.5.0+ section.",
+        "deviations": []
+      }
+    ],
+    "behavioral_diff": "v0.4.0 delivered: DbConfigOptions.IncludeScopes enables multi-scope polling with explicit precedence (own AppName always wins); IConfigStore gains two required scoped methods (GetAllScopedAsync, GetLatestModifiedUtcScopedAsync) implemented in EfCoreConfigStore via single IN-clause queries with in-memory ordering; ListEntriesEndpoint accepts ?includeScopes for on-demand merged reads; MapDbConfigHttp gains optional scopeFilter for per-scope group-level authorization; React UI renders scope badges, a view-mode toggle, per-row write guards, and a scope selector in the create dialog. Test suite grew 85 → 122."
+  }
+}

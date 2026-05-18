@@ -1,0 +1,84 @@
+name: Release to NuGet
+
+on:
+  release:
+    types: [published]
+
+env:
+  DOTNET_VERSION: '8.0'
+  PACKAGE_VERSION: ${{ github.ref_name }}
+  # Opt into Node.js 24 for JS-based actions (checkout, setup-dotnet, setup-node, NuGet/login).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  publish:
+    name: Pack and Publish
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write  # Required for NuGet trusted publishing OIDC
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Install UI dependencies
+      working-directory: ui
+      run: npm ci
+
+    # Pack Core first — every other package transitively depends on it
+    - name: Pack Moberg.DbConfig.Core
+      working-directory: src/core/DbConfig.Core
+      run: dotnet pack -c Release -p:PackageVersion=${{ env.PACKAGE_VERSION }} -o ${{ github.workspace }}/nupkgs
+
+    # Add local folder as NuGet source so downstream projects can resolve Core during pack
+    - name: Add local NuGet source
+      run: dotnet nuget add source ${{ github.workspace }}/nupkgs --name local
+
+    # EntityFrameworkCore is the shared EF layer both providers depend on. Mark as
+    # [TRANSITIVE — do not install directly] in csproj; still packed and pushed so the
+    # provider packages can resolve it on nuget.org.
+    - name: Pack Moberg.DbConfig.EntityFrameworkCore
+      working-directory: src/core/DbConfig.EntityFrameworkCore
+      run: dotnet pack -c Release -p:PackageVersion=${{ env.PACKAGE_VERSION }} -o ${{ github.workspace }}/nupkgs
+
+    - name: Pack Moberg.DbConfig.Http
+      working-directory: src/core/DbConfig.Http
+      run: dotnet pack -c Release -p:PackageVersion=${{ env.PACKAGE_VERSION }} -o ${{ github.workspace }}/nupkgs
+
+    # DbConfig.Ui embeds the Vite build; the BuildUI MSBuild target invokes npm run build
+    # so the embedded React bundle ends up in the .nupkg.
+    - name: Pack Moberg.DbConfig.Ui
+      working-directory: src/core/DbConfig.Ui
+      run: dotnet pack -c Release -p:PackageVersion=${{ env.PACKAGE_VERSION }} -o ${{ github.workspace }}/nupkgs
+
+    # Providers depend on EntityFrameworkCore (transitively Core) — pack after the
+    # transitive package is available on the local feed.
+    - name: Pack Moberg.DbConfig.Provider.SqlServer
+      working-directory: src/core/providers/DbConfig.Provider.SqlServer
+      run: dotnet pack -c Release -p:PackageVersion=${{ env.PACKAGE_VERSION }} -o ${{ github.workspace }}/nupkgs
+
+    - name: Pack Moberg.DbConfig.Provider.PostgreSql
+      working-directory: src/core/providers/DbConfig.Provider.PostgreSql
+      run: dotnet pack -c Release -p:PackageVersion=${{ env.PACKAGE_VERSION }} -o ${{ github.workspace }}/nupkgs
+
+    # Get short-lived API key via trusted publishing (OIDC, no stored secrets)
+    - name: NuGet login
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
+    # Push all packages to nuget.org
+    - name: Push to NuGet
+      run: dotnet nuget push "${{ github.workspace }}/nupkgs/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --skip-duplicate

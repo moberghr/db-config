@@ -1,0 +1,23 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/core/">
+    <Project Path="core/DbConfig.Core/DbConfig.Core.csproj" />
+    <Project Path="core/DbConfig.EntityFrameworkCore/DbConfig.EntityFrameworkCore.csproj" />
+    <Project Path="core/DbConfig.Http/DbConfig.Http.csproj" />
+    <Project Path="core/DbConfig.Ui/DbConfig.Ui.csproj" />
+  </Folder>
+  <Folder Name="/core/providers/">
+    <Project Path="core/providers/DbConfig.Provider.PostgreSql/DbConfig.Provider.PostgreSql.csproj" />
+    <Project Path="core/providers/DbConfig.Provider.SqlServer/DbConfig.Provider.SqlServer.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DbConfig.Tests/DbConfig.Tests.csproj" />
+  </Folder>
+  <Folder Name="/demo/">
+    <Project Path="demo/DbConfig.Demo.WebApp/DbConfig.Demo.WebApp.csproj" />
+  </Folder>
+</Solution>

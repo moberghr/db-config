@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>Moberg.DbConfig.Ui</PackageId>
+    <Title>Moberg.DbConfig (UI)</Title>
+    <Description>Embedded React + Tailwind admin UI for DbConfig. Mounts via MapDbConfigUi at any route prefix. Talks exclusively to MapDbConfigHttp endpoints — no direct DB access. Tenant-aware, dark mode, hierarchical tree view, demo mode.</Description>
+  </PropertyGroup>
+
+  <!-- The built React bundle (ui/dist) is copied into this project's dist/ folder by the
+       BuildUI target below and embedded as resources. Until the UI is built, the glob
+       below matches nothing and the package still compiles. -->
+  <ItemGroup>
+    <EmbeddedResource Include="dist/**/*" />
+  </ItemGroup>
+
+  <!-- Rebuild React UI before embedding. Auto-bootstraps node_modules on first build so
+       checking out the repo + building doesn't require a separate npm install step.
+       Skipped when ../../../ui doesn't exist yet (e.g. early scaffold state). -->
+  <Target Name="InstallUI"
+          BeforeTargets="BuildUI"
+          Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)..\..\..\ui\package.json') And !Exists('$(ProjectDir)..\..\..\ui\node_modules')">
+    <Exec Command="npm install" WorkingDirectory="$(ProjectDir)..\..\..\ui" />
+  </Target>
+
+  <Target Name="BuildUI"
+          BeforeTargets="CopyUIOutput"
+          Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)..\..\..\ui\package.json')">
+    <Exec Command="npm run build" WorkingDirectory="$(ProjectDir)..\..\..\ui" />
+  </Target>
+
+  <!-- Copy the Vite output into dist/ next to the csproj so EmbeddedResource glob picks it up. -->
+  <Target Name="CopyUIOutput"
+          BeforeTargets="BeforeBuild"
+          Condition="Exists('$(ProjectDir)..\..\..\ui\dist')">
+    <ItemGroup>
+      <UIDistFiles Include="$(ProjectDir)..\..\..\ui\dist\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UIDistFiles)"
+          DestinationFiles="@(UIDistFiles->'$(ProjectDir)dist\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbConfig.Core\DbConfig.Core.csproj" />
+    <ProjectReference Include="..\DbConfig.Http\DbConfig.Http.csproj" />
+  </ItemGroup>
+
+</Project>

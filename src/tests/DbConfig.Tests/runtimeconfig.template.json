@@ -1,0 +1,6 @@
+{
+  "configProperties": {
+    "System.Runtime.RollForwardOnNoCandidateFx": 2
+  },
+  "rollForward": "Major"
+}

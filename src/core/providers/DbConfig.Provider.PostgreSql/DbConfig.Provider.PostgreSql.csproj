@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>Moberg.DbConfig.Provider.PostgreSql</PackageId>
+    <Title>Moberg.DbConfig (PostgreSQL provider)</Title>
+    <Description>PostgreSQL provider for DbConfig: Npgsql EF Core wiring, migrations, and unique-constraint detection. Call b.UseNpgsql(connectionString) inside AddDbConfig.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\DbConfig.EntityFrameworkCore\DbConfig.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbConfig.Tests" />
+  </ItemGroup>
+
+</Project>

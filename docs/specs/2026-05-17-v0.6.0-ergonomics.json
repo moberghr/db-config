@@ -1,0 +1,44 @@
+{
+  "spec_path": "docs/specs/2026-05-17-v0.6.0-ergonomics.md",
+  "plan_path": "docs/plans/2026-05-17-v0.6.0-ergonomics.md",
+  "todo_path": "tasks/todo.md",
+  "scope_classification": "substantial",
+  "security_impact": "low",
+  "open_decisions": [],
+  "out_of_scope": [
+    "Audit retention pruner (deferred to v0.7.0+; user excluded)",
+    "Parent/inheritance scope column",
+    "Visibility tags",
+    "Multi-scope AddDbConfig per host",
+    "Push-based reload",
+    "Non-EF stores"
+  ],
+  "public_contracts": [
+    "DbConfig.Core: DbConfigOptions.AuditReads (new bool); ConfigAuditAction.Read (new enum value); IConfigAuditStore.WriteAsync (new method)",
+    "DbConfig.EntityFrameworkCore: DbConfigEncryptorActivator (new IHostedService); EfCoreConfigStore polling-side now supports null encryptor (deferred decryption)",
+    "DbConfig.Http: GetEntryEndpoint + ListEntriesEndpoint write fire-and-forget read audits when AuditReads=true",
+    "UI: bulk operations, import/export, diff view in history dialog"
+  ],
+  "plan": {
+    "batches": [
+      { "id": "B28", "title": "Read auditing (opt-in)", "depends": [] },
+      { "id": "B29", "title": "UI diff view in history dialog", "depends": [] },
+      { "id": "B30", "title": "UI bulk edit", "depends": [] },
+      { "id": "B31", "title": "UI import/export", "depends": [] },
+      { "id": "B32", "title": "Type-mapped IConfigEncryptor (deferred decryption)", "depends": [] },
+      { "id": "B33", "title": "v0.6.0 docs", "depends": ["B28","B29","B30","B31","B32"] }
+    ]
+  },
+  "implement": {
+    "model": "sonnet",
+    "completed_batches": [
+      { "id": "B28", "test_count": 218, "deviations": [] },
+      { "id": "B29", "test_count": 218, "deviations": [] },
+      { "id": "B30", "test_count": 218, "deviations": [] },
+      { "id": "B31", "test_count": 218, "deviations": [] },
+      { "id": "B32", "test_count": 224, "deviations": [] },
+      { "id": "B33", "test_count": 224, "deviations": [] }
+    ],
+    "behavioral_diff": "docs only"
+  }
+}

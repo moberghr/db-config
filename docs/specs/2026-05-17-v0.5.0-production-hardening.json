@@ -1,0 +1,197 @@
+{
+  "spec_path": "docs/specs/2026-05-17-v0.5.0-production-hardening.md",
+  "plan_path": "docs/plans/2026-05-17-v0.5.0-production-hardening.md",
+  "todo_path": "tasks/todo.md",
+  "scope_classification": "substantial",
+  "security_impact": "medium-high",
+  "open_decisions": [],
+  "out_of_scope": [
+    "Audit log retention pruner (manual cleanup; opt-in pruner deferred to v0.6.0)",
+    "Read-event auditing (mutations only)",
+    "Push-based reload (v0.6.0)",
+    "UI diff view, bulk edit, import/export (v0.6.0)",
+    "Parent/inheritance scope column (v0.6.0+)",
+    "KMS / Vault / cert-protected key ring extensions (abstraction only)"
+  ],
+  "public_contracts": [
+    "DbConfig.Core: IConfigEncryptor (new); ConfigAuditEntry (new record); IConfigAuditStore (new); DbConfigOptions.EnableAuditLog (new)",
+    "DbConfig.EntityFrameworkCore: DataProtectionConfigEncryptor (default impl); EfCoreConfigAuditStore",
+    "DbConfig.Http: GetAuditHistoryEndpoint (GET /{app}/{env}/audit/{*key})",
+    "Schema: new DbConfig_AuditEntries table; collation change on scope columns of both tables"
+  ],
+  "change_manifest": [
+    "src/core/DbConfig.Core/IConfigEncryptor.cs",
+    "src/core/DbConfig.Core/PassthroughConfigEncryptor.cs",
+    "src/core/DbConfig.Core/ConfigAuditEntry.cs",
+    "src/core/DbConfig.Core/IConfigAuditStore.cs",
+    "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+    "src/core/DbConfig.Core/DbConfigOptions.cs",
+    "src/core/DbConfig.Core/HostApplicationBuilderExtensions.cs",
+    "src/core/DbConfig.EntityFrameworkCore/DataProtectionConfigEncryptor.cs",
+    "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+    "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigAuditStore.cs",
+    "src/core/DbConfig.EntityFrameworkCore/ConfigAuditEntryEntity.cs",
+    "src/core/DbConfig.EntityFrameworkCore/DbConfigDbContext.cs",
+    "src/core/DbConfig.EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+    "src/core/DbConfig.Http/Endpoints/GetAuditHistoryEndpoint.cs",
+    "src/core/DbConfig.Http/EndpointRouteBuilderExtensions.cs",
+    "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260517000000_AddAuditEntries.cs",
+    "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260517000001_CaseSensitiveScopeColumns.cs",
+    "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/20260517000000_AddAuditEntries.cs",
+    "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/20260517000001_CaseSensitiveScopeColumns.cs",
+    "ui/src/api/entries.ts",
+    "ui/src/components/EntryHistoryDialog.tsx",
+    "ui/src/components/EntriesTable.tsx",
+    "ui/src/components/ScopeSelector.tsx",
+    "ui/src/store/entriesStore.ts",
+    "ui/src/pages/EntriesPage.tsx",
+    "src/tests/DbConfig.Tests/Core/PassthroughConfigEncryptorTests.cs",
+    "src/tests/DbConfig.Tests/EntityFrameworkCore/DataProtectionConfigEncryptorTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreEncryptionTests.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreEncryptionTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerAuditTests.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlAuditTests.cs",
+    "src/tests/DbConfig.Tests/Core/InMemoryAuditStoreTests.cs",
+    "src/tests/DbConfig.Tests/Http/AuditEndpointTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerCollationTests.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlCollationTests.cs",
+    "src/tests/DbConfig.Tests/Core/PollingReloadTests.cs",
+    "src/tests/DbConfig.Tests/Core/IncludeScopesPrecedenceTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerFixture.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlFixture.cs",
+    "README.md",
+    ".claude/rules/architecture.md",
+    ".claude/rules/project-specific.md",
+    "CLAUDE.md",
+    "tasks/lessons.md",
+    "tasks/todo.md"
+  ],
+  "plan": {
+    "batches": [
+      { "id": "B21", "title": "Encryption: IConfigEncryptor + DataProtectionConfigEncryptor + store integration", "depends": [] },
+      { "id": "B22", "title": "Audit log Core + EF + in-transaction writes + migrations", "depends": ["B21"] },
+      { "id": "B23", "title": "Audit log HTTP endpoint", "depends": ["B22"] },
+      { "id": "B24", "title": "Audit log UI: History dialog", "depends": ["B23"] },
+      { "id": "B25", "title": "Collation fix: case-sensitive scope columns", "depends": ["B22"] },
+      { "id": "B26", "title": "Cleanup: ScopeSelector setTimeout + SpinWait test patterns", "depends": [] },
+      { "id": "B27", "title": "Docs: README + rules + CLAUDE.md + lessons + todo + sidecar", "depends": ["B21","B22","B23","B24","B25","B26"] }
+    ]
+  },
+  "implement": {
+    "model": "sonnet",
+    "completed_batches": [
+      {
+        "batch_id": "B21",
+        "actual_files": [
+          "src/core/DbConfig.Core/IConfigEncryptor.cs",
+          "src/core/DbConfig.Core/PassthroughConfigEncryptor.cs",
+          "src/core/DbConfig.Core/DbConfigOptions.cs",
+          "src/core/DbConfig.Core/HostApplicationBuilderExtensions.cs",
+          "src/core/DbConfig.EntityFrameworkCore/DataProtectionConfigEncryptor.cs",
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+          "src/tests/DbConfig.Tests/Core/PassthroughConfigEncryptorTests.cs",
+          "src/tests/DbConfig.Tests/EntityFrameworkCore/DataProtectionConfigEncryptorTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreEncryptionTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreEncryptionTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerFixture.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlFixture.cs"
+        ],
+        "build": { "ok": true, "evidence": "145/145 tests pass; build analyzer-clean" },
+        "tests": { "ok": true, "evidence": "145 total (+51 net from 94 baseline including v0.4.0 fix tests)" },
+        "behavioral_diff": "IsSecret=true entries are encrypted at rest via IConfigEncryptor (default: DataProtectionConfigEncryptor); read paths decrypt transparently; non-secret values pass through verbatim.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B22",
+        "actual_files": [
+          "src/core/DbConfig.Core/ConfigAuditEntry.cs",
+          "src/core/DbConfig.Core/IConfigAuditStore.cs",
+          "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigAuditStore.cs",
+          "src/core/DbConfig.EntityFrameworkCore/ConfigAuditEntryEntity.cs",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigDbContext.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260517000000_AddAuditEntries.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/20260517000000_AddAuditEntries.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerAuditTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlAuditTests.cs",
+          "src/tests/DbConfig.Tests/Core/InMemoryAuditStoreTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "171/171 tests pass; build analyzer-clean" },
+        "tests": { "ok": true, "evidence": "171 total (+26 from B21 baseline)" },
+        "behavioral_diff": "Every Upsert/Delete on EfCoreConfigStore now writes a DbConfig_AuditEntries row atomically in the same SaveChangesAsync; audit rows store encrypted OldValue/NewValue for IsSecret entries; GetHistoryAsync decrypts on read.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B23",
+        "actual_files": [
+          "src/core/DbConfig.Http/Endpoints/GetAuditHistoryEndpoint.cs",
+          "src/core/DbConfig.Http/EndpointRouteBuilderExtensions.cs",
+          "src/tests/DbConfig.Tests/Http/AuditEndpointTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "180/180 tests pass; build analyzer-clean" },
+        "tests": { "ok": true, "evidence": "180 total (+9 from B22 baseline)" },
+        "behavioral_diff": "GET /{app}/{env}/audit/{*key}?take=N endpoint added; returns ConfigAuditEntry[] ordered most-recent-first; honors scopeFilter (cross-scope returns 403); take capped at 500.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B24",
+        "actual_files": [
+          "ui/src/api/entries.ts",
+          "ui/src/components/EntryHistoryDialog.tsx",
+          "ui/src/components/EntriesTable.tsx",
+          "ui/src/store/entriesStore.ts",
+          "ui/src/pages/EntriesPage.tsx"
+        ],
+        "build": { "ok": true, "evidence": "UI build clean (npm run build); 180/180 .NET tests unchanged" },
+        "tests": { "ok": true, "evidence": "180/180 unchanged; UI-only batch" },
+        "behavioral_diff": "Per-row History button added to EntriesTable; EntryHistoryDialog renders audit entries with action/who/when/old→new value display and secret-value masking with reveal toggle.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B25",
+        "actual_files": [
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigDbContext.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260517000001_CaseSensitiveScopeColumns.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/20260517000001_CaseSensitiveScopeColumns.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerCollationTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlCollationTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "196/196 tests pass; build analyzer-clean" },
+        "tests": { "ok": true, "evidence": "196 total (+16 from B23 baseline)" },
+        "behavioral_diff": "AppName, Environment, and Key columns on both DbConfig_Entries and DbConfig_AuditEntries now use case-sensitive binary collations (SQL Server: Latin1_General_100_BIN2; PostgreSQL: C); closes the ordinal-vs-DB-collation mismatch on scopeFilter queries.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B26",
+        "actual_files": [
+          "ui/src/components/ScopeSelector.tsx",
+          "src/tests/DbConfig.Tests/Core/PollingReloadTests.cs",
+          "src/tests/DbConfig.Tests/Core/IncludeScopesPrecedenceTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "196/196 tests pass; build analyzer-clean" },
+        "tests": { "ok": true, "evidence": "196/196 unchanged; refactor only" },
+        "behavioral_diff": "ScopeSelector.tsx setTimeout(0) state-flush hack replaced with proper React batching; PollingReloadTests and IncludeScopesPrecedenceTests SpinWait patterns replaced with SemaphoreSlim deterministic synchronization.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B27",
+        "actual_files": [
+          "CLAUDE.md",
+          "README.md",
+          ".claude/rules/architecture.md",
+          ".claude/rules/project-specific.md",
+          "tasks/lessons.md",
+          "tasks/todo.md",
+          "docs/specs/2026-05-17-v0.5.0-production-hardening.json"
+        ],
+        "build": { "ok": true, "evidence": "no code touched" },
+        "tests": { "ok": true, "evidence": "196/196 unchanged" },
+        "behavioral_diff": "docs only",
+        "deviations": []
+      }
+    ],
+    "behavioral_diff": "v0.5.0 adds three production-hardening capabilities: (1) per-entry encryption — entries with IsSecret=true are encrypted at rest via IConfigEncryptor (default: ASP.NET Core Data Protection); consumers can plug in custom encryptors by registering IConfigEncryptor before AddDbConfig; (2) audit log — every Upsert/Delete on EfCoreConfigStore writes a DbConfig_AuditEntries row atomically in the same transaction; the HTTP endpoint GET /{app}/{env}/audit/{*key} and UI History dialog surface this log; (3) scope column collation hardening — AppName/Environment/Key columns on both tables now use case-sensitive binary collations on both SQL Server and PostgreSQL, closing the mismatch between C# ordinal scopeFilter comparisons and DB query semantics. Additionally, two cleanup items landed: ScopeSelector setTimeout hack removed, and SpinWait test patterns replaced with deterministic synchronization."
+  }
+}

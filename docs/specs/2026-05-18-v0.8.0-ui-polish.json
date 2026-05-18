@@ -1,0 +1,67 @@
+{
+  "spec_path": "docs/specs/2026-05-18-v0.8.0-ui-polish.md",
+  "plan_path": "docs/plans/2026-05-18-v0.8.0-ui-polish.md",
+  "todo_path": "tasks/todo.md",
+  "scope_classification": "substantial",
+  "security_impact": "none",
+  "open_decisions": [],
+  "out_of_scope": [
+    "Custom Dialog component role=dialog for a11y (v0.9.0+)",
+    "Mock Date.now() for pixel-perfect screenshots (v0.9.0+)",
+    "Tree-view server-side aggregation",
+    "Resizable modals with drag handles"
+  ],
+  "public_contracts": [
+    "UI: ThemeToggle visible in page header; theme persisted to db-config-theme localStorage key",
+    "UI: ListModeToggle (Flat | Tree) in toolbar; persisted via scopeStore",
+    "Dialog primitive accepts size: 'sm' | 'md' | 'lg' | 'xl' prop",
+    "No .NET / HTTP / store changes"
+  ],
+  "plan": {
+    "batches": [
+      { "id": "B47", "title": "Dark mode foundation + Docusaurus toggle fix", "depends": [] },
+      { "id": "B48", "title": "Hierarchical tree view (Flat | Tree toggle)", "depends": ["B47"] },
+      { "id": "B49", "title": "Larger modals (Dialog size prop)", "depends": [] },
+      { "id": "B50", "title": "Screenshot regen (22 PNGs: light + dark x 11 states including tree view)", "depends": ["B47", "B48", "B49"] },
+      { "id": "B51", "title": "Docs updates + lessons L32-L34 + sidecar + todo", "depends": ["B47", "B48", "B49", "B50"] }
+    ]
+  },
+  "implement": {
+    "model": "sonnet",
+    "behavioral_diff": "v0.8.0 adds three user-visible UI improvements: (1) a light/dark theme toggle in the page header backed by a Zustand themeStore persisted to localStorage — all components use semantic Tailwind CSS variable tokens so the palette flips cleanly with no per-component dark: prefix explosion; (2) a Flat | Tree list-mode toggle in the entries toolbar — the tree view groups keys by colon-separated prefix into collapsible group rows while sharing selection state with the flat view through the existing entriesStore.selectedKeys composite-key map; (3) a size prop on the base Dialog primitive (sm/md/lg/xl with viewport guards) applied to all dialogs so Edit/Create are wider with taller textareas, History and Import get extra breathing room. 22 Playwright screenshots cover both light and dark variants of all 11 UI states (including the new tree view). Docusaurus docs site drops the system-preference colour-mode option.",
+    "completed_batches": [
+      {
+        "id": "B47",
+        "test_count": 228,
+        "summary": "Added themeStore (Zustand, localStorage persistence), ThemeToggle sun/moon button in the page header, Tailwind class-based dark mode config, and migrated all UI components from hardcoded color classes to semantic CSS variable tokens; Docusaurus colorMode.respectPrefersColorScheme set to false.",
+        "deviations": []
+      },
+      {
+        "id": "B48",
+        "test_count": 228,
+        "summary": "Added listMode field to scopeStore, ListModeToggle segmented control, keyTree.ts buildTree pure function, and EntriesTreeView recursive component with expand/collapse and Expand-all/Collapse-all buttons; EntriesPage switches between flat and tree based on listMode.",
+        "deviations": []
+      },
+      {
+        "id": "B49",
+        "test_count": 228,
+        "summary": "Added size prop (sm/md/lg/xl) to the Dialog primitive with a Tailwind width map and 90vw/90vh viewport guards; applied size=lg to EditValueDialog and CreateEntryDialog (with min-h-[200px] textareas), size=md to DeleteEntryDialog, size=xl to EntryHistoryDialog and ImportDialog, and size=lg to BulkOperationDialog.",
+        "deviations": []
+      },
+      {
+        "id": "B50",
+        "test_count": 228,
+        "summary": "Playwright screenshot spec parameterised over light/dark themes via localStorage init script; 22 PNGs produced (11 base states × 2 themes) in website/static/img/screenshots/, including the new 11-tree-view light and dark pair.",
+        "deviations": [
+          "Spec originally estimated 20 PNGs (10 states × 2); actual count is 22 because the tree view (state 11) was added in B48 — sidecar and todo updated to reflect 22."
+        ]
+      },
+      {
+        "id": "B51",
+        "test_count": 228,
+        "summary": "Created website/docs/ui-editor/theming.md; added dark screenshot variants to all six UI-editor pages and intro.md; appended lessons L32-L34 to tasks/lessons.md; ticked v0.8.0 batches and updated v0.9.0+ deferred list in tasks/todo.md; added Theming callout to README.md; populated this sidecar.",
+        "deviations": []
+      }
+    ]
+  }
+}

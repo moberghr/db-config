@@ -1,0 +1,13 @@
+{
+  "Feature": {
+    "EnableDarkMode": "true",
+    "MaxRetries": "3"
+  },
+  "Logging": {
+    "LogLevel": "Information",
+    "FilePath": "/var/log/app.log"
+  },
+  "Cache": {
+    "DefaultTtlSeconds": "600"
+  }
+}

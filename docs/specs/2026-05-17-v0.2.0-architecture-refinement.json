@@ -1,0 +1,336 @@
+{
+  "spec_path": "docs/specs/2026-05-17-v0.2.0-architecture-refinement.md",
+  "plan_path": "docs/plans/2026-05-17-v0.2.0-architecture-refinement.md",
+  "todo_path": "tasks/todo.md",
+  "scope_classification": "substantial",
+  "security_impact": "none",
+  "open_decisions": [],
+  "out_of_scope": [
+    "At-rest value encryption",
+    "Audit log table with history",
+    "Push-based reload (Service Broker / LISTEN-NOTIFY)",
+    "UI features beyond v0.1.0",
+    "Performance tuning beyond GetAsync",
+    "npm-package distribution of UI"
+  ],
+  "public_contracts": [
+    "DbConfig.Core: IConfigStore gains GetAsync; AddDbConfig on IConfigurationBuilder loses lambda; new AddDbConfig on IServiceCollection takes lambda; DbConfigBuilder.Services now references host's IServiceCollection directly",
+    "DbConfig.EntityFrameworkCore (new): DbConfigDbContext, ConfigEntryEntity (internal), EfCoreConfigStore, DbConfigBuilderEfCoreExtensions, IUniqueConstraintDetector",
+    "DbConfig.Provider.SqlServer: SqlServerUniqueConstraintDetector (new)",
+    "DbConfig.Provider.PostgreSql: PostgreSqlUniqueConstraintDetector (new)"
+  ],
+  "change_manifest": [
+    "src/core/DbConfig.Core/IConfigStore.cs",
+    "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+    "src/core/DbConfig.Core/ConfigurationBuilderExtensions.cs",
+    "src/core/DbConfig.Core/ServiceCollectionExtensions.cs",
+    "src/core/DbConfig.Core/DbConfigBuilder.cs",
+    "src/core/DbConfig.Core/DbConfigConfigurationSource.cs",
+    "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs",
+    "src/core/DbConfig.Core/DbConfig.Core.csproj",
+    "src/core/DbConfig.EntityFrameworkCore/DbConfig.EntityFrameworkCore.csproj",
+    "src/core/DbConfig.EntityFrameworkCore/DbConfigDbContext.cs",
+    "src/core/DbConfig.EntityFrameworkCore/ConfigEntryEntity.cs",
+    "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+    "src/core/DbConfig.EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+    "src/core/DbConfig.EntityFrameworkCore/IUniqueConstraintDetector.cs",
+    "src/core/DbConfig.Http/Endpoints/GetEntryEndpoint.cs",
+    "src/core/providers/DbConfig.Provider.SqlServer/DbConfig.Provider.SqlServer.csproj",
+    "src/core/providers/DbConfig.Provider.SqlServer/DbConfigBuilderSqlServerExtensions.cs",
+    "src/core/providers/DbConfig.Provider.SqlServer/SqlServerUniqueConstraintDetector.cs",
+    "src/core/providers/DbConfig.Provider.PostgreSql/DbConfig.Provider.PostgreSql.csproj",
+    "src/core/providers/DbConfig.Provider.PostgreSql/DbConfigBuilderPostgreSqlExtensions.cs",
+    "src/core/providers/DbConfig.Provider.PostgreSql/PostgreSqlUniqueConstraintDetector.cs",
+    "src/demo/DbConfig.Demo.WebApp/Program.cs",
+    "src/demo/DbConfig.Demo.WebApp/DbConfig.Demo.WebApp.csproj",
+    "src/DbConfig.slnx",
+    "src/tests/DbConfig.Tests/DbConfig.Tests.csproj",
+    "src/tests/DbConfig.Tests/Core/InMemoryStoreGetAsyncTests.cs",
+    "src/tests/DbConfig.Tests/Core/AddDbConfigTwoCallShapeTests.cs",
+    "src/tests/DbConfig.Tests/Core/AddDbConfigContractTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreGetAsyncTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerUniqueConstraintDetectorTests.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreGetAsyncTests.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlUniqueConstraintDetectorTests.cs",
+    "src/tests/DbConfig.Tests/Http/GetSingleEndpointTargetedReadTests.cs",
+    "src/tests/DbConfig.Tests/Http/EndpointContractTests.cs",
+    "src/tests/DbConfig.Tests/Http/EndpointAuthCompositionTests.cs",
+    "src/tests/DbConfig.Tests/Http/ReloadEndpointTests.cs",
+    "src/tests/DbConfig.Tests/E2E/EndToEndFixture.cs",
+    "src/tests/DbConfig.Tests/E2E/EndToEndPostgreSqlFixture.cs",
+    ".claude/rules/architecture.md",
+    ".claude/rules/project-specific.md",
+    "CLAUDE.md",
+    "README.md"
+  ],
+  "plan": {
+    "batches": [
+      {
+        "id": "B10",
+        "title": "IConfigStore.GetAsync + targeted reads",
+        "files": [
+          "src/core/DbConfig.Core/IConfigStore.cs",
+          "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+          "src/core/DbConfig.Core/EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.Http/Endpoints/GetEntryEndpoint.cs",
+          "src/tests/DbConfig.Tests/Core/InMemoryStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/Http/GetSingleEndpointTargetedReadTests.cs"
+        ],
+        "acceptance": [
+          "IConfigStore gains Task<ConfigEntry?> GetAsync(app, env, key, ct) as a required method",
+          "EfCoreConfigStore.GetAsync uses Where + Select + FirstOrDefaultAsync against the indexed columns",
+          "InMemoryConfigStore.GetAsync filters its internal dictionary directly",
+          "GetEntryEndpoint calls store.GetAsync instead of GetAllAsync().FirstOrDefault()",
+          "SqlServer/PostgreSql test asserts via EF Core query logging that exactly one row is fetched"
+        ],
+        "verification": ["dotnet build clean", "Full suite >= 69 tests (65 + 4 new)"],
+        "boundary": "Files listed only; no DI changes yet",
+        "depends": []
+      },
+      {
+        "id": "B11",
+        "title": "Two-call AddDbConfig DI redesign",
+        "files": [
+          "src/core/DbConfig.Core/ConfigurationBuilderExtensions.cs",
+          "src/core/DbConfig.Core/ServiceCollectionExtensions.cs",
+          "src/core/DbConfig.Core/DbConfigBuilder.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationSource.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs",
+          "src/demo/DbConfig.Demo.WebApp/Program.cs",
+          "src/tests/DbConfig.Tests/E2E/EndToEndFixture.cs",
+          "src/tests/DbConfig.Tests/E2E/EndToEndPostgreSqlFixture.cs",
+          "src/tests/DbConfig.Tests/Http/EndpointContractTests.cs",
+          "src/tests/DbConfig.Tests/Http/EndpointAuthCompositionTests.cs",
+          "src/tests/DbConfig.Tests/Http/ReloadEndpointTests.cs",
+          "src/tests/DbConfig.Tests/Core/AddDbConfigContractTests.cs",
+          "src/tests/DbConfig.Tests/Core/AddDbConfigTwoCallShapeTests.cs"
+        ],
+        "acceptance": [
+          "builder.Services.AddDbConfig(b => { ... }) registers all DbConfig services in the host's IServiceCollection",
+          "builder.Configuration.AddDbConfig() (no lambda) adds the configuration source that resolves IConfigStore from the host services at first Load",
+          "Demo Program.cs no longer needs the IConfigurationRoot.Providers.OfType bridge for IDbConfigReloadSignal",
+          "DbConfigBuilder.Services is the same instance as the host's IServiceCollection (verified by test)",
+          "Old single-call shape is gone (replaced, not deprecated)"
+        ],
+        "verification": ["dotnet build clean", "Full suite >= 72 tests (69 + 3 new shape tests)"],
+        "boundary": "Files listed only",
+        "depends": ["B10"]
+      },
+      {
+        "id": "B12",
+        "title": "Extract Moberg.DbConfig.EntityFrameworkCore package",
+        "files": [
+          "src/core/DbConfig.EntityFrameworkCore/DbConfig.EntityFrameworkCore.csproj",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigDbContext.cs",
+          "src/core/DbConfig.EntityFrameworkCore/ConfigEntryEntity.cs",
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+          "src/core/DbConfig.Core/DbConfig.Core.csproj",
+          "src/core/providers/DbConfig.Provider.SqlServer/DbConfig.Provider.SqlServer.csproj",
+          "src/core/providers/DbConfig.Provider.SqlServer/DbConfigBuilderSqlServerExtensions.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/DbConfig.Provider.PostgreSql.csproj",
+          "src/core/providers/DbConfig.Provider.PostgreSql/DbConfigBuilderPostgreSqlExtensions.cs",
+          "src/demo/DbConfig.Demo.WebApp/DbConfig.Demo.WebApp.csproj",
+          "src/demo/DbConfig.Demo.WebApp/Program.cs",
+          "src/tests/DbConfig.Tests/DbConfig.Tests.csproj",
+          "src/DbConfig.slnx"
+        ],
+        "acceptance": [
+          "Types moved from DbConfig.Core/EntityFrameworkCore/ to DbConfig.EntityFrameworkCore/ — namespace shifted to DbConfig.EntityFrameworkCore",
+          "DbConfig.Core.csproj NO LONGER references Microsoft.EntityFrameworkCore.Relational",
+          "Provider packages reference DbConfig.EntityFrameworkCore instead of DbConfig.Core (transitively brings Core)",
+          "Migration files in providers continue to resolve DbConfigDbContext type via the new namespace",
+          "Solution builds and all 72 tests pass unchanged"
+        ],
+        "verification": ["dotnet build clean", "Full suite >= 72 (no new tests; pure refactor)", "Inspect generated .nupkg deps section if packing — Core should not list EF Core Relational"],
+        "boundary": "Files listed; existing tests adapt via namespace shift only",
+        "depends": ["B11"]
+      },
+      {
+        "id": "B13",
+        "title": "IUniqueConstraintDetector strategy",
+        "files": [
+          "src/core/DbConfig.EntityFrameworkCore/IUniqueConstraintDetector.cs",
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/SqlServerUniqueConstraintDetector.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/DbConfigBuilderSqlServerExtensions.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/PostgreSqlUniqueConstraintDetector.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/DbConfigBuilderPostgreSqlExtensions.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerUniqueConstraintDetectorTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlUniqueConstraintDetectorTests.cs"
+        ],
+        "acceptance": [
+          "EfCoreConfigStore takes IUniqueConstraintDetector via constructor",
+          "Core's string-matching IsUniqueConstraintViolation is deleted",
+          "SqlServerUniqueConstraintDetector recognizes SqlException with Number 2627 or 2601",
+          "PostgreSqlUniqueConstraintDetector recognizes PostgresException with SqlState 23505",
+          "Both providers register their detector via TryAddSingleton<IUniqueConstraintDetector, ...>",
+          "Existing concurrent-upsert tests on both engines still pass without modification"
+        ],
+        "verification": ["dotnet build clean", "Full suite >= 74 tests (72 + 2 new)"],
+        "boundary": "Files listed only",
+        "depends": ["B12"]
+      },
+      {
+        "id": "B14",
+        "title": "Rewrite .claude/rules architecture.md and project-specific.md",
+        "files": [
+          ".claude/rules/architecture.md",
+          ".claude/rules/project-specific.md",
+          "CLAUDE.md",
+          "README.md"
+        ],
+        "acceptance": [
+          "architecture.md is db-config-specific: IConfiguration extensibility, two-call DI, IConfigStore abstraction, polling/IChangeToken, host-owned auth, embedded UI, EF Core split",
+          "project-specific.md covers: AppName+Environment scoping, IsSecret as UI-only flag (NOT encryption), hand-written migrations, dual-DB testing, MTP runner quirk",
+          "CLAUDE.md's Standards Reference table marks both files as 'db-config-specific (rewritten 2026-05-17)'",
+          "README.md Known Limitations section is updated to remove the items v0.2.0 closed (single-scope, dual-DI bridging, provider exception sniffing)"
+        ],
+        "verification": ["dotnet build still clean (no accidental code change)"],
+        "boundary": "Files listed only",
+        "depends": ["B10", "B11", "B12", "B13"]
+      }
+    ]
+  },
+  "implement": {
+    "model": "sonnet",
+    "completed_batches": [
+      {
+        "batch_id": "B10",
+        "actual_files": [
+          "src/core/DbConfig.Core/IConfigStore.cs",
+          "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+          "src/core/DbConfig.Core/EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.Http/Endpoints/GetEntryEndpoint.cs",
+          "src/tests/DbConfig.Tests/Core/InMemoryStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/Http/GetSingleEndpointTargetedReadTests.cs",
+          "src/tests/DbConfig.Tests/Core/ReloadFailureResilienceTests.cs",
+          "src/tests/DbConfig.Tests/Core/PollingReloadTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors" },
+        "tests": { "ok": true, "evidence": "77/77 pass (+12 vs 65 baseline)" },
+        "behavioral_diff": "IConfigStore.GetAsync added as required method; HTTP GET single endpoint switched from over-fetch to targeted EF query; InMemoryConfigStore filters its dictionary directly.",
+        "deviations": [
+          { "kind": "extra-file", "detail": "FaultyWrapperStore and CountingWatermarkStore test doubles got mechanical GetAsync stubs", "justification": "Interface-compliance addition; no logic change." }
+        ]
+      },
+      {
+        "batch_id": "B11",
+        "actual_files": [
+          "src/core/DbConfig.Core/ServiceCollectionExtensions.cs",
+          "src/core/DbConfig.Core/DbConfigRegistrationMarker.cs",
+          "src/core/DbConfig.Core/ConfigurationBuilderExtensions.cs",
+          "src/core/DbConfig.Core/DbConfigBuilder.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationSource.cs",
+          "src/demo/DbConfig.Demo.WebApp/Program.cs",
+          "src/tests/DbConfig.Tests/E2E/EndToEndFixture.cs",
+          "src/tests/DbConfig.Tests/E2E/EndToEndPostgreSqlFixture.cs",
+          "src/tests/DbConfig.Tests/Core/AddDbConfigContractTests.cs",
+          "src/tests/DbConfig.Tests/Core/AddDbConfigTwoCallShapeTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors" },
+        "tests": { "ok": true, "evidence": "81/81 pass (+4 vs 77)" },
+        "behavioral_diff": "Two-call DI: builder.Services.AddDbConfig(b => ...) + builder.Configuration.AddDbConfig(builder.Services). Inner ServiceCollection antipattern eliminated; bridge dance gone from demo + E2E fixtures.",
+        "deviations": [
+          { "kind": "implementation-shape", "detail": "DbConfigConfigurationSource keeps a 4-param ctor as test seam", "justification": "Avoids gratuitous rewrites of tests that bypass DI." }
+        ]
+      },
+      {
+        "batch_id": "B12",
+        "actual_files": [
+          "src/core/DbConfig.EntityFrameworkCore/DbConfig.EntityFrameworkCore.csproj",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigDbContext.cs",
+          "src/core/DbConfig.EntityFrameworkCore/ConfigEntryEntity.cs",
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+          "src/core/DbConfig.Core/DbConfig.Core.csproj",
+          "src/core/providers/DbConfig.Provider.SqlServer/DbConfig.Provider.SqlServer.csproj",
+          "src/core/providers/DbConfig.Provider.PostgreSql/DbConfig.Provider.PostgreSql.csproj",
+          "src/core/providers/DbConfig.Provider.SqlServer/DbConfigBuilderSqlServerExtensions.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/DbConfigBuilderPostgreSqlExtensions.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260516000000_InitialCreate.Designer.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/Migrations/DbConfigDbContextModelSnapshot.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/20260516000000_InitialCreate.Designer.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/DbConfigDbContextModelSnapshot.cs",
+          "src/DbConfig.slnx",
+          "src/tests/DbConfig.Tests/DbConfig.Tests.csproj",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerFixture.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreCrudTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerReloadIntegrationTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlFixture.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreCrudTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlReloadIntegrationTests.cs",
+          "src/tests/DbConfig.Tests/E2E/EndToEndFixture.cs",
+          "src/tests/DbConfig.Tests/E2E/EndToEndPostgreSqlFixture.cs",
+          "src/demo/DbConfig.Demo.WebApp/DbConfig.Demo.WebApp.csproj",
+          "src/demo/DbConfig.Demo.WebApp/Program.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors; DbConfig.Core.csproj no longer references Microsoft.EntityFrameworkCore.Relational" },
+        "tests": { "ok": true, "evidence": "81/81 unchanged (pure refactor)" },
+        "behavioral_diff": "Types moved from DbConfig.Core.EntityFrameworkCore.* to DbConfig.EntityFrameworkCore.* (new package Moberg.DbConfig.EntityFrameworkCore). Core no longer carries EF Core transitive dep. Providers reference the new package directly.",
+        "deviations": [
+          { "kind": "extra-dependency", "detail": "Microsoft.Extensions.DependencyInjection 8.0.1 added to DbConfig.Core.csproj", "justification": "ConfigurationBuilderExtensions calls BuildServiceProvider() — previously satisfied transitively by EF Core Relational; now needs explicit reference." }
+        ]
+      },
+      {
+        "batch_id": "B13",
+        "actual_files": [
+          "src/core/DbConfig.EntityFrameworkCore/IUniqueConstraintDetector.cs",
+          "src/core/DbConfig.EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/SqlServerUniqueConstraintDetector.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/DbConfigBuilderSqlServerExtensions.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/PostgreSqlUniqueConstraintDetector.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/DbConfigBuilderPostgreSqlExtensions.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerUniqueConstraintDetectorTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlUniqueConstraintDetectorTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreCrudTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerReloadIntegrationTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreCrudTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreGetAsyncTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlReloadIntegrationTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors; Core has zero references to Microsoft.Data.SqlClient or Npgsql" },
+        "tests": { "ok": true, "evidence": "83/83 pass (+2 vs 81)" },
+        "behavioral_diff": "Provider-specific exception sniffing moved from EfCoreConfigStore into per-provider IUniqueConstraintDetector implementations registered via TryAddSingleton. Concurrent-upsert paths unchanged.",
+        "deviations": []
+      },
+      {
+        "batch_id": "B14",
+        "actual_files": [
+          ".claude/rules/architecture.md",
+          ".claude/rules/project-specific.md",
+          "CLAUDE.md",
+          "README.md"
+        ],
+        "build": { "ok": true, "evidence": "no code touched" },
+        "tests": { "ok": true, "evidence": "83/83 unchanged" },
+        "behavioral_diff": "Docs-only: architecture.md and project-specific.md fully rewritten for db-config (zero warp leftovers). CLAUDE.md table updated. README Known Limitations updated.",
+        "deviations": []
+      },
+      {
+        "batch_id": "FIX-Round-v0.2.0",
+        "actual_files": [
+          "src/core/DbConfig.Core/DbConfigRegistrationMarker.cs",
+          "src/core/DbConfig.Core/ServiceCollectionExtensions.cs",
+          "src/core/DbConfig.EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/PostgreSqlUniqueConstraintDetector.cs",
+          "src/tests/DbConfig.Tests/Core/AddDbConfigTwoCallShapeTests.cs"
+        ],
+        "build": { "ok": true, "evidence": "0 errors" },
+        "tests": { "ok": true, "evidence": "84/84 pass (+1 new pre-Build resolution test)" },
+        "behavioral_diff": "M-1: TryAddSingleton on IConfigStore (respects consumer-supplied stores). M-3: Duplicate TimeProvider registration removed. M-5: New test for pre-Build IDbConfigReloadSignal resolution. M-6: Write-once DbConfigRegistrationMarker.SetSource. H-2: Improved error message. L-1: Symmetric pattern-match style on PG detector. Added an internal EfCoreRegistrationMarker double-registration guard for the EF layer (defensive hardening beyond the brief).",
+        "deviations": []
+      }
+    ],
+    "behavioral_diff": "v0.2.0 delivered: IConfigStore.GetAsync targeted reads, two-call DI eliminating the inner ServiceCollection antipattern, extraction of Moberg.DbConfig.EntityFrameworkCore (Core loses EF Core transitive dep), IUniqueConstraintDetector strategy in providers, and full rewrite of .claude/rules/architecture.md + project-specific.md for db-config. Test suite grew 65 → 84."
+  }
+}

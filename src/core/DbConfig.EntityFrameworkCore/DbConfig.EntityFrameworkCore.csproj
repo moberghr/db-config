@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>Moberg.DbConfig.EntityFrameworkCore</PackageId>
+    <Title>Moberg.DbConfig (EF Core) — TRANSITIVE</Title>
+    <Description>[TRANSITIVE — do not install directly] EF Core 8 plumbing for DbConfig: DbContext, EfCoreConfigStore, default DataProtection-backed encryptor, audit store, AddDbConfig single-call DI. Pulled in by provider packages (SqlServer / PostgreSql).</Description>
+    <PackageTags>internal;transitive;dbconfig;efcore</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbConfig.Core\DbConfig.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbConfig.Tests" />
+  </ItemGroup>
+
+</Project>

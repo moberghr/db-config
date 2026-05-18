@@ -1,0 +1,447 @@
+{
+  "spec_path": "docs/specs/2026-05-16-v0.1.0-roadmap.md",
+  "plan_path": "docs/plans/2026-05-16-v0.1.0-roadmap.md",
+  "todo_path": "tasks/todo.md",
+  "scope_classification": "substantial",
+  "security_impact": "medium",
+  "open_decisions": [],
+  "out_of_scope": [
+    "At-rest value encryption (deferred to v0.2.0+; v0.1.0 relies on DB TDE/column encryption)",
+    "Audit log table with history (only inline ModifiedUtc/ModifiedBy)",
+    "Multi-tenancy beyond (AppName, Environment)",
+    "Push-based reload (Service Broker / LISTEN-NOTIFY)",
+    "Import/export to JSON or appsettings format",
+    "Diff view / history in the UI",
+    "Bulk edit",
+    "Role-based field-level permissions",
+    "Schema migration tool for consumers"
+  ],
+  "public_contracts": [
+    "DbConfig.Core: AddDbConfig extension, DbConfigOptions, IConfigStore, ConfigEntry record, DbConfigBuilder, IDbConfigReloadSignal (spec-amended in B3)",
+    "DbConfig.Core.EntityFrameworkCore: UseEntityFrameworkCore extension on DbConfigBuilder (shared EF Core wireup that provider packages delegate to; spec-amended in B2)",
+    "DbConfig.Provider.SqlServer: UseSqlServer extension on DbConfigBuilder",
+    "DbConfig.Provider.PostgreSql: UsePostgreSql extension on DbConfigBuilder",
+    "DbConfig.Http: MapDbConfigHttp extension on IEndpointRouteBuilder",
+    "DbConfig.Ui: MapDbConfigUi extension on IEndpointRouteBuilder"
+  ],
+  "change_manifest": [
+    "src/core/DbConfig.Core/DbConfigOptions.cs",
+    "src/core/DbConfig.Core/ConfigEntry.cs",
+    "src/core/DbConfig.Core/IConfigStore.cs",
+    "src/core/DbConfig.Core/DbConfigBuilder.cs",
+    "src/core/DbConfig.Core/DbConfigConfigurationSource.cs",
+    "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs",
+    "src/core/DbConfig.Core/ConfigurationBuilderExtensions.cs",
+    "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+    "src/core/DbConfig.Core/EntityFrameworkCore/DbConfigDbContext.cs",
+    "src/core/DbConfig.Core/EntityFrameworkCore/ConfigEntryEntity.cs",
+    "src/core/DbConfig.Core/EntityFrameworkCore/EfCoreConfigStore.cs",
+    "src/core/DbConfig.Core/EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+    "src/core/providers/DbConfig.Provider.SqlServer/DbConfigBuilderSqlServerExtensions.cs",
+    "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260516000000_InitialCreate.cs",
+    "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260516000000_InitialCreate.Designer.cs",
+    "src/core/providers/DbConfig.Provider.SqlServer/Migrations/DbConfigDbContextModelSnapshot.cs",
+    "src/core/providers/DbConfig.Provider.PostgreSql/DbConfigBuilderPostgreSqlExtensions.cs",
+    "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/20260516000000_InitialCreate.cs",
+    "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/20260516000000_InitialCreate.Designer.cs",
+    "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/DbConfigDbContextModelSnapshot.cs",
+    "src/core/DbConfig.Http/Endpoints/ListEntriesEndpoint.cs",
+    "src/core/DbConfig.Http/Endpoints/GetEntryEndpoint.cs",
+    "src/core/DbConfig.Http/Endpoints/UpsertEntryEndpoint.cs",
+    "src/core/DbConfig.Http/Endpoints/DeleteEntryEndpoint.cs",
+    "src/core/DbConfig.Http/Endpoints/ReloadEndpoint.cs",
+    "src/core/DbConfig.Http/EndpointRouteBuilderExtensions.cs",
+    "src/core/DbConfig.Http/Contracts/UpsertEntryRequest.cs",
+    "src/core/DbConfig.Http/Endpoints/JsonOptions.cs",
+    "src/core/DbConfig.Core/IDbConfigReloadSignal.cs",
+    "src/core/DbConfig.Ui/EmbeddedStaticFileMiddleware.cs",
+    "src/core/DbConfig.Ui/EndpointRouteBuilderExtensions.cs",
+    "src/demo/DbConfig.Demo.WebApp/Program.cs",
+    "src/demo/DbConfig.Demo.WebApp/appsettings.json",
+    "src/demo/DbConfig.Demo.WebApp/appsettings.Development.json",
+    "src/demo/DbConfig.Demo.WebApp/README.md",
+    "ui/package.json",
+    "ui/tsconfig.json",
+    "ui/tsconfig.app.json",
+    "ui/tsconfig.node.json",
+    "ui/vite.config.ts",
+    "ui/index.html",
+    "ui/eslint.config.js",
+    "ui/.gitignore",
+    "ui/src/main.tsx",
+    "ui/src/App.tsx",
+    "ui/src/styles/globals.css",
+    "ui/src/lib/utils.ts",
+    "ui/src/api/client.ts",
+    "ui/src/api/entries.ts",
+    "ui/src/store/entriesStore.ts",
+    "ui/src/store/scopeStore.ts",
+    "ui/src/components/ui/button.tsx",
+    "ui/src/components/ui/input.tsx",
+    "ui/src/components/ui/textarea.tsx",
+    "ui/src/components/ui/checkbox.tsx",
+    "ui/src/components/ui/dialog.tsx",
+    "ui/src/components/ui/table.tsx",
+    "ui/src/components/EntriesTable.tsx",
+    "ui/src/components/EditValueDialog.tsx",
+    "ui/src/components/CreateEntryDialog.tsx",
+    "ui/src/components/DeleteEntryDialog.tsx",
+    "ui/src/components/SecretValueCell.tsx",
+    "ui/src/components/ScopeSelector.tsx",
+    "ui/src/components/ReloadButton.tsx",
+    "ui/src/components/AccessWarningBanner.tsx",
+    "ui/src/pages/EntriesPage.tsx",
+    "src/tests/DbConfig.Tests/Core/KeyFlatteningTests.cs",
+    "src/tests/DbConfig.Tests/Core/PollingReloadTests.cs",
+    "src/tests/DbConfig.Tests/Core/ChangeTokenTests.cs",
+    "src/tests/DbConfig.Tests/Core/ReloadFailureResilienceTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerFixture.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreCrudTests.cs",
+    "src/tests/DbConfig.Tests/SqlServer/SqlServerReloadIntegrationTests.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlFixture.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreCrudTests.cs",
+    "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlReloadIntegrationTests.cs",
+    "src/tests/DbConfig.Tests/Http/EndpointAuthCompositionTests.cs",
+    "src/tests/DbConfig.Tests/Http/EndpointContractTests.cs",
+    "src/tests/DbConfig.Tests/Http/ReloadEndpointTests.cs",
+    "src/tests/DbConfig.Tests/Ui/StaticAssetServingTests.cs",
+    "src/tests/DbConfig.Tests/E2E/EndToEndFixture.cs",
+    "src/tests/DbConfig.Tests/E2E/FullRoundTripTests.cs",
+    "src/tests/DbConfig.Tests/E2E/ReloadEndpointShortcutTests.cs",
+    "src/tests/DbConfig.Tests/TestData/TimedFactAttribute.cs",
+    "src/tests/DbConfig.Tests/runtimeconfig.template.json"
+  ],
+  "plan": {
+    "batches": [
+      {
+        "id": "B1",
+        "title": "Core configuration provider",
+        "intent": "AddDbConfig works against an in-memory store; polling reload + IChangeToken exercised by unit tests.",
+        "files": [
+          "src/core/DbConfig.Core/DbConfigOptions.cs",
+          "src/core/DbConfig.Core/ConfigEntry.cs",
+          "src/core/DbConfig.Core/IConfigStore.cs",
+          "src/core/DbConfig.Core/DbConfigBuilder.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationSource.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs",
+          "src/core/DbConfig.Core/ConfigurationBuilderExtensions.cs",
+          "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+          "src/core/DbConfig.Core/PackageMarker.cs",
+          "src/tests/DbConfig.Tests/Core/KeyFlatteningTests.cs",
+          "src/tests/DbConfig.Tests/Core/PollingReloadTests.cs",
+          "src/tests/DbConfig.Tests/Core/ChangeTokenTests.cs",
+          "src/tests/DbConfig.Tests/Core/ReloadFailureResilienceTests.cs",
+          "src/tests/DbConfig.Tests/PackageMarker.cs"
+        ],
+        "acceptance": [
+          "AddDbConfig(...) extension on IConfigurationBuilder registers a DbConfigConfigurationSource",
+          "DbConfigConfigurationProvider polls the IConfigStore at the configured interval using TimeProvider",
+          "Hierarchical keys with ':' separator flow through to IConfiguration",
+          "IChangeToken fires when the highest watermark advances; IOptionsMonitor<T> callbacks observe the change",
+          "Store exceptions during reload are logged, do not throw from the timer callback, and previous values remain intact",
+          "InMemoryConfigStore is internal (InternalsVisibleTo DbConfig.Tests)",
+          "PackageMarker.cs files are deleted (replaced by real types)"
+        ],
+        "verification": [
+          "dotnet build src/DbConfig.slnx (analyzer-clean, warnings-as-errors)",
+          "dotnet test src/tests/DbConfig.Tests/DbConfig.Tests.csproj (Category=Unit subset, no DB)"
+        ],
+        "boundary": "Only files under src/core/DbConfig.Core/ and src/tests/DbConfig.Tests/Core/. No EF Core, no HTTP, no UI.",
+        "depends": []
+      },
+      {
+        "id": "B2",
+        "title": "EF Core integration + SQL Server provider",
+        "files": [
+          "src/core/DbConfig.Core/EntityFrameworkCore/DbConfigDbContext.cs",
+          "src/core/DbConfig.Core/EntityFrameworkCore/ConfigEntryEntity.cs",
+          "src/core/DbConfig.Core/EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.Core/EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/DbConfigBuilderSqlServerExtensions.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/Migrations/InitialCreate.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/PackageMarker.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerFixture.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreCrudTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerReloadIntegrationTests.cs"
+        ],
+        "acceptance": [
+          "UseSqlServer(connString) registers an EfCoreConfigStore that reads/writes a real SQL Server DB",
+          "InitialCreate migration generates the DbConfig_Entries table per spec data model",
+          "Unique index on (AppName, Environment, Key) enforced",
+          "Index on (AppName, Environment, ModifiedUtc DESC) supports watermark query",
+          "Integration tests round-trip CRUD and reload-on-watermark-advance"
+        ],
+        "verification": [
+          "dotnet build src/DbConfig.slnx",
+          "dotnet test ... --filter-trait Category=SqlServer (Docker required for Testcontainers MSSQL)"
+        ],
+        "boundary": "src/core/DbConfig.Core/EntityFrameworkCore/, src/core/providers/DbConfig.Provider.SqlServer/, src/tests/DbConfig.Tests/SqlServer/. No HTTP, no UI, no PG.",
+        "depends": ["B1"]
+      },
+      {
+        "id": "B3",
+        "title": "HTTP API endpoints",
+        "files": [
+          "src/core/DbConfig.Http/Endpoints/ListEntriesEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/GetEntryEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/UpsertEntryEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/DeleteEntryEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/ReloadEndpoint.cs",
+          "src/core/DbConfig.Http/EndpointRouteBuilderExtensions.cs",
+          "src/core/DbConfig.Http/Contracts/UpsertEntryRequest.cs",
+          "src/core/DbConfig.Http/PackageMarker.cs",
+          "src/tests/DbConfig.Tests/Http/EndpointAuthCompositionTests.cs",
+          "src/tests/DbConfig.Tests/Http/EndpointContractTests.cs",
+          "src/tests/DbConfig.Tests/Http/ReloadEndpointTests.cs"
+        ],
+        "acceptance": [
+          "MapDbConfigHttp(prefix) maps the five endpoints under prefix",
+          "Host's RequireAuthorization('Policy') on the group propagates to all endpoints",
+          "Endpoints use IConfigStore from DI (so they work over any store, incl. InMemoryConfigStore in tests)",
+          "POST /reload fires an immediate change-token via an in-process IDbConfigReloadSignal abstraction in Core"
+        ],
+        "verification": [
+          "dotnet build + test with Microsoft.AspNetCore.TestHost; InMemoryConfigStore for HTTP tests"
+        ],
+        "boundary": "src/core/DbConfig.Http/ and src/tests/DbConfig.Tests/Http/. Adds one small extension to DbConfig.Core for the IDbConfigReloadSignal abstraction (and listed in change_manifest amendment if needed).",
+        "depends": ["B1"]
+      },
+      {
+        "id": "B4",
+        "title": "React UI scaffold",
+        "files": [
+          "ui/package.json",
+          "ui/tsconfig.json",
+          "ui/tsconfig.node.json",
+          "ui/vite.config.ts",
+          "ui/index.html",
+          "ui/eslint.config.js",
+          "ui/.gitignore",
+          "ui/src/main.tsx",
+          "ui/src/App.tsx",
+          "ui/src/styles/globals.css",
+          "ui/src/lib/utils.ts"
+        ],
+        "acceptance": [
+          "cd ui && npm install && npm run build produces ui/dist/index.html + assets/*",
+          "Stack mirrors warp UI: React 19, Vite 8, TS 5.9, Tailwind 4, shadcn primitives, Zustand, Axios",
+          "vite.config.ts proxies /api to http://localhost:5000 for dev"
+        ],
+        "verification": [
+          "npm install + npm run build succeeds (requires Node 20+)"
+        ],
+        "boundary": "Files under ui/ only. No .NET files touched.",
+        "depends": []
+      },
+      {
+        "id": "B5",
+        "title": "UI core features",
+        "files": [
+          "ui/src/api/client.ts",
+          "ui/src/api/entries.ts",
+          "ui/src/store/entriesStore.ts",
+          "ui/src/store/scopeStore.ts",
+          "ui/src/components/EntriesTable.tsx",
+          "ui/src/components/EditValueDialog.tsx",
+          "ui/src/components/CreateEntryDialog.tsx",
+          "ui/src/components/DeleteEntryDialog.tsx",
+          "ui/src/components/SecretValueCell.tsx",
+          "ui/src/components/ScopeSelector.tsx",
+          "ui/src/components/ReloadButton.tsx",
+          "ui/src/components/AccessWarningBanner.tsx",
+          "ui/src/pages/EntriesPage.tsx",
+          "ui/src/App.tsx"
+        ],
+        "acceptance": [
+          "List by (App, Env) renders entries with secret values masked",
+          "Edit value updates via PUT, optimistic UI rollback on failure",
+          "Create new entry flow inserts via PUT",
+          "Delete with confirm calls DELETE",
+          "Secret toggle reveals masked values per-row",
+          "Reload button calls POST /reload then refetches",
+          "AccessWarningBanner is always visible (CLAUDE.md §0.2)"
+        ],
+        "verification": [
+          "npm run build clean"
+        ],
+        "boundary": "ui/src/ only.",
+        "depends": ["B3", "B4"]
+      },
+      {
+        "id": "B6",
+        "title": "UI embedding into Moberg.DbConfig.Ui NuGet",
+        "files": [
+          "src/core/DbConfig.Ui/EmbeddedStaticFileMiddleware.cs",
+          "src/core/DbConfig.Ui/EndpointRouteBuilderExtensions.cs",
+          "src/core/DbConfig.Ui/PackageMarker.cs",
+          "src/tests/DbConfig.Tests/Ui/StaticAssetServingTests.cs"
+        ],
+        "acceptance": [
+          "BuildUI MSBuild target invokes Vite and ui/dist becomes embedded resources",
+          "MapDbConfigUi(prefix) returns index.html on prefix and assets on prefix/assets/*",
+          "Index.html has API prefix injected via data attribute so SPA knows where to call",
+          "404 outside the prefix"
+        ],
+        "verification": [
+          "dotnet build runs Vite + embeds; integration test asserts asset serving"
+        ],
+        "boundary": "src/core/DbConfig.Ui/ and src/tests/DbConfig.Tests/Ui/ only.",
+        "depends": ["B5"]
+      },
+      {
+        "id": "B7",
+        "title": "PostgreSQL provider",
+        "files": [
+          "src/core/providers/DbConfig.Provider.PostgreSql/DbConfigBuilderPostgreSqlExtensions.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/Migrations/InitialCreate.cs",
+          "src/core/providers/DbConfig.Provider.PostgreSql/PackageMarker.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlFixture.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreCrudTests.cs",
+          "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlReloadIntegrationTests.cs"
+        ],
+        "acceptance": [
+          "UsePostgreSql(connString) registers EfCoreConfigStore with Npgsql provider",
+          "InitialCreate migration produces equivalent PG schema (uuid, text, boolean, timestamptz)",
+          "Same test suite as SQL Server passes on PG fixture"
+        ],
+        "verification": [
+          "dotnet build + test --filter-trait Category=PostgreSql (Docker required)"
+        ],
+        "boundary": "PostgreSql provider + PostgreSql test folder only.",
+        "depends": ["B2"]
+      },
+      {
+        "id": "B8",
+        "title": "Demo app wireup",
+        "files": [
+          "src/demo/DbConfig.Demo.WebApp/Program.cs",
+          "src/demo/DbConfig.Demo.WebApp/appsettings.json",
+          "src/demo/DbConfig.Demo.WebApp/appsettings.Development.json",
+          "src/demo/DbConfig.Demo.WebApp/README.md"
+        ],
+        "acceptance": [
+          "Demo host runs with SQL Server connection from appsettings",
+          "DbConfig wired with AppName=DemoApp, Environment from IHostEnvironment",
+          "Demo DbConfigAdmin policy via API key middleware (clearly labeled NOT FOR PROD)",
+          "SPA reachable at /admin/dbconfig",
+          "JSON API reachable at /api/dbconfig"
+        ],
+        "verification": [
+          "dotnet run --project src/demo/DbConfig.Demo.WebApp starts; smoke against running container"
+        ],
+        "boundary": "src/demo/DbConfig.Demo.WebApp/ only.",
+        "depends": ["B2", "B3", "B6"]
+      },
+      {
+        "id": "B9",
+        "title": "End-to-end integration tests",
+        "files": [
+          "src/tests/DbConfig.Tests/E2E/EndToEndFixture.cs",
+          "src/tests/DbConfig.Tests/E2E/FullRoundTripTests.cs",
+          "src/tests/DbConfig.Tests/E2E/ReloadEndpointShortcutTests.cs"
+        ],
+        "acceptance": [
+          "Full stack: host + DbConfig + real DB + HTTP endpoints, exercised over TestServer",
+          "Write via API → wait one poll interval → IConfiguration[key] reflects in DI",
+          "POST /reload skips the wait and produces immediate reflection"
+        ],
+        "verification": [
+          "dotnet test --filter-trait Category=E2E (Docker required)"
+        ],
+        "boundary": "src/tests/DbConfig.Tests/E2E/ only.",
+        "depends": ["B2", "B3"]
+      }
+    ]
+  },
+  "implement": {
+    "model": "sonnet",
+    "completed_batches": [
+      {
+        "batch_id": "B1",
+        "actual_files": [
+          "src/core/DbConfig.Core/DbConfigOptions.cs",
+          "src/core/DbConfig.Core/ConfigEntry.cs",
+          "src/core/DbConfig.Core/IConfigStore.cs",
+          "src/core/DbConfig.Core/DbConfigBuilder.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationSource.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs",
+          "src/core/DbConfig.Core/ConfigurationBuilderExtensions.cs",
+          "src/core/DbConfig.Core/InMemoryConfigStore.cs",
+          "src/tests/DbConfig.Tests/Core/KeyFlatteningTests.cs",
+          "src/tests/DbConfig.Tests/Core/PollingReloadTests.cs",
+          "src/tests/DbConfig.Tests/Core/ChangeTokenTests.cs",
+          "src/tests/DbConfig.Tests/Core/ReloadFailureResilienceTests.cs",
+          "src/tests/DbConfig.Tests/TestData/TimedFactAttribute.cs",
+          "src/tests/DbConfig.Tests/runtimeconfig.template.json"
+        ],
+        "deleted_files": [
+          "src/core/DbConfig.Core/PackageMarker.cs",
+          "src/tests/DbConfig.Tests/PackageMarker.cs"
+        ],
+        "build": { "ok": true, "evidence": "dotnet build src/DbConfig.slnx — 0 errors, 14 warnings (SourceLink no-git only)" },
+        "tests": { "ok": true, "evidence": "16/16 tests pass via DbConfig.Tests.exe (MTP runner)" },
+        "behavioral_diff": "AddDbConfig extension on IConfigurationBuilder registers a polling-based database configuration source. Hierarchical keys via ':' separator flow through to IConfiguration. IChangeToken fires when watermark advances; reload failures retain previous values.",
+        "deviations": [
+          { "kind": "extra-file", "detail": "src/tests/DbConfig.Tests/TestData/TimedFactAttribute.cs", "justification": "Test helper mirroring warp's [TimedFact] pattern; in-package, no public contract." },
+          { "kind": "extra-file", "detail": "src/tests/DbConfig.Tests/runtimeconfig.template.json", "justification": "rollForward=Major lets net8.0 test exe run on dev machines that only have .NET 9/10 installed; in-package, no public contract." }
+        ]
+      },
+      {
+        "batch_id": "B2",
+        "actual_files": [
+          "src/core/DbConfig.Core/EntityFrameworkCore/ConfigEntryEntity.cs",
+          "src/core/DbConfig.Core/EntityFrameworkCore/DbConfigDbContext.cs",
+          "src/core/DbConfig.Core/EntityFrameworkCore/EfCoreConfigStore.cs",
+          "src/core/DbConfig.Core/EntityFrameworkCore/DbConfigBuilderEfCoreExtensions.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/DbConfigBuilderSqlServerExtensions.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260516000000_InitialCreate.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/Migrations/20260516000000_InitialCreate.Designer.cs",
+          "src/core/providers/DbConfig.Provider.SqlServer/Migrations/DbConfigDbContextModelSnapshot.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerFixture.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerStoreCrudTests.cs",
+          "src/tests/DbConfig.Tests/SqlServer/SqlServerReloadIntegrationTests.cs"
+        ],
+        "deleted_files": [
+          "src/core/providers/DbConfig.Provider.SqlServer/PackageMarker.cs"
+        ],
+        "build": { "ok": true, "evidence": "dotnet build src/DbConfig.slnx — 0 errors" },
+        "tests": { "ok": true, "evidence": "27/27 tests pass (16 Core + 11 SqlServer via Testcontainers MSSQL); duration ~11s" },
+        "behavioral_diff": "UseSqlServer(connString) extension on DbConfigBuilder wires a real EF Core SQL Server-backed IConfigStore. Migrations create DbConfig_Entries table with unique (App, Env, Key) constraint and watermark index. EfCoreConfigStore uses IDbContextFactory for per-call DbContext lifetime. Polling provider now reflects real DB writes within one ReloadInterval.",
+        "deviations": [
+          { "kind": "extra-contract", "detail": "DbConfig.Core.EntityFrameworkCore.DbConfigBuilderEfCoreExtensions.UseEntityFrameworkCore made public", "justification": "Structurally required: PostgreSQL provider (B7) calls this from a different assembly. Spec listed UseSqlServer/UsePostgreSql as public but didn't explicitly spell out the shared bridge. Auto-fixed via sidecar public_contracts amendment." }
+        ]
+      },
+      {
+        "batch_id": "B3",
+        "actual_files": [
+          "src/core/DbConfig.Core/IDbConfigReloadSignal.cs",
+          "src/core/DbConfig.Core/DbConfigConfigurationProvider.cs (modified)",
+          "src/core/DbConfig.Core/DbConfigConfigurationSource.cs (modified)",
+          "src/core/DbConfig.Core/ConfigurationBuilderExtensions.cs (modified)",
+          "src/core/DbConfig.Http/Contracts/UpsertEntryRequest.cs",
+          "src/core/DbConfig.Http/Endpoints/ListEntriesEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/GetEntryEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/UpsertEntryEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/DeleteEntryEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/ReloadEndpoint.cs",
+          "src/core/DbConfig.Http/Endpoints/JsonOptions.cs",
+          "src/core/DbConfig.Http/EndpointRouteBuilderExtensions.cs",
+          "src/tests/DbConfig.Tests/Http/EndpointAuthCompositionTests.cs",
+          "src/tests/DbConfig.Tests/Http/EndpointContractTests.cs",
+          "src/tests/DbConfig.Tests/Http/ReloadEndpointTests.cs"
+        ],
+        "deleted_files": [
+          "src/core/DbConfig.Http/PackageMarker.cs"
+        ],
+        "build": { "ok": true, "evidence": "dotnet build src/DbConfig.slnx — 0 errors" },
+        "tests": { "ok": true, "evidence": "38/38 pass (27 Unit + 11 SqlServer)" },
+        "behavioral_diff": "MapDbConfigHttp(prefix) maps GET/PUT/DELETE/POST endpoints over IConfigStore via Minimal APIs; returns RouteGroupBuilder for host-side RequireAuthorization. Catch-all {*key} normalizes '/' to ':'. Upsert/Delete fire IDbConfigReloadSignal.Trigger() so IConfiguration reflects changes without waiting for the poll interval. POST /reload also fires Trigger() explicitly.",
+        "deviations": [
+          { "kind": "extra-file", "detail": "src/core/DbConfig.Http/Endpoints/JsonOptions.cs", "justification": "Shared JsonSerializerOptions; in-package, no public contract." },
+          { "kind": "implementation-shape", "detail": "GET endpoints write JSON via JsonSerializer.SerializeAsync(Response.Body) instead of Results.Ok().", "justification": "Workaround for known .NET 8 TestServer + PipeWriter.UnflushedBytes incompatibility. Same observable JSON output (camelCase). Fixed in .NET 9; revisit on framework upgrade." }
+        ]
+      }
+    ],
+    "behavioral_diff": ""
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "spec_path": "docs/specs/2026-05-18-v0.7.0-docs-and-screenshots.md",
+  "plan_path": "docs/plans/2026-05-18-v0.7.0-docs-and-screenshots.md",
+  "todo_path": "tasks/todo.md",
+  "scope_classification": "substantial",
+  "security_impact": "none",
+  "open_decisions": [],
+  "out_of_scope": [
+    "Dark mode (parallel screenshot set)",
+    "Algolia search (use Docusaurus built-in local search)",
+    "Hosting/deployment automation (v0.8.0)",
+    "Translations / i18n",
+    "Versioned docs (single-version site for v0.x)"
+  ],
+  "public_contracts": [
+    "?demo query string on the UI activates in-memory demo data adapter (intentionally undocumented; opt-in only)"
+  ],
+  "plan": {
+    "batches": [
+      { "id": "B34", "title": "Docusaurus 3.10 scaffold at website/", "depends": [] },
+      { "id": "B35", "title": "UI demo mode (Vite --mode demo + ?demo query string + adapter)", "depends": [] },
+      { "id": "B36", "title": "Playwright screenshot tests producing 10 PNGs", "depends": ["B34", "B35"] },
+      { "id": "B37", "title": "Docs content for all pages with embedded screenshots", "depends": ["B34", "B36"] },
+      { "id": "B38", "title": "Wrap-up: README, lessons, todo, sidecar, project-specific.md §8.13", "depends": ["B34", "B35", "B36", "B37"] }
+    ]
+  },
+  "implement": { "model": "sonnet", "completed_batches": [], "behavioral_diff": "" }
+}

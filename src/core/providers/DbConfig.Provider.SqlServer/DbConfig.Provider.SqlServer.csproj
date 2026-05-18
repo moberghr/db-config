@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>Moberg.DbConfig.Provider.SqlServer</PackageId>
+    <Title>Moberg.DbConfig (SQL Server provider)</Title>
+    <Description>SQL Server provider for DbConfig: EF Core SqlServer wiring, migrations, and unique-constraint detection. Call b.UseSqlServer(connectionString) inside AddDbConfig.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\DbConfig.EntityFrameworkCore\DbConfig.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbConfig.Tests" />
+  </ItemGroup>
+
+</Project>

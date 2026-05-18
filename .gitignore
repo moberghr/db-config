@@ -1,0 +1,42 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+
+## NuGet
+*.nupkg
+*.snupkg
+nupkgs/
+
+## Node / Vite
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+
+## Editors
+.idea/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+
+## Local secrets overrides (use appsettings.Development.Local.json for real secrets — never commit)
+**/appsettings.*.Local.json
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Docusaurus
+website/build/
+website/node_modules/
+website/.docusaurus/
+
+## Playwright
+ui/playwright-report/
+ui/test-results/

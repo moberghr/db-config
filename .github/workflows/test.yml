@@ -1,0 +1,85 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0'
+  # Opt into Node.js 24 for JS-based actions (setup-dotnet, setup-node, checkout).
+  # Node 20 is deprecated on GitHub Actions runners from 2026-06-02.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  test:
+    name: ${{ matrix.category }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - category: Unit
+            filter: --filter-trait "Category=Unit"
+          - category: SqlServer
+            filter: --filter-trait "Category=SqlServer"
+          - category: PostgreSql
+            filter: --filter-trait "Category=PostgreSql"
+          - category: E2E
+            filter: --filter-trait "Category=E2E"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js (for DbConfig.Ui npm build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install UI dependencies
+        working-directory: ui
+        run: npm ci
+
+      - name: Restore
+        working-directory: src
+        run: dotnet restore tests/DbConfig.Tests/DbConfig.Tests.csproj
+
+      - name: Build
+        working-directory: src
+        run: dotnet build tests/DbConfig.Tests/DbConfig.Tests.csproj --no-restore --configuration Release
+
+      # The xUnit v3 Microsoft Testing Platform runner exits with code 5 ("zero tests ran")
+      # under `dotnet test` even when tests exist (see CLAUDE.md §8.5 / project-specific.md).
+      # Invoke the test executable directly to get a reliable exit code.
+      - name: Test (${{ matrix.category }})
+        working-directory: src/tests/DbConfig.Tests/bin/Release/net8.0
+        run: |
+          ./DbConfig.Tests \
+            ${{ matrix.filter }} \
+            --report-trx --report-trx-filename test-results.trx \
+            --results-directory "$GITHUB_WORKSPACE/test-results"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.category }}
+          path: test-results/*.trx
+          retention-days: 7
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2.23.0
+        with:
+          check_name: ${{ matrix.category }} tests
+          files: test-results/**/*.trx
+          comment_mode: off

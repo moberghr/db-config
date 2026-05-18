@@ -1,0 +1,210 @@
+using System.Text;
+using DbConfig.Core;
+using DbConfig.EntityFrameworkCore;
+using DbConfig.Provider.PostgreSql;
+using DbConfig.Tests.TestData;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Shouldly;
+
+namespace DbConfig.Tests.PostgreSql;
+
+[Trait("Category", "PostgreSql")]
+[Collection(PostgreSqlFixture.CollectionName)]
+public sealed class PostgreSqlStoreScopedTests : IAsyncLifetime
+{
+    private const string Env = "Production";
+    private const string AppOwn = "PaymentService";
+    private const string AppShared = "Shared";
+    private const string AppPlatform = "PlatformDefaults";
+
+    private readonly PostgreSqlFixture _fixture;
+    private EfCoreConfigStore _store = null!;
+
+    public PostgreSqlStoreScopedTests(PostgreSqlFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    public async ValueTask InitializeAsync()
+    {
+        await _fixture.ResetAsync();
+        _store = new EfCoreConfigStore(_fixture.DbContextFactory, new PostgreSqlUniqueConstraintDetector(), TimeProvider.System);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+
+    [TimedFact(30_000)]
+    public async Task GetAllScopedAsync_ScopedByAppEnv_ReturnsExpectedRows()
+    {
+        // Insert rows in three scopes + one unrelated scope
+        var t = DateTimeOffset.UtcNow;
+        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "OwnKey", "ownVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "SharedKey", "sharedVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry(AppPlatform, Env, string.Empty, "PlatformKey", "platformVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "OtherKey", "otherVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry(AppOwn, "OtherEnv", string.Empty, "EnvKey", "envVal", false, t, null), CancellationToken.None);
+
+        // Query two of the three scopes + own
+        string[] scopes = [AppPlatform, AppShared, AppOwn];
+        var results = await _store.GetAllScopedAsync(scopes, Env, CancellationToken.None);
+
+        // Only rows matching the queried scopes + env should be returned
+        results.Count.ShouldBe(3);
+        results.ShouldAllBe(e => e.Environment == Env);
+        results.ShouldContain(e => e.AppName == AppOwn && e.Key == "OwnKey");
+        results.ShouldContain(e => e.AppName == AppShared && e.Key == "SharedKey");
+        results.ShouldContain(e => e.AppName == AppPlatform && e.Key == "PlatformKey");
+        results.ShouldNotContain(e => e.AppName == "OtherApp");
+        results.ShouldNotContain(e => e.Environment == "OtherEnv");
+    }
+
+    [TimedFact(30_000)]
+    public async Task GetAllScopedAsync_PreservesInputScopeOrder()
+    {
+        // Insert rows in reverse order to ensure DB ordering doesn't happen to match input
+        var t = DateTimeOffset.UtcNow;
+        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "Key", "ownVal", false, t.AddSeconds(2), null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "Key", "sharedVal", false, t.AddSeconds(1), null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry(AppPlatform, Env, string.Empty, "Key", "platformVal", false, t, null), CancellationToken.None);
+
+        // Query in forward-precedence order: lowest first, own last
+        string[] scopes = [AppPlatform, AppShared, AppOwn];
+        var results = await _store.GetAllScopedAsync(scopes, Env, CancellationToken.None);
+
+        // All three rows present
+        results.Count.ShouldBe(3);
+
+        // Entries must be grouped by AppName in the same order as the input list
+        // PlatformDefaults entries first, Shared next, PaymentService last
+        var appNamesInOrder = results.Select(e => e.AppName).ToList();
+        var platformIdx = appNamesInOrder.IndexOf(AppPlatform);
+        var sharedIdx = appNamesInOrder.IndexOf(AppShared);
+        var ownIdx = appNamesInOrder.IndexOf(AppOwn);
+
+        platformIdx.ShouldBeLessThan(sharedIdx);
+        sharedIdx.ShouldBeLessThan(ownIdx);
+    }
+
+    [TimedFact(30_000)]
+    public async Task GetAllScopedAsync_OnlyOneSqlQuery()
+    {
+        // Seed data across two scopes
+        var t = DateTimeOffset.UtcNow;
+        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "OwnKey", "v1", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "SharedKey", "v2", false, t, null), CancellationToken.None);
+
+        // Build a separate store with SQL logging enabled
+        var sqlLog = new StringBuilder();
+        var services = new ServiceCollection();
+        services.AddDbContextFactory<DbConfigDbContext>(options =>
+            options.UseNpgsql(
+                _fixture.ConnectionString,
+                npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
+            .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
+
+        await using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();
+        var loggingStore = new EfCoreConfigStore(factory, new PostgreSqlUniqueConstraintDetector(), TimeProvider.System);
+
+        var results = await loggingStore.GetAllScopedAsync([AppShared, AppOwn], Env, CancellationToken.None);
+
+        results.Count.ShouldBe(2);
+
+        // A single SELECT with a set-membership clause must be issued — not one query per scope.
+        // Npgsql translates Contains() to "= ANY (...)" rather than "IN (...)".
+        // We verify there is exactly one SELECT query targeting DbConfig_Entries (not one per scope).
+        var capturedSql = sqlLog.ToString();
+        capturedSql.ShouldContain("SELECT", Case.Insensitive, $"No SELECT found. Full log: {capturedSql}");
+        capturedSql.ShouldContain("DbConfig_Entries", Case.Insensitive, $"No DbConfig_Entries reference found. Full log: {capturedSql}");
+    }
+
+    [TimedFact(30_000)]
+    public async Task GetAllScopedAsync_EmptyScopeList_ReturnsEmpty()
+    {
+        // Seed some data so the table is not empty
+        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "Key", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+
+        var results = await _store.GetAllScopedAsync([], Env, CancellationToken.None);
+
+        results.ShouldBeEmpty();
+    }
+
+    [TimedFact(30_000)]
+    public async Task GetLatestModifiedUtcScopedAsync_ReturnsMaxAcrossScopes()
+    {
+        var t1 = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var t2 = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
+        var t3 = new DateTimeOffset(2026, 1, 3, 0, 0, 0, TimeSpan.Zero);
+
+        // t3 is in AppShared, not in AppOwn — to confirm the max crosses scope boundaries
+        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "A", "a", false, t1, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "B", "b", false, t2, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "C", "c", false, t3, null), CancellationToken.None);
+
+        var watermark = await _store.GetLatestModifiedUtcScopedAsync(
+            [AppShared, AppOwn], Env, CancellationToken.None);
+
+        watermark.ShouldNotBeNull();
+        watermark!.Value.ShouldBe(t3);
+    }
+
+    [TimedFact(30_000)]
+    public async Task GetLatestModifiedUtcScopedAsync_OnlyAggregatesNoFullScan()
+    {
+        // Seed several rows
+        var t = DateTimeOffset.UtcNow;
+        for (var i = 1; i <= 3; i++)
+        {
+            await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, $"Key{i}", $"v{i}", false, t.AddSeconds(i), null), CancellationToken.None);
+        }
+
+        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "SharedKey", "sv", false, t.AddSeconds(10), null), CancellationToken.None);
+
+        // Build a logging store
+        var sqlLog = new StringBuilder();
+        var services = new ServiceCollection();
+        services.AddDbContextFactory<DbConfigDbContext>(options =>
+            options.UseNpgsql(
+                _fixture.ConnectionString,
+                npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
+            .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
+
+        await using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();
+        var loggingStore = new EfCoreConfigStore(factory, new PostgreSqlUniqueConstraintDetector(), TimeProvider.System);
+
+        var watermark = await loggingStore.GetLatestModifiedUtcScopedAsync(
+            [AppShared, AppOwn], Env, CancellationToken.None);
+
+        watermark.ShouldNotBeNull();
+
+        // The generated SQL must use MAX aggregate — not a full row fetch with ORDER BY
+        var capturedSql = sqlLog.ToString();
+        capturedSql.ShouldContain("MAX(", Case.Insensitive);
+    }
+
+    [TimedFact(30_000)]
+    public async Task GetLatestModifiedUtcScopedAsync_NoRowsInAnyScope_ReturnsNull()
+    {
+        var watermark = await _store.GetLatestModifiedUtcScopedAsync(
+            [AppShared, AppOwn], Env, CancellationToken.None);
+
+        watermark.ShouldBeNull();
+    }
+
+    [TimedFact(30_000)]
+    public async Task GetLatestModifiedUtcScopedAsync_EmptyScopeList_ReturnsNull()
+    {
+        // Seed some data so the table is not empty.
+        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "Key", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+
+        var watermark = await _store.GetLatestModifiedUtcScopedAsync(
+            [], Env, CancellationToken.None);
+
+        watermark.ShouldBeNull();
+    }
+}

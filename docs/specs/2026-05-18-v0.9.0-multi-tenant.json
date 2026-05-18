@@ -1,0 +1,113 @@
+{
+  "spec_path": "docs/specs/2026-05-18-v0.9.0-multi-tenant.md",
+  "plan_path": "docs/plans/2026-05-18-v0.9.0-multi-tenant.md",
+  "todo_path": "tasks/todo.md",
+  "scope_classification": "substantial",
+  "security_impact": "medium",
+  "open_decisions": [],
+  "out_of_scope": [
+    "Built-in tenant resolution middleware (host owns via the resolver implementation)",
+    "tenantFilter on MapDbConfigHttp (no automatic per-tenant HTTP auth — host policy)",
+    "Async resolvers (Resolve() is sync; complex lookups must pre-cache)",
+    "Cross-tenant copy/move workflows in UI",
+    "Lazy per-tenant loading (v0.10.0+)",
+    "Tenant-aware audit retention pruner"
+  ],
+  "public_contracts": [
+    "DbConfig.Core: ITenantResolver (new, consumer-implemented, single method string? Resolve()); NullTenantResolver (new, internal, returns null); DbConfigBuilder.AddTenantResolver<TResolver>() (new); DbConfigConfigurationProvider.TryGet is now tenant-aware (internal change); ConfigEntry gains TenantId field; IConfigStore gains tenant-aware overloads + GetAllForAllTenantsAsync",
+    "DbConfig.EntityFrameworkCore: schema migration adds TenantId column on Entries + AuditEntries; case-sensitive collation extended to TenantId",
+    "DbConfig.Http: query string ?tenantId= on all endpoints; UpsertEntryRequest gains TenantId field; ConfigEntryDto JSON includes tenantId",
+    "UI: scopeStore.tenantId; ScopeSelector gains Tenant input; EntriesTable + EntriesTreeView gain Tenant column"
+  ],
+  "plan": {
+    "batches": [
+      { "id": "B52", "title": "Core abstractions — initial design (superseded by B62)", "depends": [] },
+      { "id": "B53", "title": "Schema migration (TenantId column on Entries + AuditEntries)", "depends": ["B52"] },
+      { "id": "B54", "title": "Store layer (tenant-aware methods on EfCoreConfigStore + InMemoryConfigStore)", "depends": ["B53"] },
+      { "id": "B55", "title": "Polling provider loads all tenants via GetAllForAllTenantsAsync", "depends": ["B54"] },
+      { "id": "B56", "title": "TenantAwareOptions<T> + AddTenantAwareOptions<T> DI — initial design (superseded by B62)", "depends": ["B55"] },
+      { "id": "B57", "title": "HTTP API tenant support (?tenantId=)", "depends": ["B54"] },
+      { "id": "B58", "title": "UI tenant support (ScopeSelector Tenant field, columns, dialogs)", "depends": ["B57"] },
+      { "id": "B59", "title": "Demo Program.cs tenant resolution example", "depends": ["B56", "B57"] },
+      { "id": "B60", "title": "Screenshots + docs + lessons (initial; rewritten in B63)", "depends": ["B52", "B53", "B54", "B55", "B56", "B57", "B58", "B59"] },
+      { "id": "B62", "title": "Refactor: replace ITenantAwareOptions design with ITenantResolver + standard IOptionsSnapshot", "depends": ["B55", "B56"] },
+      { "id": "B63", "title": "Rewrite all v0.9.0 docs to match the new ITenantResolver design", "depends": ["B62"] }
+    ]
+  },
+  "implement": {
+    "model": "sonnet",
+    "completed_batches": [
+      {
+        "id": "B52",
+        "test_count": 233,
+        "behavioral_diff": "Added ITenantContextAccessor, DefaultTenantContextAccessor (AsyncLocal-backed), ITenantConfigReader, and ITenantAwareOptions<T> interfaces and stubs in DbConfig.Core; ConfigEntry gained TenantId field defaulting to empty string. NOTE: these types were removed or superseded in B62."
+      },
+      {
+        "id": "B53",
+        "test_count": 241,
+        "behavioral_diff": "Schema migrations added TenantId nvarchar(128) NOT NULL DEFAULT '' column to DbConfig_Entries and DbConfig_AuditEntries on both SQL Server and PostgreSQL; unique constraint updated to (AppName, Environment, TenantId, Key); all four scope columns carry case-sensitive collation. This schema shape is final."
+      },
+      {
+        "id": "B54",
+        "test_count": 266,
+        "behavioral_diff": "EfCoreConfigStore and InMemoryConfigStore implement tenant-aware GetAllAsync, GetAsync, GetLatestModifiedUtcAsync, DeleteAsync overloads plus GetAllForAllTenantsAsync. Store fallback is NOT implemented at the store layer — that concern moved to TryGet in B62."
+      },
+      {
+        "id": "B55",
+        "test_count": 281,
+        "behavioral_diff": "DbConfigConfigurationProvider now loads all tenants via GetAllForAllTenantsAsync and builds _tenantData dictionary; the base ConfigurationProvider.Data dictionary exposes only TenantId='' entries. Initial implementation also exposed ITenantConfigReader — replaced in B62 by direct TryGet tenant awareness."
+      },
+      {
+        "id": "B56",
+        "test_count": 291,
+        "behavioral_diff": "TenantAwareOptions<T> singleton registered via AddTenantAwareOptions<T>; ConcurrentDictionary<string,T> cache per tenant; GetForCurrentTenant() reads ITenantContextAccessor.Current. NOTE: entire abstraction removed in B62; standard IOptionsSnapshot<T> replaces it."
+      },
+      {
+        "id": "B57",
+        "test_count": 304,
+        "behavioral_diff": "All HTTP endpoints accept ?tenantId= query string (defaults to '' global default); list endpoint also accepts ?allTenants=true; PUT body accepts tenantId; ConfigEntryDto JSON includes tenantId field; backward-compatible — omitting tenantId behaves identically to pre-v0.9.0."
+      },
+      {
+        "id": "B58",
+        "test_count": 304,
+        "behavioral_diff": "UI scopeStore gained tenantId field; ScopeSelector added Tenant input; EntriesTable and EntriesTreeView show Tenant column with Default/tenant-name badges; CreateEntryDialog pre-fills TenantId from current scope; EditValueDialog shows tenant in title; demo data includes Acme and Globex tenant overrides."
+      },
+      {
+        "id": "B59",
+        "test_count": 304,
+        "behavioral_diff": "Demo Program.cs initial version used ITenantContextAccessor middleware pattern; later updated in B62 to use DemoTenantResolver implementing ITenantResolver and reading X-Tenant-Id header."
+      },
+      {
+        "id": "B60",
+        "test_count": 304,
+        "behavioral_diff": "Initial docs batch for the original three-layer design. All docs rewritten in B63 to match the B62 ITenantResolver design."
+      },
+      {
+        "id": "B62",
+        "test_count": 287,
+        "behavioral_diff": "Refactored multi-tenant design: removed ITenantContextAccessor, DefaultTenantContextAccessor, ITenantConfigReader, ITenantAwareOptions<T>, TenantAwareOptions<T>, TenantAwareOptionsBuilder, AddTenantAwareOptions extension. Added ITenantResolver (consumer-implemented, single method string? Resolve()), NullTenantResolver (internal, returns null), DbConfigBuilder.AddTenantResolver<T>(). DbConfigConfigurationProvider.TryGet now resolves ITenantResolver from host DI (lazily cached) on every read; returns tenant-specific entry if resolver returns a non-empty id, falls back to global. Standard IOptionsSnapshot<T> automatically tenant-aware because it rebinds from IConfiguration per request scope. Demo updated to DemoTenantResolver class reading X-Tenant-Id header. Test count net -17 from removed abstraction tests, +3 from new resolver tests = 287."
+      },
+      {
+        "id": "B63",
+        "test_count": 287,
+        "behavioral_diff": "Docs-only batch. Rewrote docs/specs/2026-05-18-v0.9.0-multi-tenant.md, docs/plans/2026-05-18-v0.9.0-multi-tenant.md, docs/specs/2026-05-18-v0.9.0-multi-tenant.json, website/docs/configuration/multi-tenant.md, .claude/rules/architecture.md §2.15, .claude/rules/project-specific.md §8.14, CLAUDE.md §0.8, tasks/lessons.md L35-L37, tasks/todo.md. Removed all references to ITenantContextAccessor, SetTenant, ITenantAwareOptions, GetForCurrentTenant, GetForTenant, AddTenantAwareOptions."
+      },
+      {
+        "id": "B64",
+        "test_count": 290,
+        "behavioral_diff": "Composed IncludeScopes × Tenants resolution in DbConfigConfigurationProvider. Previously these were mutually exclusive (one or the other). The polling provider's load query now uses AppName IN (own + IncludeScopes) AND fetches every tenant in one round trip; TryGet walks four buckets in precedence order: tenant×AppName, tenant×IncludeScope, global×AppName, global×IncludeScope. Tenant axis dominates the scope axis. Within a single bag (tenant or global), AppName beats IncludeScopes. Added matrix tests covering the 4-bucket cube with multiple scopes × multiple tenants × multiple keys."
+      },
+      {
+        "id": "B64.1",
+        "test_count": 290,
+        "behavioral_diff": "Unit-test hardening for the composed resolution walk. Added matrix-test design pattern (Theory + MemberData generating the (resolver-returns × bucket-seeded) cube) to ensure every combination of present/absent at each precedence level resolves deterministically. No production code change."
+      },
+      {
+        "id": "B65",
+        "test_count": 290,
+        "behavioral_diff": "Docs-only batch. Added website/docs/configuration/resolution-order.md (canonical reference for the four-dimension precedence walk with worked examples). Updated website/docs/configuration/multi-tenant.md to cross-link the new page and added a 'Composing with IncludeScopes' section explaining the tenant-dominates-scope rule with a worked example. Updated website/docs/configuration/scopes.md to reflect that tenants compose with IncludeScopes (no longer mutually exclusive) and cross-link the resolution-order page. Added .claude/rules/architecture.md §2.16 ('Resolution Order') as the engineering reference. Appended B64, B64.1, B65 to this sidecar's completed_batches."
+      }
+    ],
+    "behavioral_diff": "v0.9.0 introduces per-request multi-tenancy across all layers. The final design (after B62 refactor) uses a single consumer-implemented ITenantResolver interface. The host registers a resolver via b.AddTenantResolver<TResolver>() inside AddDbConfig; the resolver is called on every IConfiguration[key] read; IOptionsSnapshot<T> automatically becomes tenant-aware because it rebinds from IConfiguration per request scope. No custom options API is needed. The DB schema gained a TenantId column on both tables. The HTTP API accepts ?tenantId= on all endpoints. The UI surfaces a Tenant field in the scope selector, a Tenant column in the entries table, and pre-filled TenantId in the create dialog. IOptions<T> is singleton-cached and always gets global config — consumers MUST use IOptionsSnapshot<T> for tenant-aware types. Memory ceiling is documented at ~10K tenants x 100 keys (~200 MB); lazy per-tenant loading is deferred to v0.10.0+."
+  }
+}

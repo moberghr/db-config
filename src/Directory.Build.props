@@ -1,0 +1,48 @@
+<Project>
+  <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <!-- Build hygiene: NuGet audit, deterministic CI builds, warnings-as-errors everywhere.
+       Analyzer-rule severities are configured in .editorconfig files (root for globals,
+       per-project for scoped exceptions like tests/demo). -->
+  <PropertyGroup>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Shared NuGet package metadata -->
+  <PropertyGroup>
+    <Authors>Moberg</Authors>
+    <Copyright>Copyright (c) Moberg 2026</Copyright>
+    <PackageProjectUrl>https://github.com/moberghr/db-config</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/moberghr/db-config</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>configuration;iconfiguration;secrets;database;dotnet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="all" />
+    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0" PrivateAssets="all" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.22.0.136894" PrivateAssets="all" />
+    <PackageReference Include="Meziantou.Analyzer" Version="3.0.29" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- TRX report extension for test projects using the Microsoft Testing Platform runner. -->
+  <ItemGroup Condition="'$(UseMicrosoftTestingPlatformRunner)' == 'true'">
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.2.1" />
+  </ItemGroup>
+
+  <!-- Include README.md in all packages -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <!-- Library-only settings (documentation, symbol packaging, source link) live in
+       src/core/Directory.Build.props and apply only to projects under src/core/. -->
+</Project>
