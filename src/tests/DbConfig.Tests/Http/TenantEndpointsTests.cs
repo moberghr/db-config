@@ -190,7 +190,7 @@ public sealed class TenantEndpointsTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/{App}/{Env}?tenantId={TenantAcme}",
+            $"/api/dbconfig/?appName={App}&environment={Env}&tenantId={TenantAcme}",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -225,8 +225,10 @@ public sealed class TenantEndpointsTests
         await app.StartAsync(TestContext.Current.CancellationToken);
         var client = app.GetTestClient();
 
+        // Flat endpoint with no tenantId filter → all tenants (replacement for the old
+        // path-based ?allTenants=true behavior).
         var response = await client.GetAsync(
-            $"/api/dbconfig/{App}/{Env}?allTenants=true",
+            $"/api/dbconfig/?appName={App}&environment={Env}",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -259,8 +261,12 @@ public sealed class TenantEndpointsTests
         await app.StartAsync(TestContext.Current.CancellationToken);
         var client = app.GetTestClient();
 
+        // Flat endpoint with empty tenantId → global-only (replacement for the old
+        // path-based default of "global only when no tenantId was passed"). The flat
+        // endpoint's "no filter" default returns all tenants, so the explicit empty-string
+        // filter is required to reproduce the global-only semantic.
         var response = await client.GetAsync(
-            $"/api/dbconfig/{App}/{Env}",
+            $"/api/dbconfig/?appName={App}&environment={Env}&tenantId=",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 

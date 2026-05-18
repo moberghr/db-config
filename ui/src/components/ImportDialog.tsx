@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { listEntries, upsertEntry } from '@/api/entries'
+import { queryEntries, upsertEntry } from '@/api/entries'
 import { useScopeStore } from '@/store/scopeStore'
 import { useEntriesStore } from '@/store/entriesStore'
 import { nestedToFlat } from '@/lib/appsettings'
@@ -103,7 +103,7 @@ export function ImportDialog({ open, onClose }: ImportDialogProps) {
     // Dry-run: fetch current keys for collision detection
     let existingKeys = new Set<string>()
     if (collisionPolicy === 'skip' || collisionPolicy === 'error') {
-      const existing = await listEntries(appName, environment)
+      const existing = await queryEntries({ appName, environment, tenantId: '' })
       existingKeys = new Set(existing.map((e) => e.key))
     }
 

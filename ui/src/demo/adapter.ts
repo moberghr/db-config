@@ -2,7 +2,7 @@
  * Demo-mode replacement client for db-config UI.
  *
  * `createDemoClient()` returns an object whose methods have the exact same
- * signatures as the named exports of `@/api/entries` (listEntries, getEntry,
+ * signatures as the named exports of `@/api/entries` (queryEntries, getEntry,
  * upsertEntry, deleteEntry, triggerReload, getAuditHistory).
  *
  * All state is kept in-memory.  Writes (upsert / delete) mutate that state and
@@ -20,7 +20,6 @@ import { DEMO_ENTRIES, DEMO_AUDIT_HISTORY } from './data'
 
 export interface DemoClient {
   queryEntries(q: EntriesQuery): Promise<ConfigEntry[]>
-  listEntries(app: string, env: string, includeScopes?: string[], tenantId?: string, allTenants?: boolean): Promise<ConfigEntry[]>
   getEntry(app: string, env: string, key: string, tenantId?: string): Promise<ConfigEntry | null>
   upsertEntry(app: string, env: string, key: string, value: string | null, isSecret: boolean, tenantId?: string): Promise<{ data: ConfigEntry; status: number; headers: Record<string, string> }>
   deleteEntry(app: string, env: string, key: string, tenantId?: string): Promise<void>
@@ -68,14 +67,6 @@ export function createDemoClient(): DemoClient {
 
   // ---- API methods ----
 
-  /**
-   * Mirror server behaviour: return entries whose AppName is in
-   * [includeScopes..., appName] AND Environment === env, ordered by
-   * scope position (includeScopes first, then own scope).
-   * If tenantId is provided, only return entries matching that tenant.
-   * If allTenants is true, return all entries regardless of tenant.
-   * Default (no tenantId, no allTenants): return global-default (tenantId === '') entries only.
-   */
   // Mirror the server's flat-query semantics: AND across filters, default take=1000,
   // case-insensitive keyPrefix, ordered by (AppName, Environment, TenantId, Key) ascending.
   async function queryEntries(q: EntriesQuery): Promise<ConfigEntry[]> {
@@ -97,29 +88,6 @@ export function createDemoClient(): DemoClient {
       || a.key.localeCompare(b.key)
     )
     return result.slice(0, cappedTake)
-  }
-
-  async function listEntries(app: string, env: string, includeScopes?: string[], tenantId?: string, allTenants?: boolean): Promise<ConfigEntry[]> {
-    const scopeOrder: string[] = [...(includeScopes ?? []), app]
-    const result: ConfigEntry[] = []
-    for (const scope of scopeOrder) {
-      for (const entry of entries.values()) {
-        if (entry.appName === scope && entry.environment === env) {
-          if (allTenants) {
-            result.push({ ...entry })
-          } else if (tenantId) {
-            if (entry.tenantId === tenantId) {
-              result.push({ ...entry })
-            }
-          } else {
-            if (entry.tenantId === '') {
-              result.push({ ...entry })
-            }
-          }
-        }
-      }
-    }
-    return result
   }
 
   async function getEntry(app: string, env: string, key: string, tenantId?: string): Promise<ConfigEntry | null> {
@@ -194,5 +162,5 @@ export function createDemoClient(): DemoClient {
       .map((a) => ({ ...a }))
   }
 
-  return { queryEntries, listEntries, getEntry, upsertEntry, deleteEntry, triggerReload, getAuditHistory }
+  return { queryEntries, getEntry, upsertEntry, deleteEntry, triggerReload, getAuditHistory }
 }

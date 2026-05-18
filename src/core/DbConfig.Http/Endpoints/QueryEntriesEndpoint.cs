@@ -116,7 +116,8 @@ internal static class QueryEntriesEndpoint
 
         var clock = timeProvider ?? TimeProvider.System;
 
-        // Key sentinel "*" — flat query reads multiple keys; matches the ListEntriesEndpoint convention.
+        // Key sentinel "*" — flat query reads multiple keys; "*" is reserved by route normalization
+        // so no real config key can collide.
         var auditEntry = new ConfigAuditEntry(
             Id: Guid.NewGuid(),
             AppName: appName ?? string.Empty,

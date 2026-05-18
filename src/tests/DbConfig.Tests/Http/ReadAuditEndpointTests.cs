@@ -58,7 +58,7 @@ public sealed class ReadAuditEndpointTests
         var client = app.GetTestClient();
 
         await client.GetAsync($"/api/dbconfig/{App}/{Env}/SomeKey", TestContext.Current.CancellationToken);
-        await client.GetAsync($"/api/dbconfig/{App}/{Env}", TestContext.Current.CancellationToken);
+        await client.GetAsync($"/api/dbconfig/?appName={App}&environment={Env}", TestContext.Current.CancellationToken);
 
         await Task.Delay(100, TestContext.Current.CancellationToken);
 
@@ -134,7 +134,9 @@ public sealed class ReadAuditEndpointTests
         await app.StartAsync(TestContext.Current.CancellationToken);
         var client = app.GetTestClient();
 
-        var response = await client.GetAsync($"/api/dbconfig/{App}/{Env}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync(
+            $"/api/dbconfig/?appName={App}&environment={Env}",
+            TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         await WaitForAuditRowAsync(

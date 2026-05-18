@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Endpoints
 
-`MapDbConfigHttp` registers seven endpoints under your chosen prefix. All endpoints
+`MapDbConfigHttp` registers six endpoints under your chosen prefix. All endpoints
 return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp`.
 
 ## Endpoint reference
@@ -12,7 +12,6 @@ return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp`.
 | Method | Path | Body | Success | Description |
 |--------|------|------|---------|-------------|
 | `GET` | `/` | — | 200 / 403 | Flat-query all entries with optional filters |
-| `GET` | `/{appName}/{environment}` | — | 200 | List all entries for a scope |
 | `GET` | `/{appName}/{environment}/{*key}` | — | 200 / 404 | Get a single entry |
 | `PUT` | `/{appName}/{environment}/{*key}` | `UpsertEntryRequest` | 204 | Create or update an entry |
 | `DELETE` | `/{appName}/{environment}/{*key}` | — | 204 | Delete an entry |
@@ -20,7 +19,7 @@ return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp`.
 | `GET` | `/{appName}/{environment}/audit/{*key}` | — | 200 | Get audit history for a key |
 
 All paths are relative to the prefix passed to `MapDbConfigHttp`. With prefix
-`/api/dbconfig`, the list endpoint is `GET /api/dbconfig/MyApp/Production`.
+`/api/dbconfig`, the flat-query endpoint is `GET /api/dbconfig/`.
 
 ## `GET /` — flat query (v0.10.0+)
 
@@ -58,41 +57,6 @@ curl "http://localhost:5000/api/dbconfig/?appName=MyApp&keyPrefix=Stripe:"
 
 # Per-tenant view
 curl "http://localhost:5000/api/dbconfig/?tenantId=Acme&take=50"
-```
-
-## `GET /{appName}/{environment}` — list entries
-
-Returns all `ConfigEntry` records for the given scope, ordered by `Key` ascending.
-
-**Optional query string:**
-
-`?includeScopes=Shared,PlatformDefaults` — includes entries from additional scopes with
-the same precedence rules as `DbConfigOptions.IncludeScopes`. Each returned entry includes
-its source `AppName` so the UI can show scope badges.
-
-```bash
-curl http://localhost:5000/api/dbconfig/MyApp/Production \
-  -H "Authorization: Bearer <token>"
-
-# With shared scopes
-curl "http://localhost:5000/api/dbconfig/MyApp/Production?includeScopes=Shared,PlatformDefaults" \
-  -H "Authorization: Bearer <token>"
-```
-
-Response (200):
-
-```json
-[
-  {
-    "appName": "MyApp",
-    "environment": "Production",
-    "key": "Database:ConnectionString",
-    "value": "Server=...",
-    "isSecret": true,
-    "modifiedUtc": "2026-05-17T12:00:00Z",
-    "modifiedBy": "alice@example.com"
-  }
-]
 ```
 
 ## `GET /{appName}/{environment}/{*key}` — get single entry

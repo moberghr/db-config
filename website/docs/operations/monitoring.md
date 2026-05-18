@@ -41,7 +41,7 @@ service.
 
 ### Missing audit store when `AuditReads = true`
 
-Category: `DbConfig.Http.Endpoints.ListEntriesEndpointMarker` (or `GetEntryEndpointMarker`)
+Category: `DbConfig.Http.Endpoints.QueryEntriesEndpointMarker` (or `GetEntryEndpointMarker`)
 Level: `Warning` (logged once per endpoint, not per request)
 
 ```

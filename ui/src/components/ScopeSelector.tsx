@@ -25,7 +25,7 @@ export function ScopeSelector() {
     setScope(trimmedApp, trimmedEnv)
     setIncludeScopes(parsedScopes)
     setTenantId(trimmedTenant)
-    void refresh({ appName: trimmedApp, environment: trimmedEnv, includeScopes: parsedScopes, tenantId: trimmedTenant })
+    void refresh({ appName: trimmedApp, environment: trimmedEnv, tenantId: trimmedTenant })
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

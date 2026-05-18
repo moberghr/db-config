@@ -93,25 +93,6 @@ export async function queryEntries(q: EntriesQuery = {}): Promise<ConfigEntry[]>
   return response.data
 }
 
-export async function listEntries(app: string, env: string, includeScopes?: string[], tenantId?: string, allTenants?: boolean): Promise<ConfigEntry[]> {
-  if (isDemoMode) {
-    const client = await getDemoClient()
-    return client.listEntries(app, env, includeScopes, tenantId, allTenants)
-  }
-  const params: Record<string, string> = {}
-  if (includeScopes && includeScopes.length > 0) {
-    params.includeScopes = includeScopes.join(',')
-  }
-  if (tenantId) {
-    params.tenantId = tenantId
-  }
-  if (allTenants) {
-    params.allTenants = 'true'
-  }
-  const response = await api.get<ConfigEntry[]>(`/${encodeURIComponent(app)}/${encodeURIComponent(env)}`, { params })
-  return response.data
-}
-
 export async function getEntry(app: string, env: string, key: string, tenantId?: string, fallback?: boolean): Promise<ConfigEntry> {
   if (isDemoMode) {
     const client = await getDemoClient()

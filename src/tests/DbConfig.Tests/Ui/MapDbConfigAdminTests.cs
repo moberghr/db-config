@@ -54,7 +54,7 @@ public sealed class MapDbConfigAdminTests
         uiResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         // 3. API request with the SAME cookie → 200 (no separate auth dance).
-        var apiRequest = new HttpRequestMessage(HttpMethod.Get, "/admin/dbconfig/api/MyApp/Production");
+        var apiRequest = new HttpRequestMessage(HttpMethod.Get, "/admin/dbconfig/api/MyApp/Production/SomeKey");
         apiRequest.Headers.Add("Cookie", $"dbconfig-auth={cookieValue}");
         var apiResponse = await app.Client.SendAsync(apiRequest, TestContext.Current.CancellationToken);
 
@@ -82,7 +82,7 @@ public sealed class MapDbConfigAdminTests
 
         // API request without cookie → 401 (the HTTP surface doesn't redirect; it returns 401).
         var apiResponse = await app.Client.GetAsync(
-            "/admin/dbconfig/api/MyApp/Production",
+            "/admin/dbconfig/api/MyApp/Production/SomeKey",
             TestContext.Current.CancellationToken);
 
         apiResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -102,7 +102,7 @@ public sealed class MapDbConfigAdminTests
         // API request — also reaches the handler unauthenticated (will 500 because no store
         // is registered, but it's NOT a 401).
         var apiResponse = await app.Client.GetAsync(
-            "/admin/dbconfig/api/MyApp/Production",
+            "/admin/dbconfig/api/MyApp/Production/SomeKey",
             TestContext.Current.CancellationToken);
         apiResponse.StatusCode.ShouldNotBe(HttpStatusCode.Unauthorized);
     }
@@ -119,7 +119,7 @@ public sealed class MapDbConfigAdminTests
         uiResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
         var apiResponse = await app.Client.GetAsync(
-            "/admin/dbconfig/api/MyApp/Production",
+            "/admin/dbconfig/api/MyApp/Production/SomeKey",
             TestContext.Current.CancellationToken);
         apiResponse.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }

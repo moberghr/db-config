@@ -15,7 +15,7 @@ public sealed class MapDbConfigHttpScopeFilterTests
 {
     private const string Env = "Prod";
 
-    // Regression: without scopeFilter, all app names are accessible.
+    // Regression: without scopeFilter, all app names are accessible on single-key GETs.
     [TimedFact]
     public async Task ScopeFilter_Null_AllAppNamesAllowed()
     {
@@ -29,19 +29,19 @@ public sealed class MapDbConfigHttpScopeFilterTests
         var client = app.GetTestClient();
 
         var responseA = await client.GetAsync(
-            $"/api/dbconfig/AppA/{Env}",
+            $"/api/dbconfig/AppA/{Env}/Key1",
             TestContext.Current.CancellationToken);
         responseA.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var responseB = await client.GetAsync(
-            $"/api/dbconfig/AppB/{Env}",
+            $"/api/dbconfig/AppB/{Env}/Key2",
             TestContext.Current.CancellationToken);
         responseB.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    // scopeFilter="MyApp" — matching path appName is allowed (GET list).
+    // scopeFilter="MyApp" — matching path appName is allowed on single-key GETs.
     [TimedFact]
-    public async Task ScopeFilter_MatchingAppName_GetEntries_Allowed()
+    public async Task ScopeFilter_MatchingAppName_GetEntry_Allowed()
     {
         const string myApp = "MyApp";
         var store = new InMemoryConfigStore();
@@ -53,15 +53,15 @@ public sealed class MapDbConfigHttpScopeFilterTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/{myApp}/{Env}",
+            $"/api/dbconfig/{myApp}/{Env}/Key1",
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    // scopeFilter="MyApp" — non-matching appName on GET list returns 403.
+    // scopeFilter="MyApp" — non-matching appName on single-key GET returns 403.
     [TimedFact]
-    public async Task ScopeFilter_NonMatchingAppName_GetEntries_Returns403()
+    public async Task ScopeFilter_NonMatchingAppName_GetEntry_Returns403()
     {
         var store = new InMemoryConfigStore();
 
@@ -70,7 +70,7 @@ public sealed class MapDbConfigHttpScopeFilterTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/OtherApp/{Env}",
+            $"/api/dbconfig/OtherApp/{Env}/SomeKey",
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -128,46 +128,6 @@ public sealed class MapDbConfigHttpScopeFilterTests
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-    }
-
-    // scopeFilter="MyApp" — GET single entry with mismatched path appName returns 403.
-    [TimedFact]
-    public async Task ScopeFilter_GetSingleEntry_PathScopeMismatch_Returns403()
-    {
-        var store = new InMemoryConfigStore();
-
-        await using var app = BuildApp(store, scopeFilter: "MyApp");
-        await app.StartAsync(TestContext.Current.CancellationToken);
-        var client = app.GetTestClient();
-
-        var response = await client.GetAsync(
-            $"/api/dbconfig/OtherApp/{Env}/SomeKey",
-            TestContext.Current.CancellationToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-    }
-
-    // scopeFilter="MyApp" — GET with ?includeScopes=Shared uses path appName "MyApp" which
-    // matches the filter. The query parameter adds read scopes but does NOT affect the filter.
-    [TimedFact]
-    public async Task ScopeFilter_WithIncludeScopesQuery_OnlyFiltersPathAppName()
-    {
-        const string myApp = "MyApp";
-        var store = new InMemoryConfigStore();
-        var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(myApp, Env, string.Empty, "OwnKey", "ov", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("Shared", Env, string.Empty, "SharedKey", "sv", false, now, null), CancellationToken.None);
-
-        await using var app = BuildApp(store, scopeFilter: myApp);
-        await app.StartAsync(TestContext.Current.CancellationToken);
-        var client = app.GetTestClient();
-
-        // Path appName is "MyApp" (matches filter). includeScopes adds "Shared" as a read scope.
-        var response = await client.GetAsync(
-            $"/api/dbconfig/{myApp}/{Env}?includeScopes=Shared",
-            TestContext.Current.CancellationToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     private static WebApplication BuildApp(InMemoryConfigStore store, string? scopeFilter)

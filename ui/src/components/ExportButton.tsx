@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { listEntries } from '@/api/entries'
+import { queryEntries } from '@/api/entries'
 import { useScopeStore } from '@/store/scopeStore'
 import { flatToNested } from '@/lib/appsettings'
 import { Download } from 'lucide-react'
@@ -8,18 +8,13 @@ import { Download } from 'lucide-react'
 export function ExportButton() {
   const appName = useScopeStore((s) => s.appName)
   const environment = useScopeStore((s) => s.environment)
-  const includeScopes = useScopeStore((s) => s.includeScopes)
   const [exporting, setExporting] = useState(false)
 
   async function handleExport() {
     if (!appName || !environment) return
     setExporting(true)
     try {
-      const entries = await listEntries(
-        appName,
-        environment,
-        includeScopes.length > 0 ? includeScopes : undefined
-      )
+      const entries = await queryEntries({ appName, environment, tenantId: '' })
 
       const { config, metadata } = flatToNested(entries)
 

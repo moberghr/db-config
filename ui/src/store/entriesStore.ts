@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { ConfigEntry } from '@/api/entries'
 import {
-  listEntries,
   queryEntries,
   upsertEntry,
   deleteEntry,
@@ -23,7 +22,7 @@ interface EntriesState {
    *   the Zustand store), it can pass those values here.  When omitted,
    *   values are read from `useScopeStore.getState()` as usual.
    */
-  refresh: (overrides?: { appName?: string; environment?: string; includeScopes?: string[]; tenantId?: string }) => Promise<void>
+  refresh: (overrides?: { appName?: string; environment?: string; tenantId?: string }) => Promise<void>
   upsert: (key: string, value: string | null, isSecret: boolean, targetAppName?: string, tenantId?: string) => Promise<void>
   remove: (key: string, targetAppName?: string, tenantId?: string) => Promise<void>
   reload: () => Promise<void>
@@ -33,20 +32,12 @@ interface EntriesState {
 }
 
 async function reloadEntriesForCurrentScope(): Promise<ConfigEntry[]> {
-  const { appName, environment, includeScopes, tenantId } = useScopeStore.getState()
-  if (!appName || !environment) {
-    return queryEntries({
-      appName: appName || undefined,
-      environment: environment || undefined,
-      tenantId: tenantId || undefined,
-    })
-  }
-  return listEntries(
-    appName,
-    environment,
-    includeScopes.length > 0 ? includeScopes : undefined,
-    tenantId || undefined
-  )
+  const { appName, environment, tenantId } = useScopeStore.getState()
+  return queryEntries({
+    appName: appName || undefined,
+    environment: environment || undefined,
+    tenantId: tenantId || undefined,
+  })
 }
 
 export const useEntriesStore = create<EntriesState>((set) => ({
@@ -59,27 +50,16 @@ export const useEntriesStore = create<EntriesState>((set) => ({
     const storeState = useScopeStore.getState()
     const appName = overrides?.appName ?? storeState.appName
     const environment = overrides?.environment ?? storeState.environment
-    const includeScopes = overrides?.includeScopes ?? storeState.includeScopes
     const tenantId = overrides?.tenantId ?? storeState.tenantId
     set({ loading: true, error: null })
     try {
-      let entries
-      if (!appName || !environment) {
-        // No scope chosen — flat query everything (server caps at 1000 rows by default).
-        // The toolbar fields become optional filters instead of required preconditions.
-        entries = await queryEntries({
-          appName: appName || undefined,
-          environment: environment || undefined,
-          tenantId: tenantId || undefined,
-        })
-      } else {
-        entries = await listEntries(
-          appName,
-          environment,
-          includeScopes.length > 0 ? includeScopes : undefined,
-          tenantId || undefined
-        )
-      }
+      // Flat-query the unified entries endpoint with any selected filters; the toolbar
+      // fields are optional filters, not required preconditions.
+      const entries = await queryEntries({
+        appName: appName || undefined,
+        environment: environment || undefined,
+        tenantId: tenantId || undefined,
+      })
       set({ entries, loading: false })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load entries'

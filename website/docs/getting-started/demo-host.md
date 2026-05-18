@@ -74,8 +74,8 @@ curl -X PUT http://localhost:5000/api/dbconfig/DbConfigDemo/Development/MyFeatur
   -H "X-Db-Config-Api-Key: my-local-dev-key" \
   -d '{"value": "enabled", "isSecret": false}'
 
-# Read it back
-curl http://localhost:5000/api/dbconfig/DbConfigDemo/Development \
+# Read it back (flat query, narrowed to this app + env)
+curl "http://localhost:5000/api/dbconfig/?appName=DbConfigDemo&environment=Development" \
   -H "X-Db-Config-Api-Key: my-local-dev-key"
 ```
 

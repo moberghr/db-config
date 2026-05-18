@@ -103,7 +103,7 @@ public sealed class EndpointContractTests
     }
 
     [TimedFact]
-    public async Task List_ReturnsScopedEntriesOnly()
+    public async Task FlatQuery_FilteredByApp_ReturnsScopedEntriesOnly()
     {
         await using var app = BuildApp();
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -117,7 +117,7 @@ public sealed class EndpointContractTests
         await store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "OtherKey", "other", false, now, null), TestContext.Current.CancellationToken);
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/{App}/{Env}",
+            $"/api/dbconfig/?appName={App}&environment={Env}",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 

@@ -98,9 +98,11 @@ public static class EndpointRouteBuilderExtensions
             });
         }
 
-        // Flat-query endpoint at the group root. Closure-captures the scopeFilter so the
-        // endpoint can enforce it without depending on the route-level filter (which runs
-        // off the {appName} route value — absent here because we use query strings).
+        // Flat-query endpoint at the group root. This is the canonical list endpoint —
+        // there is no path-based `/{appName}/{environment}` list. Closure-captures the
+        // scopeFilter so the endpoint can enforce it without depending on the route-level
+        // filter (which runs off the {appName} route value — absent here because we use
+        // query strings).
         var capturedScopeFilter = options.ScopeFilter;
         group.MapGet("/", (
             HttpContext httpContext,
@@ -129,7 +131,6 @@ public static class EndpointRouteBuilderExtensions
                 timeProvider,
                 ct));
 
-        group.MapGet("/{appName}/{environment}", ListEntriesEndpoint.HandleAsync);
         group.MapGet("/{appName}/{environment}/audit/{**key}", GetAuditHistoryEndpoint.HandleAsync);
         group.MapGet("/{appName}/{environment}/{*key}", GetEntryEndpoint.HandleAsync);
         group.MapPut("/{appName}/{environment}/{*key}", UpsertEntryEndpoint.HandleAsync);
