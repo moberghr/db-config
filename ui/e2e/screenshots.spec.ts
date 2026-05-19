@@ -135,15 +135,15 @@ for (const theme of ['light', 'dark'] as const) {
     await seedTheme(page, theme);
     await gotoDemo(page);
 
-    // Find the SmtpPassword row — key column shows "EmailNotifications:SmtpPassword"
-    const smtpRow = page.getByRole('row').filter({ hasText: 'EmailNotifications:SmtpPassword' }).first();
+    // Find the WebhookSecret row — secret, present in the default flat view.
+    const smtpRow = page.getByRole('row').filter({ hasText: 'Stripe:WebhookSecret' }).first();
 
     // Click the eye/reveal button — title is "Reveal value" before clicking
-    const revealBtn = smtpRow.getByTitle('Reveal value');
+    const revealBtn = smtpRow.getByTitle('Reveal value').first();
     await revealBtn.click();
 
     // Wait for the value to be revealed (the button title changes to "Hide value")
-    await smtpRow.getByTitle('Hide value').waitFor();
+    await smtpRow.getByTitle('Hide value').first().waitFor();
 
     await page.screenshot({
       path: `${SCREENSHOTS_DIR}/04-secret-revealed${suffix}.png`,
@@ -222,10 +222,12 @@ for (const theme of ['light', 'dark'] as const) {
     await seedTheme(page, theme);
     await gotoDemo(page);
 
-    // Select 3 entries using their checkboxes (aria-label "Select {key}")
-    await page.getByRole('checkbox', { name: 'Select Stripe:ApiKey' }).click();
-    await page.getByRole('checkbox', { name: 'Select Stripe:WebhookSecret' }).click();
-    await page.getByRole('checkbox', { name: 'Select ConnectionStrings:Default' }).click();
+    // Select 3 entries using their checkboxes (aria-label "Select {key}").
+    // Multiple rows can share a key when tenanted (Default, Acme, Globex), so
+    // pick the first match for each — bulk operations work the same regardless.
+    await page.getByRole('checkbox', { name: 'Select Stripe:ApiKey' }).first().click();
+    await page.getByRole('checkbox', { name: 'Select Stripe:WebhookSecret' }).first().click();
+    await page.getByRole('checkbox', { name: 'Select ConnectionStrings:Default' }).first().click();
 
     // Wait for the BulkActionsToolbar — it shows "N selected"
     await page.getByText('3 selected').waitFor();
@@ -396,6 +398,80 @@ for (const theme of ['light', 'dark'] as const) {
     await page.screenshot({
       path: `${SCREENSHOTS_DIR}/13-tenant-entries-view${suffix}.png`,
       fullPage: true,
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 15 — login-form: built-in cookie login HTML form. The form is server-rendered
+//       C# (BuiltInLoginEndpoints.BuildLoginPage), so we screenshot a static
+//       fixture that mirrors its HTML byte-for-byte. light + dark via ?dark.
+// ─────────────────────────────────────────────────────────────────────────────
+for (const theme of ['light', 'dark'] as const) {
+  const suffix = theme === 'dark' ? '-dark' : '';
+  test(`15-login-form${suffix}`, async ({ page }) => {
+    const fixturePath = path.join(__dirname, 'fixtures', 'login-form.html');
+    // file:// load so we don't need the Vite server for this one.
+    const fileUrl = `file://${fixturePath.replace(/\\/g, '/')}${theme === 'dark' ? '?dark' : ''}`;
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(fileUrl);
+    await page.locator('form').waitFor();
+
+    await page.screenshot({
+      path: `${SCREENSHOTS_DIR}/15-login-form${suffix}.png`,
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 16 — audit-log: Audit Log tab with a mix of Insert / Update / Delete chips
+//       visible in the timeline. Demo seed includes Stripe:DefaultCurrency
+//       updates (USD→EUR→GBP) plus a Legacy:OldSetting Insert + Delete pair.
+// ─────────────────────────────────────────────────────────────────────────────
+for (const theme of ['light', 'dark'] as const) {
+  const suffix = theme === 'dark' ? '-dark' : '';
+  test(`16-audit-log${suffix}`, async ({ page }) => {
+    await seedTheme(page, theme);
+    await gotoDemo(page);
+
+    // Switch to the Audit Log tab.
+    await page.getByRole('button', { name: /audit log/i }).click();
+
+    // Wait for the audit table to populate — at least one Insert chip must appear.
+    await page.locator('span').filter({ hasText: 'Insert' }).first().waitFor({ timeout: 8000 });
+
+    // Wait for an Update chip too (the Stripe:DefaultCurrency timeline has them).
+    await page.locator('span').filter({ hasText: 'Update' }).first().waitFor({ timeout: 8000 });
+
+    await page.screenshot({
+      path: `${SCREENSHOTS_DIR}/16-audit-log${suffix}.png`,
+      fullPage: true,
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 17 — wide-edit-dialog: EditValueDialog open at the xl (1152px) size after the
+//       v0.10.1 dialog-width fix. Demonstrates the wrapper now expands to the
+//       configured max-width instead of being capped at ~290px.
+// ─────────────────────────────────────────────────────────────────────────────
+for (const theme of ['light', 'dark'] as const) {
+  const suffix = theme === 'dark' ? '-dark' : '';
+  test(`17-wide-edit-dialog${suffix}`, async ({ page }) => {
+    await seedTheme(page, theme);
+    // Wider viewport so the xl dialog has breathing room in the screenshot.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoDemo(page);
+
+    // Click the row body (NOT the edit button) — exercises the v0.10.1 clickable-row
+    // affordance. The Value column is clickable but not the eye button.
+    const row = page.getByRole('row').filter({ hasText: 'Stripe:WebhookSecret' }).first();
+    await row.click({ position: { x: 200, y: 12 } });
+
+    await waitForDialogTitle(page, /Edit:.*Stripe:WebhookSecret/);
+
+    await page.screenshot({
+      path: `${SCREENSHOTS_DIR}/17-wide-edit-dialog${suffix}.png`,
     });
   });
 }

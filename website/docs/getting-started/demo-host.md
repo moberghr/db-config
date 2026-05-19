@@ -4,131 +4,130 @@ sidebar_position: 3
 
 # Demo host
 
-The `src/demo/DbConfig.Demo.WebApp` project is a minimal ASP.NET Core 8 app that wires
-up the full DbConfig stack — SQL Server provider, HTTP API, embedded UI, EF Core
-migrations on startup, and an API-key authentication handler.
-
-Use it to explore the features locally before integrating DbConfig into your own
-application.
+The `samples/PaymentsApi` project is a minimal ASP.NET Core 8 application that wires up
+the full DbConfig stack — PostgreSQL provider, unified admin mount, embedded UI, built-in
+cookie login, multi-tenant resolver, and auto-migrating schema. Use it to explore the
+features locally before integrating DbConfig into your own application.
 
 ## Clone and run
 
 ### Prerequisites
 
 - .NET 8 SDK
-- SQL Server instance (local, Docker, or Azure SQL)
+- Docker (for the bundled PostgreSQL container) or any reachable PostgreSQL instance
 - Node.js is **not** required — the React UI is pre-built into the NuGet package
 
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/moberg/db-config.git
+git clone https://github.com/moberghr/db-config.git
 cd db-config
 ```
 
-### 2. Set the connection string
+### 2. Start PostgreSQL
 
-The demo reads its SQL Server connection string from .NET user secrets to avoid committing
-credentials. Set it once:
+The sample ships a `docker-compose.yml` with PostgreSQL on `localhost:5432`:
 
 ```bash
-dotnet user-secrets set "ConnectionStrings:DbConfig" \
-  "Server=localhost;Database=DbConfigDemo;Integrated Security=true;TrustServerCertificate=true" \
-  --project src/demo/DbConfig.Demo.WebApp
+cd samples/PaymentsApi
+docker compose up -d
 ```
 
-Replace the connection string with your actual server details.
-
-### 3. Set the admin API key
-
-The demo uses a static API-key auth handler (see below). Set an API key:
+### 3. Run the sample
 
 ```bash
-dotnet user-secrets set "DbConfigDemo:AdminApiKey" "my-local-dev-key" \
-  --project src/demo/DbConfig.Demo.WebApp
+dotnet run
 ```
 
-### 4. Run the demo
+The sample applies DbConfig migrations automatically on startup (`SchemaMode.CreateIfMissing`
+is the default in v0.10.2+), so you do not need to run `dotnet ef database update` manually.
+On first run it also seeds a few dozen demo entries across two apps (`PaymentsApi` and
+`Notifications`) and three tenants (Global / Acme / Globex), plus a small varied audit
+history so the Audit Log page has something interesting to show.
+
+Open `http://localhost:5000/` to see the landing message. Navigate to
+`http://localhost:5000/admin/dbconfig` and sign in with any username and the value of
+`Auth:Password` from `appsettings.json` (the demo default is `demo-admin-key-12345`).
+
+### 4. Hit a tenant-aware business endpoint
 
 ```bash
-dotnet run --project src/demo/DbConfig.Demo.WebApp
-```
-
-The demo applies EF Core migrations automatically on startup (`ctx.Database.MigrateAsync()`),
-so you do not need to run `dotnet ef database update` manually.
-
-Open `http://localhost:5000` to see the root page, which shows the API and UI URLs.
-
-### 5. Open the editor UI
-
-Navigate to `http://localhost:5000/admin/dbconfig` and include the API key as a request
-header. The easiest way in a browser is to use a browser extension that adds custom headers
-(e.g. ModHeader), or open the URL from `curl` and redirect to a local proxy.
-
-Alternatively, use the HTTP API directly:
-
-```bash
-# Write an entry
-curl -X PUT http://localhost:5000/api/dbconfig/DbConfigDemo/Development/MyFeature \
+# As tenant Acme
+curl -X POST http://localhost:5000/api/charges \
   -H "Content-Type: application/json" \
-  -H "X-Db-Config-Api-Key: my-local-dev-key" \
-  -d '{"value": "enabled", "isSecret": false}'
+  -H "X-Tenant-Id: Acme" \
+  -d '{"amount": 1000, "customerId": "cust_1"}'
 
-# Read it back (flat query, narrowed to this app + env)
-curl "http://localhost:5000/api/dbconfig/?appName=DbConfigDemo&environment=Development" \
-  -H "X-Db-Config-Api-Key: my-local-dev-key"
+# As global default (no tenant header)
+curl -X POST http://localhost:5000/api/charges \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 1000, "customerId": "cust_1"}'
 ```
 
-## API key auth handler
+The response includes the resolved Stripe key prefix, currency, feature flags, and limits.
+Switching the `X-Tenant-Id` header switches the entire bundle of resolved options — the
+`HeaderTenantResolver` reads the header on every request and `IOptionsSnapshot<T>` rebinds
+per scope.
 
-The demo registers a custom `AuthenticationHandler` that reads `X-Db-Config-Api-Key` from
-the request header and compares it against the configured value. This is wired in
-`Program.cs`:
+## Authentication: built-in cookie login (NOT for production)
+
+The sample wires the admin surface with db-config's built-in cookie login. One call
+mounts UI + HTTP API under one prefix and gates both with one signed cookie:
 
 ```csharp
-builder.Services
-    .AddAuthentication("ApiKey")
-    .AddScheme<AuthenticationSchemeOptions, ApiKeyHandler>("ApiKey", null);
+builder.Services.AddScoped<IDbConfigCredentialValidator, AppSettingsCredentialValidator>();
 
-builder.Services.AddAuthorization(o =>
-    o.AddPolicy("DbConfigAdmin", p => p.RequireAuthenticatedUser()));
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+    opts.UseBuiltInLogin<AppSettingsCredentialValidator>());
 ```
 
-The UI and HTTP endpoints are then protected by `RequireAuthorization("DbConfigAdmin")`.
+`AppSettingsCredentialValidator` checks the submitted password against `Auth:Password` from
+`appsettings.json`. The validator returns a `ClaimsPrincipal` on success; the package
+signs and issues a cookie via `IDataProtectionProvider`. Cookie path is scoped to
+`/admin/dbconfig` so the React app's HTTP calls to `/admin/dbconfig/api/*` see it
+automatically.
 
 :::warning
-This auth handler is for local development and demo purposes only. It stores the key in
-application configuration (user secrets in dev) and does no rate limiting or nonce
-protection. Do not copy this pattern into production. Production hosts should use JWT
-bearer tokens, Azure AD, Windows Auth, or another identity provider.
+The `AppSettingsCredentialValidator` accepts any username with a single shared password.
+It exists to demonstrate the composition pattern, not to be copied into production.
+Production hosts implement `IDbConfigCredentialValidator` against their actual user store
+(EF Core, ASP.NET Identity, LDAP) and hash-verify with PBKDF2 / Argon2 / bcrypt.
 :::
+
+See [Authentication & authorization](../configuration/auth.md) for the four auth patterns
+the package supports (open access, host pipeline composition, built-in cookie, custom
+authorization filter).
 
 ## What to explore in the demo
 
 | Feature | Where to find it |
 |---------|-----------------|
-| Entries list with scope badge | `http://localhost:5000/admin/dbconfig` |
-| Create / edit / delete entries | Click a row or use the toolbar |
-| Secret masking + reveal | Create an entry with `IsSecret = true` |
-| Audit history per row | Click the clock icon on any row |
-| Diff view | Open history, then click "Compare to previous" |
-| Bulk operations | Select rows with the checkbox column |
-| Import / export | Use the Import/Export toolbar buttons |
-| Scope selector | Top-right of the UI |
+| Flat entries list across all apps + tenants | `/admin/dbconfig` (loads everything on first paint) |
+| Audit Log tab with Insert / Update / Delete / Read chips | `/admin/dbconfig` → Audit Log |
+| Tenant selector | Top-right of the UI; type `Acme` or `Globex` |
+| Tree view with `Notifications:Email:Smtp:*` hierarchy | List mode toggle (table / tree) |
+| Per-row history dialog with diff | Clock icon on any row |
+| Wide Edit dialog (xl, 1152px) | Click anywhere on a row (except checkbox / eye / action buttons) |
+| Secret reveal toggle | Eye icon next to any `IsSecret = true` row |
+| Bulk operations (toggle, move, delete) | Select rows via checkbox column |
+| Import / export | Toolbar buttons |
+| Live reload | Edit a value in the UI; hit `GET /api/diag/feature-flags` again |
+| Tenant gotcha (`IOptions<T>` vs `IOptionsSnapshot<T>`) | `GET /api/diag/io` with and without `X-Tenant-Id` |
 
 Refer to the [UI Editor](../ui-editor/overview.md) section for detailed documentation of
 each feature.
 
 ## Demo vs production
 
-The demo `Program.cs` intentionally takes shortcuts:
+The demo `Program.cs` takes a couple of demo-only shortcuts:
 
 | Demo | Production |
 |------|-----------|
-| Programmatic `MigrateAsync()` at startup | CLI `dotnet ef database update` in CI/CD |
-| Static API-key auth handler | JWT / Azure AD / Windows Auth |
-| UI not behind `RequireAuthorization` | Protect UI the same way as the API |
-| Single scope, no `IncludeScopes` | Multi-scope per [Scopes](../configuration/scopes.md) |
+| `AppSettingsCredentialValidator` (one shared password) | Real `IDbConfigCredentialValidator` against your user store |
+| Single password from `appsettings.json` | Hash-verified credentials (PBKDF2 / Argon2 / bcrypt) |
+| `SchemaMode.CreateIfMissing` runs migrations on startup | Optional `SchemaMode.None` + DBA-applied SQL (`DbConfigMigrator.GenerateMigrationScript`) |
+| Business endpoints unauthenticated | Wrap your own routes with the host's auth |
+| In-memory mock for Stripe | Real Stripe SDK |
 
-The composition pattern (`AddDbConfig` → `MapDbConfigHttp` → `MapDbConfigUi`) is
-production-correct. Copy that pattern; replace the auth handler with your own.
+The composition pattern (`AddDbConfig` → `MapDbConfigAdmin`) is production-correct. Copy
+that pattern; replace the validator with your own.

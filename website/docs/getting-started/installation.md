@@ -6,16 +6,16 @@ sidebar_position: 1
 
 ## NuGet packages
 
-DbConfig is split across five packages. Install the ones you need:
+DbConfig is split across six packages. Install the ones you need:
 
 | Package | Purpose |
 |---------|---------|
-| `Moberg.DbConfig.Core` | `IConfigurationSource`, `IConfigurationProvider`, `IConfigStore`, `DbConfigOptions` |
-| `Moberg.DbConfig.EntityFrameworkCore` | EF Core `DbContext`, `EfCoreConfigStore`, the `AddDbConfig` entry point |
-| `Moberg.DbConfig.Http` | JSON API endpoints (`MapDbConfigHttp`) |
-| `Moberg.DbConfig.Ui` | Embedded React editor UI (`MapDbConfigUi`) |
-| `Moberg.DbConfig.Provider.SqlServer` | SQL Server provider + migrations |
-| `Moberg.DbConfig.Provider.PostgreSql` | PostgreSQL (Npgsql) provider + migrations |
+| `Moberg.DbConfig.Core` | `IConfigurationSource`, `IConfigurationProvider`, `IConfigStore`, `DbConfigOptions`, `SchemaMode` |
+| `Moberg.DbConfig.EntityFrameworkCore` | EF Core `DbContext`, `EfCoreConfigStore`, `DbConfigMigrator`, the `AddDbConfig` entry point |
+| `Moberg.DbConfig.Http` | JSON API endpoints, `IDbConfigCredentialValidator`, `IDbConfigAuthorizationFilter` (`MapDbConfigHttp`) |
+| `Moberg.DbConfig.Ui` | Embedded React editor UI + built-in cookie login (`MapDbConfigUi`, `MapDbConfigAdmin`) |
+| `Moberg.DbConfig.Provider.SqlServer` | SQL Server provider + migrations + `SqlServerDbConfigOptions.ForSqlServer` helper |
+| `Moberg.DbConfig.Provider.PostgreSql` | PostgreSQL (Npgsql) provider + migrations + `PostgreSqlDbConfigOptions.ForPostgreSql` helper |
 
 A typical web application installing the full stack on SQL Server:
 
@@ -56,44 +56,57 @@ See [Key persistence](../operations/key-persistence.md) for the full setup.
 ## First-time database setup
 
 DbConfig manages its own schema through EF Core migrations shipped inside the provider
-packages. You need to apply these migrations once before starting the application.
+packages. **In v0.10.2+, the schema is applied automatically on host startup** — you do
+not need to run `dotnet ef database update` manually.
 
-### Option A — CLI (recommended for CI/CD)
+### Default: auto-migrate at startup (`SchemaMode.CreateIfMissing`)
 
-```bash
-dotnet ef database update \
-  --project src/YourApp/YourApp.csproj \
-  --startup-project src/YourApp/YourApp.csproj \
-  --context DbConfigDbContext
-```
-
-The `DbConfigDbContext` is registered in DI by `AddDbConfig`. The CLI reads it from the
-startup project's service provider.
-
-### Option B — Programmatic (useful for demos and dev environments)
-
-Call `MigrateAsync` at startup before the host runs. This is what the demo app does:
+`AddDbConfig` invokes `Database.MigrateAsync` synchronously before the polling provider's
+first `Load()`. This is the default behaviour and matches Hangfire / Marten / Wolverine
+conventions:
 
 ```csharp
-// In Program.cs, after builder.Build()
-var migrateOptions = new DbContextOptionsBuilder<DbConfigDbContext>()
-    .UseSqlServer(
-        connectionString,
-        sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer"))
-    .Options;
-
-await using var ctx = new DbConfigDbContext(migrateOptions);
-await ctx.Database.MigrateAsync();
+builder.AddDbConfig(b =>
+{
+    b.Options.AppName = "MyApp";
+    b.Options.Environment = builder.Environment.EnvironmentName;
+    b.UseSqlServer(connectionString);
+    // b.Options.SchemaMode = SchemaMode.CreateIfMissing; // already the default
+});
 ```
 
-For PostgreSQL, replace `UseSqlServer` with `UseNpgsql` and the assembly name with
-`"DbConfig.Provider.PostgreSql"`.
+EF Core's `__EFMigrationsHistory` tracks state, so the call is idempotent — pending
+migrations apply on first run; subsequent runs are no-ops.
 
-:::warning
-Applying migrations programmatically on every startup is convenient for development but
-can cause schema-lock contention in multi-instance production deployments. Prefer the CLI
-in production or use a dedicated migration job.
-:::
+### Production opt-out: DBA-controlled schema (`SchemaMode.None`)
+
+Set `SchemaMode.None` to skip the startup migration entirely. Use this when DBAs or a
+CI/CD pipeline owns the schema and applies it out of band:
+
+```csharp
+builder.AddDbConfig(b =>
+{
+    b.Options.SchemaMode = SchemaMode.None;
+    b.Options.AppName = "MyApp";
+    b.Options.Environment = builder.Environment.EnvironmentName;
+    b.UseSqlServer(connectionString);
+});
+```
+
+Generate the SQL for offline application via `DbConfigMigrator`:
+
+```csharp
+var opts = SqlServerDbConfigOptions.ForSqlServer(connectionString);
+var sql = DbConfigMigrator.GenerateMigrationScript(opts, idempotent: true);
+File.WriteAllText("dbconfig-upgrade.sql", sql);
+```
+
+For PostgreSQL, swap `SqlServerDbConfigOptions.ForSqlServer` for
+`PostgreSqlDbConfigOptions.ForPostgreSql`. Both helpers hide the `MigrationsAssembly`
+magic string.
+
+See [Migrations](../operations/migrations.md) for the full DBA runbook and CI/CD
+patterns.
 
 ### What the migrations create
 
@@ -103,29 +116,15 @@ Three migrations ship with each provider:
 |-----------|-------------|
 | `InitialCreate` | Creates `DbConfig_Entries` table with the composite unique constraint and polling index |
 | `AddAuditEntries` | Creates `DbConfig_AuditEntries` table for the audit log |
-| `CaseSensitiveScopeColumns` | Sets binary collation on `AppName`, `Environment`, and `Key` columns in both tables |
+| `CaseSensitiveScopeColumns` | Sets binary collation on `AppName`, `Environment`, `TenantId`, and `Key` columns in both tables |
 
 You do not need to run `dotnet ef migrations add` yourself. The migrations are embedded in
-the provider assembly. See [Migrations](../operations/migrations.md) for the full runbook.
-
-### MigrationsAssembly note
-
-The `DbConfigDbContext` is in `Moberg.DbConfig.EntityFrameworkCore`, but the migrations
-live in the provider assembly. The provider registers this via:
-
-```csharp
-options.MigrationsAssembly("DbConfig.Provider.SqlServer")
-// or
-options.MigrationsAssembly("DbConfig.Provider.PostgreSql")
-```
-
-This is handled internally by `UseSqlServer`/`UsePostgreSql`. You do not need to configure
-it yourself.
+the provider assembly. See [Migrations](../operations/migrations.md) for the full runbook
+including the multi-instance startup race caveat.
 
 ## Next step
 
-Once the packages are installed and the database is migrated, register DbConfig in your
-host:
+Once the packages are installed:
 
 ```csharp
 builder.AddDbConfig(b =>
@@ -134,6 +133,12 @@ builder.AddDbConfig(b =>
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
 });
+
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+var app = builder.Build();
+
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+    opts.UseBuiltInLogin<MyValidator>());
 ```
 
 See [Single-call DI](../configuration/single-call-di.md) for all available options, or

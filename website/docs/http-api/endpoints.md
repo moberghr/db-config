@@ -4,14 +4,17 @@ sidebar_position: 1
 
 # Endpoints
 
-`MapDbConfigHttp` registers six endpoints under your chosen prefix. All endpoints
-return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp`.
+`MapDbConfigHttp` registers seven endpoints under your chosen prefix (six in v0.10.0,
+plus the flat `/audit` query added in v0.10.1). All endpoints return camelCase JSON and
+share the route prefix you pass to `MapDbConfigHttp` (or `MapDbConfigAdmin`'s
+`{prefix}/api` derivative).
 
 ## Endpoint reference
 
 | Method | Path | Body | Success | Description |
 |--------|------|------|---------|-------------|
 | `GET` | `/` | — | 200 / 403 | Flat-query all entries with optional filters |
+| `GET` | `/audit` | — | 200 / 403 | Flat-query audit timeline with optional filters (v0.10.1+) |
 | `GET` | `/{appName}/{environment}/{*key}` | — | 200 / 404 | Get a single entry |
 | `PUT` | `/{appName}/{environment}/{*key}` | `UpsertEntryRequest` | 204 | Create or update an entry |
 | `DELETE` | `/{appName}/{environment}/{*key}` | — | 204 | Delete an entry |
@@ -19,9 +22,16 @@ return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp`.
 | `GET` | `/{appName}/{environment}/audit/{*key}` | — | 200 | Get audit history for a key |
 
 All paths are relative to the prefix passed to `MapDbConfigHttp`. With prefix
-`/api/dbconfig`, the flat-query endpoint is `GET /api/dbconfig/`.
+`/api/dbconfig`, the flat-query endpoint is `GET /api/dbconfig/`. With the unified
+`MapDbConfigAdmin("/admin/dbconfig", ...)`, it is `GET /admin/dbconfig/api/`.
 
-## `GET /` — flat query (v0.10.0+)
+:::note
+The v0.9.0-and-earlier path-based list endpoint (`GET /{appName}/{environment}`) was
+removed in v0.10.0. Use the flat `GET /` with optional `?appName=&environment=` filters
+instead.
+:::
+
+## `GET /` — flat entries query (v0.10.0+)
 
 Returns every entry across all apps, environments, and tenants with optional
 query-string filters. Used by the admin UI on first paint so operators see data
@@ -50,13 +60,47 @@ like the existing single-key `GET` endpoint.
 
 ```bash
 # All entries (capped at 1000)
-curl http://localhost:5000/api/dbconfig/
+curl http://localhost:5000/admin/dbconfig/api/
 
 # Narrow by app + key prefix
-curl "http://localhost:5000/api/dbconfig/?appName=MyApp&keyPrefix=Stripe:"
+curl "http://localhost:5000/admin/dbconfig/api/?appName=MyApp&keyPrefix=Stripe:"
 
 # Per-tenant view
-curl "http://localhost:5000/api/dbconfig/?tenantId=Acme&take=50"
+curl "http://localhost:5000/admin/dbconfig/api/?tenantId=Acme&take=50"
+```
+
+## `GET /audit` — flat audit timeline (v0.10.1+)
+
+Returns the global audit log across all apps, environments, tenants, and keys with
+optional filters. Backs the new Audit Log tab in the admin UI so Delete events for
+entries that no longer exist remain visible.
+
+**Optional query string filters (AND semantics):**
+
+| Param | Behaviour |
+|---|---|
+| `appName` | Equality match on `AppName` |
+| `environment` | Equality match on `Environment` |
+| `tenantId` | Case-sensitive equality on `TenantId` |
+| `keyPrefix` | Case-insensitive `StartsWith` match on `Key` |
+| `action` | Filter to a single action: `Insert`, `Update`, `Delete`, `Read` |
+| `take` | Result cap. Default `200`, max `1000` |
+
+**Ordering:** `ModifiedUtc DESC` (most recent first).
+
+**Scope filter:** same enforcement as `GET /` — a mismatch on `appName` returns
+`403 Forbidden`.
+
+**Response:** `200 OK` with a JSON array of `ConfigAuditEntry`. `Action` is serialized
+as its string name (`"Insert"`, `"Update"`, `"Delete"`, `"Read"`), not the underlying
+integer.
+
+```bash
+# Last 200 audit events overall
+curl http://localhost:5000/admin/dbconfig/api/audit
+
+# Only deletes, last 50
+curl "http://localhost:5000/admin/dbconfig/api/audit?action=Delete&take=50"
 ```
 
 ## `GET /{appName}/{environment}/{*key}` — get single entry
@@ -67,8 +111,8 @@ slashes to `:`, so `/Database/ConnectionString` and `/Database:ConnectionString`
 equivalent.
 
 ```bash
-curl http://localhost:5000/api/dbconfig/MyApp/Production/Database:ConnectionString \
-  -H "Authorization: Bearer <token>"
+curl http://localhost:5000/admin/dbconfig/api/MyApp/Production/Database:ConnectionString \
+  -b "dbconfig-auth=$COOKIE"
 ```
 
 Response (200):
@@ -77,6 +121,7 @@ Response (200):
 {
   "appName": "MyApp",
   "environment": "Production",
+  "tenantId": "",
   "key": "Database:ConnectionString",
   "value": "Server=prod-sql;Database=mydb;Integrated Security=true",
   "isSecret": true,
@@ -85,16 +130,19 @@ Response (200):
 }
 ```
 
+The `tenantId` defaults to the global default sentinel (`""`). Use the `?tenantId=` query
+string parameter on this endpoint to target a tenant-specific row.
+
 ## `PUT /{appName}/{environment}/{*key}` — upsert
 
 Creates a new entry or overwrites an existing one. Last-writer-wins on concurrent upserts
 to the same key. After a successful write, fires `IDbConfigReloadSignal.Trigger()`.
 
 ```bash
-curl -X PUT http://localhost:5000/api/dbconfig/MyApp/Production/Feature:DarkMode \
+curl -X PUT http://localhost:5000/admin/dbconfig/api/MyApp/Production/Feature:DarkMode \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{"value": "true", "isSecret": false}'
+  -b "dbconfig-auth=$COOKIE" \
+  -d '{"value": "true", "isSecret": false, "tenantId": ""}'
 ```
 
 Request body (`UpsertEntryRequest`):
@@ -102,23 +150,26 @@ Request body (`UpsertEntryRequest`):
 ```json
 {
   "value": "the value to store",
-  "isSecret": false
+  "isSecret": false,
+  "tenantId": ""
 }
 ```
 
 `value` may be null to store an explicit null entry. `isSecret` defaults to `false` if
-omitted.
+omitted. `tenantId` defaults to `""` (global default).
 
 Response: `204 No Content`.
 
 ## `DELETE /{appName}/{environment}/{*key}` — delete
 
-Removes the entry. No-op if the key does not exist. After a successful delete (including
-no-op), fires `IDbConfigReloadSignal.Trigger()`.
+Removes the entry. No-op if the key does not exist. Targets the row identified by
+`{appName}/{environment}/{key}` and the `?tenantId=` query string parameter (default
+`""`). After a successful delete (including no-op), fires
+`IDbConfigReloadSignal.Trigger()`.
 
 ```bash
-curl -X DELETE http://localhost:5000/api/dbconfig/MyApp/Production/Feature:DarkMode \
-  -H "Authorization: Bearer <token>"
+curl -X DELETE "http://localhost:5000/admin/dbconfig/api/MyApp/Production/Feature:DarkMode?tenantId=Acme" \
+  -b "dbconfig-auth=$COOKIE"
 ```
 
 Response: `204 No Content`.
@@ -131,22 +182,23 @@ already call this automatically; use this endpoint if you need to force a reload
 an out-of-band database change.
 
 ```bash
-curl -X POST http://localhost:5000/api/dbconfig/reload \
-  -H "Authorization: Bearer <token>"
+curl -X POST http://localhost:5000/admin/dbconfig/api/reload \
+  -b "dbconfig-auth=$COOKIE"
 ```
 
 Note: the route is `/reload` with no `/{appName}/{environment}` prefix. It affects only
 the in-process provider for this host.
 
-## `GET /{appName}/{environment}/audit/{*key}` — audit history
+## `GET /{appName}/{environment}/audit/{*key}` — per-key audit history
 
-Returns the audit history for a specific key, ordered most-recent-first.
+Returns the audit history for a single specific key, ordered most-recent-first. Backs the
+per-row history dialog in the UI.
 
 `?take=N` — number of rows to return. Default 50, capped at 500.
 
 ```bash
-curl "http://localhost:5000/api/dbconfig/MyApp/Production/audit/Database:ConnectionString?take=20" \
-  -H "Authorization: Bearer <token>"
+curl "http://localhost:5000/admin/dbconfig/api/MyApp/Production/audit/Database:ConnectionString?take=20" \
+  -b "dbconfig-auth=$COOKIE"
 ```
 
 Response (200):
@@ -157,6 +209,7 @@ Response (200):
     "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "appName": "MyApp",
     "environment": "Production",
+    "tenantId": "",
     "key": "Database:ConnectionString",
     "oldValue": "Server=old-sql;...",
     "newValue": "Server=new-sql;...",
@@ -170,7 +223,8 @@ Response (200):
 
 `oldValue` and `newValue` are decrypted plaintext even for secret entries.
 `oldValue` is null for `Insert` actions. `newValue` is null for `Delete` actions. Both are
-null for `Read` actions (when read auditing is enabled).
+null for `Read` actions (when read auditing is enabled). `action` is serialized as its
+string name (v0.10.1+).
 
 ## Status code summary
 
@@ -178,12 +232,14 @@ null for `Read` actions (when read auditing is enabled).
 |------|------|
 | 200 | Successful GET |
 | 204 | Successful PUT, DELETE, or POST /reload |
-| 400 | `?take` exceeds 500 on audit endpoint |
+| 400 | `?take` exceeds the per-endpoint cap |
+| 401 | Authorization filter rejected the request (built-in cookie or custom filter) |
 | 403 | `scopeFilter` mismatch — request appName does not match the group's filter |
 | 404 | Key not found on single-entry GET |
 | 500 | Unexpected store error |
 
 ## Authorization
 
-All endpoints inherit the authorization policy applied to the `RouteGroupBuilder` returned
-by `MapDbConfigHttp`. See [Authorization](./authorization.md) for the full pattern.
+All endpoints inherit the authorization model applied to the route group. See
+[Authorization](./authorization.md) for the four supported patterns (open access, built-in
+cookie, custom filter, host pipeline composition).

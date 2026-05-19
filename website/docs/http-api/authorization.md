@@ -4,47 +4,57 @@ sidebar_position: 2
 
 # Authorization
 
-DbConfig ships **no authentication or authorization policy**. The host owns identity and
-policy entirely. This is a non-negotiable design principle — the package never bakes in
-an opinionated auth model.
+DbConfig defaults to **open access** and supports several composable auth patterns. The
+full reference lives in [Authentication & authorization](../configuration/auth.md); this
+page focuses on how authorization composes onto the HTTP API surface specifically.
 
-## Host-owned auth pattern
+## Recommended: unified mount with built-in cookie
 
-`MapDbConfigHttp` returns a `RouteGroupBuilder`. Chain `RequireAuthorization(...)` on it to
-protect all endpoints in the group:
+For the common case (UI + HTTP API together under one prefix, gated by one signed
+cookie), use `MapDbConfigAdmin`:
+
+```csharp
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+    opts.UseBuiltInLogin<MyValidator>());
+// UI at  /admin/dbconfig
+// API at /admin/dbconfig/api  (gated by the same cookie)
+```
+
+Both the UI route group and the HTTP API route group share the same
+`IDbConfigAuthorizationFilter`, auto-wired by `UseBuiltInLogin`. Unauthorized
+non-browser callers receive `401`; browsers are redirected to `/admin/dbconfig/login`.
+
+## Split deployment: separate `MapDbConfigHttp` + `MapDbConfigUi`
+
+If the UI and HTTP API need different prefixes (UI behind a CDN, API on a different
+subdomain), call them separately. Both return `RouteGroupBuilder` so any standard
+`RequireAuthorization(...)` chain works:
 
 ```csharp
 app.MapDbConfigHttp("/api/dbconfig")
    .RequireAuthorization("DbConfigAdmin");
-```
 
-`RequireAuthorization("DbConfigAdmin")` applies to all seven endpoints: list, get-single,
-upsert, delete, reload, and audit-history.
-
-The same pattern works for `MapDbConfigUi`:
-
-```csharp
 app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig")
    .RequireAuthorization("DbConfigAdmin");
 ```
 
-Your host's standard authentication middleware (`UseAuthentication`, `UseAuthorization`)
-handles the rest. DbConfig endpoints participate in ASP.NET Core's normal auth pipeline.
+`RequireAuthorization("DbConfigAdmin")` applies to all seven endpoints (flat list, flat
+audit, get-single, upsert, delete, reload, per-key audit history).
 
-## Defining the policy
+## Composing with the host's existing auth
 
-The policy name is yours to choose. A minimal JWT setup:
+A minimal JWT bearer setup that protects both surfaces with one policy:
 
 ```csharp
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options => { ... });
+    .AddJwtBearer(options => { /* issuer / audience / signing keys */ });
 
 builder.Services.AddAuthorization(o =>
     o.AddPolicy("DbConfigAdmin", p =>
         p.RequireAuthenticatedUser()
          .RequireClaim("roles", "config-admin")));
-
-// ...
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -53,8 +63,9 @@ app.MapDbConfigHttp("/api/dbconfig")
    .RequireAuthorization("DbConfigAdmin");
 ```
 
-For Azure AD / Microsoft Entra, replace `AddJwtBearer` with `AddMicrosoftIdentityWebApi`.
-For Windows Auth, use `RequireAuthenticatedUser()` with Windows authentication middleware.
+For Azure AD / Microsoft Entra, swap `AddJwtBearer` for `AddMicrosoftIdentityWebApi`.
+For Windows Auth, use `RequireAuthenticatedUser()` with Windows authentication
+middleware.
 
 ## Per-scope authorization with `scopeFilter`
 
@@ -71,8 +82,8 @@ app.MapDbConfigHttp("/api/dbconfig-shared", scopeFilter: "Shared")
 ```
 
 `scopeFilter` adds an endpoint filter to the group. Requests whose route `{appName}` does
-not match the filter value receive `403 Forbidden`. The two route prefixes (`/api/dbconfig`
-and `/api/dbconfig-shared`) keep the groups' URL spaces separate.
+not match the filter value receive `403 Forbidden`. The two route prefixes
+(`/api/dbconfig` and `/api/dbconfig-shared`) keep the groups' URL spaces separate.
 
 **The `/reload` endpoint** within each group is always allowed, regardless of the
 `scopeFilter`. It fires the in-process reload signal and has no `{appName}` route
@@ -96,23 +107,28 @@ app.MapDbConfigHttp("/api/dbconfig-shared", scopeFilter: "Shared")
    .RequireAuthorization("PlatformAdmin");
 ```
 
-## Demo auth handler (NOT for production)
+## Custom authorization filter
 
-The `src/demo/DbConfig.Demo.WebApp` project uses a static API-key handler as a
-demonstration of the composition pattern:
+Skip cookies and policies entirely with a single-method
+`IDbConfigAuthorizationFilter` — useful for header tokens, IP allowlists, or per-request
+JWT checks that don't compose well with `[Authorize]`:
 
 ```csharp
-// Demo Program.cs — NOT FOR PRODUCTION
-builder.Services
-    .AddAuthentication("ApiKey")
-    .AddScheme<AuthenticationSchemeOptions, ApiKeyHandler>("ApiKey", null);
+public sealed class HeaderTokenFilter : IDbConfigAuthorizationFilter
+{
+    public Task<bool> IsAuthorizedAsync(HttpContext ctx) =>
+        Task.FromResult(string.Equals(
+            ctx.Request.Headers["X-Admin-Token"].FirstOrDefault(),
+            _expected,
+            StringComparison.Ordinal));
+}
 
-builder.Services.AddAuthorization(o =>
-    o.AddPolicy("DbConfigAdmin", p => p.RequireAuthenticatedUser()));
+app.MapDbConfigHttp("/api/dbconfig", opts => opts.Authorization = new HeaderTokenFilter());
 ```
 
-The handler reads `X-Db-Config-Api-Key` from the request header and compares it against a
-value from user secrets. It has no rate limiting, no nonce protection, and no expiry. It
-exists to show the composition pattern, not to be copied into production.
+`LocalRequestsOnlyAuthorizationFilter` ships as a ready-made example (loopback only;
+convenient for dev).
 
-See [Demo host](../getting-started/demo-host.md) for the full context.
+See [Authentication & authorization](../configuration/auth.md) for the full pattern
+matrix, including the `UnauthorizedRedirectUrl` option for hosts with their own
+existing login page.

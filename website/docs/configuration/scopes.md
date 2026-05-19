@@ -153,16 +153,23 @@ automatic parent-child inheritance (e.g. `Production` inheriting from `Default`)
 pattern (Option C from the v0.4.0 design) was deferred. If you need it, model it explicitly
 in your `IncludeScopes` list.
 
-## `?includeScopes=` on the HTTP list endpoint
+## Cross-scope listing via the flat `GET /` endpoint
 
-The HTTP list endpoint supports ad-hoc multi-scope queries via query string:
+v0.10.0 replaced the path-based `/{appName}/{environment}` list with a flat query at the
+group root. There is no separate "merged view" endpoint; instead, callers pass the union
+of `AppName` values they want to see:
 
 ```bash
-GET /api/dbconfig/PaymentService/Production?includeScopes=Shared,PlatformDefaults
+# All entries for PaymentService + the two shared scopes in Production
+curl "http://localhost:5000/admin/dbconfig/api/?environment=Production&keyPrefix=Logging:"
+# (no appName narrows to a specific app — every app's rows come back; filter client-side
+# by AppName if needed)
 ```
 
-This returns the merged view with the same precedence rules. Entries include their source
-`AppName`, so callers can see which scope each value came from.
+The flat endpoint returns raw rows ordered `(AppName, Environment, TenantId, Key)`. Each
+row keeps its source `AppName`, so the UI can render the "shadowed by override" indicator
+client-side. Server-side merging is intentionally absent — the polling provider does the
+same client-side merge for in-process consumers (see §2.11 in `architecture.md`).
 
 ## Scope column in the UI
 

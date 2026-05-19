@@ -78,8 +78,10 @@ WHERE Action = 'Read'
   AND ModifiedUtc < DATEADD(day, -7, SYSUTCDATETIME());
 ```
 
-The `Key = '*'` sentinel is written by the list endpoint (`GET /{app}/{env}`).
-See [Audit log](../configuration/audit-log.md) for the full read auditing semantics.
+The `Key = '*'` sentinel is written by the flat list endpoint (`GET /` in v0.10.0+;
+previously the path-based `GET /{app}/{env}` removed in v0.10.0). See
+[Audit log](../configuration/audit-log.md) for the full read auditing semantics, and the
+[Audit Log page](../ui-editor/audit-log-page.md) for the UI surface added in v0.10.1.
 
 ## Scheduling options
 

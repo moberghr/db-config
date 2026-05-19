@@ -21,7 +21,8 @@ auth policy.
 Two lines of setup in `Program.cs`:
 
 ```csharp
-// 1. Single call — wires services, configuration source, and reload signal
+// 1. Single call — wires services, configuration source, reload signal, and
+//    auto-migrates the DbConfig schema (SchemaMode.CreateIfMissing is the default).
 builder.AddDbConfig(b =>
 {
     b.Options.AppName = "MyApp";
@@ -30,9 +31,15 @@ builder.AddDbConfig(b =>
     b.UseSqlServer(connectionString); // or b.UsePostgreSql(connectionString)
 });
 
-// 2. Map the JSON API + the embedded editor UI
-app.MapDbConfigHttp("/api/dbconfig").RequireAuthorization("DbConfigAdmin");
-app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig");
+// 2. Register your IDbConfigCredentialValidator, then mount UI + HTTP API
+//    under one prefix with a shared signed cookie.
+builder.Services.AddScoped<IDbConfigCredentialValidator, MyValidator>();
+var app = builder.Build();
+
+app.MapDbConfigAdmin("/admin/dbconfig", opts =>
+    opts.UseBuiltInLogin<MyValidator>());
+// UI at  /admin/dbconfig
+// API at /admin/dbconfig/api
 ```
 
 After that, `IConfiguration["MyKey"]` reads from the database. Any change made via the
@@ -50,27 +57,34 @@ same process within milliseconds.
 - **Multi-scope configuration.** Pull values from one or more shared scopes (e.g.
   `PlatformDefaults`, `Shared`) in addition to your app's own scope, with explicit
   precedence ordering.
-- **Embedded React UI.** One call (`MapDbConfigUi`) mounts a full-featured editor — CRUD,
-  secret masking, scope badges, bulk operations, import/export, and an audit history
-  diff view.
-- **Host-owned authorization.** The packages ship no auth policy. `MapDbConfigHttp` and
-  `MapDbConfigUi` return `RouteGroupBuilder` so you attach `RequireAuthorization(...)` the
-  same way you would for any other endpoint group.
+- **Embedded React UI.** One call (`MapDbConfigAdmin`) mounts a full-featured editor —
+  CRUD, secret masking, scope badges, bulk operations, import/export, a per-row audit
+  history dialog, and a global Audit Log tab.
+- **Composable authorization.** Defaults are open access; opt into the built-in cookie
+  login via `IDbConfigCredentialValidator` and `opts.UseBuiltInLogin<T>()`, plug in a
+  custom `IDbConfigAuthorizationFilter`, or fall back to your host's existing
+  `RequireAuthorization(...)` pipeline.
+- **Auto-migrating schema.** `SchemaMode.CreateIfMissing` (default) applies the EF Core
+  migrations on startup, matching Hangfire / Marten / Wolverine conventions. Production
+  teams that prefer DBA-controlled schema use `SchemaMode.None` and the
+  `DbConfigMigrator.GenerateMigrationScript` helper.
 
 ## What you bring
 
 - **A SQL Server or PostgreSQL database** that your application already has a connection
   string for. DbConfig creates its own tables (`DbConfig_Entries`,
-  `DbConfig_AuditEntries`) via EF Core migrations; it does not touch your schema.
-- **EF Core 8 migrations applied.** Run `dotnet ef database update` once (or call
-  `ctx.Database.MigrateAsync()` at startup). See
-  [Migrations](./operations/migrations.md) for details.
+  `DbConfig_AuditEntries`) via EF Core migrations; it does not touch your schema. By
+  default the schema is applied automatically on startup — see
+  [Migrations](./operations/migrations.md).
 - **An ASP.NET Core 8 host.** `AddDbConfig` is an extension on `IHostApplicationBuilder`,
-  so it also works in worker services and generic hosts — but `MapDbConfigHttp` and
-  `MapDbConfigUi` require the ASP.NET Core middleware pipeline.
-- **An identity policy for the admin endpoints.** Your application already has an auth
-  stack (JWT, Azure AD, Windows Auth, API keys for dev). Attach your existing policy to
-  the groups returned by `MapDbConfigHttp` and `MapDbConfigUi`.
+  so it also works in worker services and generic hosts — but `MapDbConfigAdmin` (and
+  its split-form siblings `MapDbConfigHttp` / `MapDbConfigUi`) require the ASP.NET Core
+  middleware pipeline.
+- **An auth strategy for the admin surface.** Pick one: open access (private network or
+  dev), built-in cookie login via `IDbConfigCredentialValidator`, a custom
+  `IDbConfigAuthorizationFilter`, or compose with your existing identity pipeline (JWT,
+  Azure AD, Windows Auth) via `RequireAuthorization(...)`. See
+  [Authentication & authorization](./configuration/auth.md).
 
 ## Where to next
 
