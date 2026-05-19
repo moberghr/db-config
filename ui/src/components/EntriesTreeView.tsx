@@ -68,25 +68,31 @@ interface TreeRowsProps {
  * Each depth level draws a thin vertical bar so nesting is unambiguous even
  * when ancestor segments are off-screen.
  */
-function IndentGuide({ depth }: { depth: number }) {
-  if (depth === 0) {
-    return null
+/**
+ * Per-depth left padding for tree rows. Applied via inline style to the row's
+ * first cell so the cell's `paddingLeft` actually shifts the content right —
+ * cleaner than trying to expand a cell beyond the column's shared width.
+ *
+ * The vertical guide lines are painted into the padding via a repeating
+ * background gradient so each ancestor depth gets a faint border-l hint.
+ */
+/**
+ * Per-depth left padding for the row's first cell.
+ *
+ * `depth * 28 + 28` gives EVERY row (including depth 0) a baseline 28px of left
+ * padding that aligns its content with depth-0 group labels in column 2. Each
+ * additional depth level adds another 28px step. Guide lines are painted into
+ * the padding via a repeating background gradient so ancestor depth is visible.
+ */
+function leafIndentStyle(depth: number): React.CSSProperties {
+  const totalPaddingPx = (depth + 1) * INDENT_PX
+  return {
+    paddingLeft: `${totalPaddingPx}px`,
+    backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${INDENT_PX - 1}px, var(--border) ${INDENT_PX - 1}px, var(--border) ${INDENT_PX}px)`,
+    backgroundSize: `${depth * INDENT_PX}px 100%`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'left center',
   }
-  return (
-    <span
-      aria-hidden
-      className="inline-flex items-stretch"
-      style={{ width: `${depth * INDENT_PX}px` }}
-    >
-      {Array.from({ length: depth }, (_, i) => (
-        <span
-          key={i}
-          className="block w-0 border-l border-border/60"
-          style={{ width: `${INDENT_PX}px` }}
-        />
-      ))}
-    </span>
-  )
 }
 
 function TreeRows({
@@ -117,22 +123,27 @@ function TreeRows({
               className={cn('cursor-pointer', !isOwn && 'opacity-80', isSelected && 'bg-primary/5')}
               onClick={() => { if (isOwn) onEdit(entry) }}
             >
-              {/* Checkbox — preceded by indent guide so the whole row reads as nested */}
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <span className="inline-flex items-center">
-                  <IndentGuide depth={depth} />
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-input accent-primary"
-                    checked={isSelected}
-                    onChange={() => toggleSelection(ck)}
-                    aria-label={`Select ${entry.key}`}
-                  />
-                </span>
+              {/* Checkbox — paddingLeft on the cell itself indents the checkbox per depth.
+                  Indent guide painted into the same padding via background-image so the
+                  hierarchy is visible. */}
+              <TableCell
+                onClick={(e) => e.stopPropagation()}
+                style={leafIndentStyle(depth)}
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border border-input accent-primary"
+                  checked={isSelected}
+                  onChange={() => toggleSelection(ck)}
+                  aria-label={`Select ${entry.key}`}
+                />
               </TableCell>
-              {/* Key */}
+              {/* Key — chevron-width spacer so leaf text aligns with group labels */}
               <TableCell className="font-mono text-xs font-medium">
-                {node.segment}
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-4 w-4 shrink-0" aria-hidden />
+                  <span>{node.segment}</span>
+                </span>
               </TableCell>
               {/* Value */}
               <TableCell onClick={(e) => e.stopPropagation()}>
@@ -210,12 +221,10 @@ function TreeRows({
               className="cursor-pointer hover:bg-muted/50 select-none"
               onClick={() => onToggle(node.fullPrefix)}
             >
-              {/* Checkbox placeholder — render indent guide so group rows nest visually */}
-              <TableCell>
-                <IndentGuide depth={depth} />
-              </TableCell>
-              {/* Group label with chevron */}
-              <TableCell colSpan={7}>
+              {/* Group rows merge cells so the chevron sits at the same paddingLeft as
+                  a leaf's checkbox (which is in column 1). Otherwise the chevron lands
+                  inside column 2 and never aligns with the leaf checkbox column. */}
+              <TableCell colSpan={9} style={leafIndentStyle(depth)}>
                 <span className="inline-flex items-center gap-1.5 font-medium text-sm">
                   <ChevronRight
                     className={cn(
@@ -229,8 +238,6 @@ function TreeRows({
                   </span>
                 </span>
               </TableCell>
-              {/* Actions placeholder */}
-              <TableCell />
             </TableRow>
             {isExpanded && (
               <TreeRows

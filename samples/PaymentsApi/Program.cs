@@ -288,12 +288,27 @@ static async Task SeedDemoDataAsync(IConfigStore store, string env, string appNa
     var entries = new List<ConfigEntry>
     {
         // Global config (TenantId = "")
+        // Depth-0 secret — top-level encryption key.
+        new(appName, env, "", "MasterEncryptionKey", "DEMO_master_key_NOT_REAL", true, now, "seed"),
+        // Depth-0 plaintext — top-level non-secret.
+        new(appName, env, "", "DefaultLocale", "en-US", false, now, "seed"),
+
+        // Depth-1 entries (Stripe:*, Limits:*, Features:*) — both secret and plaintext.
         new(appName, env, "", "Stripe:WebhookSecret", "whsec_DEMO_global_webhook", true, now, "seed"),
         new(appName, env, "", "Stripe:DefaultCurrency", "USD", false, now, "seed"),
         new(appName, env, "", "Stripe:IdempotencyWindowSeconds", "60", false, now, "seed"),
         new(appName, env, "", "Limits:DailyChargeCap", "1000000", false, now, "seed"),
         new(appName, env, "", "Limits:MaxChargeAmount", "50000", false, now, "seed"),
         new(appName, env, "", "Features:BetaSplitPayments", "false", false, now, "seed"),
+
+        // Depth-2 secrets — 3-segment keys with IsSecret=true.
+        new(appName, env, "", "Stripe:OAuth:ClientSecret", "ca_DEMO_oauth_client_secret", true, now, "seed"),
+        new(appName, env, "", "Stripe:OAuth:ClientId", "ca_demo_client_id", false, now, "seed"),
+        new(appName, env, "", "Database:Primary:Password", "DEMO_db_password_NOT_REAL", true, now, "seed"),
+        new(appName, env, "", "Database:Primary:Host", "db.internal.example", false, now, "seed"),
+        new(appName, env, "", "Database:Primary:Port", "5432", false, now, "seed"),
+        new(appName, env, "", "Database:Replica:Password", "DEMO_replica_password_NOT_REAL", true, now, "seed"),
+        new(appName, env, "", "Database:Replica:Host", "db-replica.internal.example", false, now, "seed"),
 
         // 3-level nested: Notifications:Email:* — gives the tree view real hierarchy
         new(appName, env, "", "Notifications:Email:Templates:Welcome", "Hi {name}, welcome to PaymentsApi.", false, now, "seed"),
