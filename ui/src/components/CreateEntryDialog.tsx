@@ -108,7 +108,7 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
-      <DialogContent size="lg">
+      <DialogContent size="xl">
         <DialogHeader>
           <DialogTitle>New Entry</DialogTitle>
         </DialogHeader>

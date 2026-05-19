@@ -17,7 +17,7 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
     >
       <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
       <div
-        className="relative z-50"
+        className="relative z-50 w-full px-4 flex justify-center"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
