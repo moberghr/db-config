@@ -142,6 +142,7 @@ public sealed class TypeMappedEncryptorTests
             {
                 b.Options.AppName = App;
                 b.Options.Environment = Env;
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
             });
         }
@@ -178,6 +179,7 @@ public sealed class TypeMappedEncryptorTests
             {
                 b.Options.AppName = App;
                 b.Options.Environment = Env;
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
             });
         }
@@ -214,6 +216,7 @@ public sealed class TypeMappedEncryptorTests
             {
                 b.Options.AppName = App;
                 b.Options.Environment = Env;
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
             });
         }

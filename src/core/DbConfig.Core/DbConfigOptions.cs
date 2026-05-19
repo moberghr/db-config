@@ -37,4 +37,10 @@ public sealed class DbConfigOptions
     /// read audits log a warning but do not fail the GET.
     /// </summary>
     public bool AuditReads { get; set; } = false;
+
+    /// <summary>
+    /// How DbConfig manages the underlying database schema at host startup.
+    /// Default: <see cref="SchemaMode.CreateIfMissing"/> — auto-migrate.
+    /// </summary>
+    public SchemaMode SchemaMode { get; set; } = SchemaMode.CreateIfMissing;
 }

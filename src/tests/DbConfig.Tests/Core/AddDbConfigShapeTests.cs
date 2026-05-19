@@ -36,6 +36,7 @@ public sealed class AddDbConfigShapeTests
                 b.Options.AppName = App;
                 b.Options.Environment = Env;
                 b.Options.ReloadInterval = TimeSpan.FromSeconds(30);
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
             });
         }
@@ -63,6 +64,7 @@ public sealed class AddDbConfigShapeTests
             {
                 b.Options.AppName = App;
                 b.Options.Environment = Env;
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
             });
         }
@@ -77,6 +79,7 @@ public sealed class AddDbConfigShapeTests
             {
                 b.Options.AppName = "App2";
                 b.Options.Environment = Env;
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
             }));
 
@@ -99,6 +102,7 @@ public sealed class AddDbConfigShapeTests
             {
                 b.Options.AppName = App;
                 b.Options.Environment = Env;
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
             });
         }

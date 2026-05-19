@@ -3,11 +3,9 @@
 // admin surface, in-memory mock for Stripe.
 
 using DbConfig.Core;
-using DbConfig.EntityFrameworkCore;
 using DbConfig.Http;
 using DbConfig.Provider.PostgreSql;
 using DbConfig.Ui;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using PaymentsApi;
 using PaymentsApi.Options;
@@ -21,12 +19,12 @@ var connectionString = builder.Configuration.GetConnectionString("PaymentsApi")
 var appName = builder.Configuration["DbConfig:AppName"] ?? "PaymentsApi";
 var reloadSeconds = int.TryParse(builder.Configuration["DbConfig:ReloadIntervalSeconds"], out var r) ? r : 5;
 
-// Apply EF migrations BEFORE AddDbConfig — the polling provider's first Load() runs
-// synchronously during AddDbConfig, and Load() queries DbConfig_Entries.
-await ApplyMigrationsAsync(connectionString);
-
 builder.Services.AddHttpContextAccessor();
 
+// Schema is auto-applied during AddDbConfig (SchemaMode.CreateIfMissing, the default).
+// Production hosts that prefer DBA-controlled or CI-pipeline schema management can opt out
+// via b.Options.SchemaMode = SchemaMode.None and apply migrations out of band with
+// DbConfigMigrator.MigrateAsync(...) or GenerateMigrationScript(...).
 builder.AddDbConfig(b =>
 {
     b.Options.AppName = appName;
@@ -263,16 +261,6 @@ await app.RunAsync();
 // ====================================================================
 // Local helpers (top-level methods are emitted as static on Program).
 // ====================================================================
-
-static async Task ApplyMigrationsAsync(string connectionString)
-{
-    var opts = new DbContextOptionsBuilder<DbConfigDbContext>()
-        .UseNpgsql(connectionString, npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
-        .Options;
-
-    await using var ctx = new DbConfigDbContext(opts);
-    await ctx.Database.MigrateAsync();
-}
 
 static async Task SeedDemoDataAsync(IConfigStore store, string env, string appName, ILogger logger)
 {

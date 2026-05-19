@@ -235,6 +235,7 @@ public sealed class TenantResolverTryGetTests
             {
                 b.Options.AppName = App;
                 b.Options.Environment = Env;
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
                 b.AddTenantResolver<FakeResolver>();
             });

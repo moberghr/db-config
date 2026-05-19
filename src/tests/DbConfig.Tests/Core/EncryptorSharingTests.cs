@@ -37,6 +37,7 @@ public sealed class EncryptorSharingTests
             {
                 b.Options.AppName = "App";
                 b.Options.Environment = "Test";
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
             });
         }
@@ -75,6 +76,7 @@ public sealed class EncryptorSharingTests
                 {
                     b.Options.AppName = "App";
                     b.Options.Environment = "Test";
+                    b.Options.SchemaMode = SchemaMode.None;
                     b.UseSqlServer(FakeConnectionString);
                 });
             }

@@ -41,6 +41,7 @@ public sealed class AddDbConfigContractTests
             {
                 b.Options.AppName = "App";
                 b.Options.Environment = "Test";
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(connectionString);
             });
         }
@@ -55,6 +56,7 @@ public sealed class AddDbConfigContractTests
             {
                 b.Options.AppName = "App2";
                 b.Options.Environment = "Test";
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(connectionString);
             }));
 
@@ -75,6 +77,7 @@ public sealed class AddDbConfigContractTests
             {
                 b.Options.AppName = "App";
                 b.Options.Environment = "Test";
+                b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(connectionString);
             });
         }

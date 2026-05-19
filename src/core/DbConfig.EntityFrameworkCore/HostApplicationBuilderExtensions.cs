@@ -158,6 +158,20 @@ public static class HostApplicationBuilderExtensions
         // responses.
         var pollingOptionsBuilder = new DbContextOptionsBuilder<DbConfigDbContext>();
         contextConfig(pollingOptionsBuilder);
+
+        // ---- Auto-migrate if requested (default) ----
+        // The polling provider's first Load() runs synchronously inside hostBuilder.Configuration.Add(source)
+        // below and queries DbConfig_Entries. If the schema isn't applied yet the call throws.
+        // SchemaMode.CreateIfMissing (default) applies any pending migrations now, before the source is
+        // added. Production teams that prefer DBA/CI-pipeline schema management set SchemaMode.None.
+        // Migrate() is synchronous by design — we're still in builder time, no host yet, and the operation
+        // must complete before the source is added.
+        if (options.SchemaMode == SchemaMode.CreateIfMissing)
+        {
+            using var migrateCtx = new DbConfigDbContext(pollingOptionsBuilder.Options);
+            migrateCtx.Database.Migrate();
+        }
+
         IDbContextFactory<DbConfigDbContext> pollingFactory =
             new DirectDbContextFactory(pollingOptionsBuilder.Options);
         var pollingStore = new EfCoreConfigStore(pollingFactory, detector, TimeProvider.System, encryptor: null);

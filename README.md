@@ -132,6 +132,60 @@ app can call its own backend right after sign-in.
 See [Authentication & authorization](https://moberg.github.io/db-config/configuration/auth)
 for the full walkthrough.
 
+### Migrations
+
+DbConfig owns its own schema (tables `DbConfig_Entries` and `DbConfig_AuditEntries`).
+
+#### Default — auto-create on startup
+
+The library applies pending migrations during `AddDbConfig`. No extra code needed:
+
+```csharp
+builder.AddDbConfig(b =>
+{
+    b.UseSqlServer(connStr);
+    b.Options.AppName = "MyApp";
+    // b.Options.SchemaMode = SchemaMode.CreateIfMissing;  // default
+});
+```
+
+This mirrors how Hangfire, Marten, and Wolverine handle schema. Good for dev, demos,
+and small-team production.
+
+#### DBA-controlled / CI-pipeline workflows
+
+Production teams that prefer to apply schema out of band (via init container, SQL
+review by DBA, CI/CD step) can disable auto-create:
+
+```csharp
+builder.AddDbConfig(b =>
+{
+    b.UseSqlServer(connStr);
+    b.Options.AppName = "MyApp";
+    b.Options.SchemaMode = SchemaMode.None;  // host assumes schema is ready
+});
+```
+
+To extract SQL for offline application:
+
+```csharp
+// In a tiny build-time helper console app:
+using DbConfig.EntityFrameworkCore;
+using DbConfig.Provider.SqlServer;
+
+var opts = SqlServerDbConfigOptions.ForSqlServer(connStr);
+var sql = DbConfigMigrator.GenerateMigrationScript(opts, idempotent: true);
+File.WriteAllText("dbconfig-upgrade.sql", sql);
+```
+
+`DbConfigMigrator` exposes three methods:
+
+- `MigrateAsync(opts)` — apply pending migrations programmatically
+- `GenerateCreateScript(opts)` — full schema DDL for a fresh database
+- `GenerateMigrationScript(opts, fromMigration?, toMigration?, idempotent: true)` — incremental upgrade SQL
+
+For PostgreSQL hosts use `PostgreSqlDbConfigOptions.ForPostgreSql(connStr)`.
+
 ### Shared scopes
 
 To pull configuration from one or more shared scopes in addition to your app's own:
