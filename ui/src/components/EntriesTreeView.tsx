@@ -117,22 +117,22 @@ function TreeRows({
               className={cn('cursor-pointer', !isOwn && 'opacity-80', isSelected && 'bg-primary/5')}
               onClick={() => { if (isOwn) onEdit(entry) }}
             >
-              {/* Checkbox */}
+              {/* Checkbox — preceded by indent guide so the whole row reads as nested */}
               <TableCell onClick={(e) => e.stopPropagation()}>
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border border-input accent-primary"
-                  checked={isSelected}
-                  onChange={() => toggleSelection(ck)}
-                  aria-label={`Select ${entry.key}`}
-                />
-              </TableCell>
-              {/* Key — indented with vertical guide lines */}
-              <TableCell className="font-mono text-xs font-medium">
                 <span className="inline-flex items-center">
                   <IndentGuide depth={depth} />
-                  <span>{node.segment}</span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border border-input accent-primary"
+                    checked={isSelected}
+                    onChange={() => toggleSelection(ck)}
+                    aria-label={`Select ${entry.key}`}
+                  />
                 </span>
+              </TableCell>
+              {/* Key */}
+              <TableCell className="font-mono text-xs font-medium">
+                {node.segment}
               </TableCell>
               {/* Value */}
               <TableCell onClick={(e) => e.stopPropagation()}>
@@ -210,12 +210,13 @@ function TreeRows({
               className="cursor-pointer hover:bg-muted/50 select-none"
               onClick={() => onToggle(node.fullPrefix)}
             >
-              {/* Checkbox placeholder — no checkbox for groups */}
-              <TableCell />
-              {/* Group label with chevron, indented with vertical guides */}
+              {/* Checkbox placeholder — render indent guide so group rows nest visually */}
+              <TableCell>
+                <IndentGuide depth={depth} />
+              </TableCell>
+              {/* Group label with chevron */}
               <TableCell colSpan={7}>
                 <span className="inline-flex items-center gap-1.5 font-medium text-sm">
-                  <IndentGuide depth={depth} />
                   <ChevronRight
                     className={cn(
                       'h-4 w-4 text-muted-foreground transition-transform duration-150',
