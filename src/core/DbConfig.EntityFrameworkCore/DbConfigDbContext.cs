@@ -55,6 +55,7 @@ public sealed class DbConfigDbContext : DbContext
                 .IsRequired();
 
             entity.Property(x => x.ModifiedUtc)
+                .HasConversion(new UtcDateTimeConverter())
                 .IsRequired();
 
             entity.Property(x => x.ModifiedBy)
@@ -105,6 +106,10 @@ public sealed class DbConfigDbContext : DbContext
 
             entity.Property(x => x.Action)
                 .HasMaxLength(16)
+                .IsRequired();
+
+            entity.Property(x => x.ModifiedUtc)
+                .HasConversion(new UtcDateTimeOffsetConverter())
                 .IsRequired();
 
             entity.Property(x => x.ModifiedBy)
