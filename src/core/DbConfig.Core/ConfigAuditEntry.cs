@@ -1,8 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace DbConfig.Core;
 
 /// <summary>
-/// The action that produced an audit entry.
+/// The action that produced an audit entry. Serialized as its string name in
+/// HTTP responses (e.g. "Insert", "Update", "Delete", "Read") rather than the
+/// underlying integer — see <see cref="JsonStringEnumConverter"/> attribute.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ConfigAuditAction
 {
     /// <summary>A new entry was inserted.</summary>
