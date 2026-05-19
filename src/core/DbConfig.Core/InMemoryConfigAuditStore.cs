@@ -85,4 +85,53 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
             return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>(result);
         }
     }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+        string? appName,
+        string? environment,
+        string? tenantId,
+        string? keyPrefix,
+        ConfigAuditAction? action,
+        int take,
+        CancellationToken ct)
+    {
+        lock (_lock)
+        {
+            var query = _entries.AsEnumerable();
+
+            if (appName is not null)
+            {
+                query = query.Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (environment is not null)
+            {
+                query = query.Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (tenantId is not null)
+            {
+                query = query.Where(x => string.Equals(x.TenantId, tenantId, StringComparison.Ordinal));
+            }
+
+            if (keyPrefix is not null)
+            {
+                query = query.Where(x => x.Key.StartsWith(keyPrefix, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (action is not null)
+            {
+                query = query.Where(x => x.Action == action.Value);
+            }
+
+            var result = query
+                .OrderByDescending(x => x.ModifiedUtc)
+                .ThenBy(x => x.Key, StringComparer.Ordinal)
+                .Take(take)
+                .ToList();
+
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>(result);
+        }
+    }
 }

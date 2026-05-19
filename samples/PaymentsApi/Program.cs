@@ -348,6 +348,25 @@ static async Task SeedDemoDataAsync(IConfigStore store, string env, string appNa
         await store.UpsertAsync(entry, CancellationToken.None);
     }
 
+    // Additional operations to give the global Audit Log page interesting variety.
+    //
+    // 1. Stripe:DefaultCurrency: USD (seeded above) → EUR → GBP. Produces two Update
+    //    audit rows on top of the initial Insert.
+    // 2. Legacy:OldSetting: Insert then Delete. The entry no longer exists, but its
+    //    audit trail (Insert + Delete) remains reachable only via the new global
+    //    Audit Log page.
+    await store.UpsertAsync(
+        new ConfigEntry(appName, env, "", "Stripe:DefaultCurrency", "EUR", false, now.AddMinutes(5), "platform-admin"),
+        CancellationToken.None);
+    await store.UpsertAsync(
+        new ConfigEntry(appName, env, "", "Stripe:DefaultCurrency", "GBP", false, now.AddMinutes(10), "platform-admin"),
+        CancellationToken.None);
+
+    await store.UpsertAsync(
+        new ConfigEntry(appName, env, "", "Legacy:OldSetting", "deprecated", false, now.AddMinutes(15), "platform-admin"),
+        CancellationToken.None);
+    await store.DeleteAsync(appName, env, "Legacy:OldSetting", CancellationToken.None);
+
     logger.LogInformation("Seeded {Count} demo config entries for {App}/{Env}", entries.Count, appName, env);
 }
 

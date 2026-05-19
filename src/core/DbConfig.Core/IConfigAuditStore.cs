@@ -52,4 +52,27 @@ public interface IConfigAuditStore
     /// The <see cref="ConfigAuditEntry.TenantId"/> on the entry is stored verbatim.
     /// </summary>
     Task WriteAsync(ConfigAuditEntry entry, CancellationToken ct);
+
+    /// <summary>
+    /// Returns audit entries matching the supplied filters, ordered most-recent-first
+    /// (with <see cref="ConfigAuditEntry.Key"/> ascending as a stable secondary sort).
+    /// All filter parameters are optional — pass <see langword="null"/> for "no filter".
+    /// Returned values are plaintext when <see cref="ConfigAuditEntry.IsSecret"/> is
+    /// <see langword="true"/>; the store handles decryption internally.
+    /// </summary>
+    /// <param name="appName">Exact-match <see cref="ConfigAuditEntry.AppName"/> filter, or <see langword="null"/>.</param>
+    /// <param name="environment">Exact-match <see cref="ConfigAuditEntry.Environment"/> filter, or <see langword="null"/>.</param>
+    /// <param name="tenantId">Exact-match <see cref="ConfigAuditEntry.TenantId"/> filter (empty string = global), or <see langword="null"/> for no filter.</param>
+    /// <param name="keyPrefix">Case-insensitive starts-with filter on <see cref="ConfigAuditEntry.Key"/>, or <see langword="null"/>.</param>
+    /// <param name="action">Exact-match <see cref="ConfigAuditAction"/> filter, or <see langword="null"/>.</param>
+    /// <param name="take">Maximum number of entries to return.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+        string? appName,
+        string? environment,
+        string? tenantId,
+        string? keyPrefix,
+        ConfigAuditAction? action,
+        int take,
+        CancellationToken ct);
 }

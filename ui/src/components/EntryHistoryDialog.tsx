@@ -35,6 +35,7 @@ function ActionChip({ action }: { action: ConfigAuditAction }) {
     Insert: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
     Update: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
     Delete: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
+    Read: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
   }
   return (
     <span

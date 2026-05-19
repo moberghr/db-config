@@ -131,6 +131,27 @@ public static class EndpointRouteBuilderExtensions
                 timeProvider,
                 ct));
 
+        group.MapGet("/audit", (
+            HttpContext httpContext,
+            [FromQuery] string? appName,
+            [FromQuery] string? environment,
+            [FromQuery] string? tenantId,
+            [FromQuery] string? keyPrefix,
+            [FromQuery] string? action,
+            [FromQuery] int? take,
+            [FromServices] IConfigAuditStore? auditStore,
+            CancellationToken ct) => QueryAuditEndpoint.HandleAsync(
+                httpContext,
+                appName,
+                environment,
+                tenantId,
+                keyPrefix,
+                action,
+                take,
+                auditStore,
+                capturedScopeFilter,
+                ct));
+
         group.MapGet("/{appName}/{environment}/audit/{**key}", GetAuditHistoryEndpoint.HandleAsync);
         group.MapGet("/{appName}/{environment}/{*key}", GetEntryEndpoint.HandleAsync);
         group.MapPut("/{appName}/{environment}/{*key}", UpsertEntryEndpoint.HandleAsync);

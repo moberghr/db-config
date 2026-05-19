@@ -20,7 +20,11 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Plus, Upload } from 'lucide-react'
 
-export function EntriesPage() {
+interface EntriesPageProps {
+  header?: React.ReactNode
+}
+
+export function EntriesPage({ header }: EntriesPageProps = {}) {
   const refresh = useEntriesStore((s) => s.refresh)
   const entries = useEntriesStore((s) => s.entries)
   const appName = useScopeStore((s) => s.appName)
@@ -55,7 +59,10 @@ export function EntriesPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">DbConfig</h1>
+        <div className="flex items-center gap-6">
+          <h1 className="text-xl font-semibold">DbConfig</h1>
+          {header}
+        </div>
         <ThemeToggle />
       </header>
       <main className="px-6 py-6 space-y-4">

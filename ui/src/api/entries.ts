@@ -13,7 +13,7 @@ export interface ConfigEntry {
   modifiedBy: string | null
 }
 
-export type ConfigAuditAction = 'Insert' | 'Update' | 'Delete'
+export type ConfigAuditAction = 'Insert' | 'Update' | 'Delete' | 'Read'
 
 export interface ConfigAuditEntry {
   id: string

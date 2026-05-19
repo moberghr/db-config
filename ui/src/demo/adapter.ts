@@ -12,6 +12,7 @@
  */
 
 import type { ConfigEntry, ConfigAuditEntry, ConfigAuditAction, EntriesQuery } from '@/api/entries'
+import type { AuditQuery } from '@/api/audit'
 import { DEMO_ENTRIES, DEMO_AUDIT_HISTORY } from './data'
 
 // ============================================================
@@ -25,6 +26,7 @@ export interface DemoClient {
   deleteEntry(app: string, env: string, key: string, tenantId?: string): Promise<void>
   triggerReload(): Promise<void>
   getAuditHistory(appName: string, environment: string, key: string, take?: number, tenantId?: string): Promise<ConfigAuditEntry[]>
+  queryAuditEntries(q: AuditQuery): Promise<ConfigAuditEntry[]>
 }
 
 // ============================================================
@@ -162,5 +164,38 @@ export function createDemoClient(): DemoClient {
       .map((a) => ({ ...a }))
   }
 
-  return { queryEntries, getEntry, upsertEntry, deleteEntry, triggerReload, getAuditHistory }
+  // Mirror the server's flat-query semantics on the audit log: AND across
+  // filters, default take=1000 (capped at 10000), case-insensitive keyPrefix,
+  // ordered by ModifiedUtc DESC with Key ASC as the stable secondary sort.
+  async function queryAuditEntries(q: AuditQuery): Promise<ConfigAuditEntry[]> {
+    const take = q.take ?? 1000
+    const cappedTake = Math.min(Math.max(take, 1), 10000)
+    const keyPrefixLower = q.keyPrefix ? q.keyPrefix.toLowerCase() : null
+    const result: ConfigAuditEntry[] = []
+    for (const entry of auditHistory) {
+      if (q.appName && entry.appName.toLowerCase() !== q.appName.toLowerCase()) continue
+      if (q.environment && entry.environment.toLowerCase() !== q.environment.toLowerCase()) continue
+      if (q.tenantId !== undefined && entry.tenantId !== q.tenantId) continue
+      if (keyPrefixLower && !entry.key.toLowerCase().startsWith(keyPrefixLower)) continue
+      if (q.action && entry.action !== q.action) continue
+      result.push({ ...entry })
+    }
+    result.sort((a, b) => {
+      if (a.modifiedUtc !== b.modifiedUtc) {
+        return b.modifiedUtc.localeCompare(a.modifiedUtc)
+      }
+      return a.key.localeCompare(b.key)
+    })
+    return result.slice(0, cappedTake)
+  }
+
+  return {
+    queryEntries,
+    getEntry,
+    upsertEntry,
+    deleteEntry,
+    triggerReload,
+    getAuditHistory,
+    queryAuditEntries,
+  }
 }

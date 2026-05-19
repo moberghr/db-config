@@ -406,6 +406,18 @@ public sealed class ReadAuditEndpointTests
         {
             throw new InvalidOperationException("Simulated audit store failure.");
         }
+
+        public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+            string? appName,
+            string? environment,
+            string? tenantId,
+            string? keyPrefix,
+            ConfigAuditAction? action,
+            int take,
+            CancellationToken ct)
+        {
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
+        }
     }
 
     /// <summary>
@@ -429,6 +441,18 @@ public sealed class ReadAuditEndpointTests
         public Task WriteAsync(ConfigAuditEntry entry, CancellationToken ct)
         {
             return Task.FromException(new InvalidOperationException("Simulated async audit store fault."));
+        }
+
+        public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+            string? appName,
+            string? environment,
+            string? tenantId,
+            string? keyPrefix,
+            ConfigAuditAction? action,
+            int take,
+            CancellationToken ct)
+        {
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
         }
     }
 

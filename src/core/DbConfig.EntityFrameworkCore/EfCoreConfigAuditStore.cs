@@ -104,6 +104,109 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
     }
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+        string? appName,
+        string? environment,
+        string? tenantId,
+        string? keyPrefix,
+        ConfigAuditAction? action,
+        int take,
+        CancellationToken ct)
+    {
+        await using var context = await _factory.CreateDbContextAsync(ct);
+
+        var query = context.AuditEntries
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (appName is not null)
+        {
+            query = query.Where(x => x.AppName == appName);
+        }
+
+        if (environment is not null)
+        {
+            query = query.Where(x => x.Environment == environment);
+        }
+
+        if (tenantId is not null)
+        {
+            query = query.Where(x => x.TenantId == tenantId);
+        }
+
+        if (keyPrefix is not null)
+        {
+            var pattern = EscapeLikePattern(keyPrefix) + "%";
+            query = query.Where(x => EF.Functions.Like(x.Key, pattern));
+        }
+
+        if (action is not null)
+        {
+            var actionName = action.Value.ToString();
+            query = query.Where(x => x.Action == actionName);
+        }
+
+        var rows = await query
+            .OrderByDescending(x => x.ModifiedUtc)
+            .ThenBy(x => x.Key)
+            .Take(take)
+            .Select(x => new
+            {
+                x.Id,
+                x.AppName,
+                x.Environment,
+                x.TenantId,
+                x.Key,
+                x.OldValue,
+                x.NewValue,
+                x.IsSecret,
+                x.Action,
+                x.ModifiedUtc,
+                x.ModifiedBy,
+            })
+            .ToListAsync(ct);
+
+        return rows.ConvertAll(row =>
+        {
+            var oldValue = row.IsSecret && row.OldValue is not null
+                ? _encryptor.Unprotect(row.OldValue)
+                : row.OldValue;
+
+            var newValue = row.IsSecret && row.NewValue is not null
+                ? _encryptor.Unprotect(row.NewValue)
+                : row.NewValue;
+
+            var parsedAction = Enum.Parse<ConfigAuditAction>(row.Action);
+
+            return new ConfigAuditEntry(
+                row.Id,
+                row.AppName,
+                row.Environment,
+                row.TenantId,
+                row.Key,
+                OldValue: oldValue,
+                NewValue: newValue,
+                IsSecret: row.IsSecret,
+                Action: parsedAction,
+                ModifiedUtc: row.ModifiedUtc,
+                ModifiedBy: row.ModifiedBy);
+        });
+    }
+
+    /// <summary>
+    /// Escapes the SQL LIKE wildcard characters (<c>%</c> and <c>_</c>) so a caller-supplied
+    /// prefix string is matched literally. EF Core does not auto-escape LIKE input.
+    /// </summary>
+    private static string EscapeLikePattern(string input)
+    {
+        // Order matters: escape backslash first so we don't double-escape the escapes below.
+        return input
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
+    }
+
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
         string appName, string environment, string tenantId, string key, int take, CancellationToken ct)
     {

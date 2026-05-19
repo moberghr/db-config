@@ -527,4 +527,10 @@ export const DEMO_AUDIT_HISTORY: ConfigAuditEntry[] = [
 
   auditRow('PaymentService', ENV, 'Stripe:WebhookSecret', 'Insert', null, 'whsec_globex_initial_secret', true, 12, 'globex-admin@example.com', 'Globex'),
   auditRow('PaymentService', ENV, 'Stripe:WebhookSecret', 'Update', 'whsec_globex_initial_secret', 'whsec_globex_9aM3kP7LqN2oR5tGLOBEX', true, 3, 'globex-admin@example.com', 'Globex'),
+
+  // --- Deleted-entry audit trail (for the global Audit Log page) ---
+  // Legacy:OldSetting was inserted then deleted — no current entry exists, but
+  // its audit history must remain reachable via the global audit page.
+  auditRow('PaymentService', ENV, 'Legacy:OldSetting', 'Insert', null, 'deprecated', false, 13, 'platform-admin@example.com'),
+  auditRow('PaymentService', ENV, 'Legacy:OldSetting', 'Delete', 'deprecated', null, false, 11, 'platform-admin@example.com'),
 ]
