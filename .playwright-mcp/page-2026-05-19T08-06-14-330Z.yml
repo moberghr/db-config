@@ -1,0 +1,115 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "DbConfig" [level=1] [ref=e5]
+    - button "Switch to dark mode" [ref=e6]:
+      - img [ref=e7]
+  - main [ref=e9]:
+    - generic [ref=e10]: "Warning: Configuration values stored in this database may be visible to anyone with database access. Encryption at rest is the consumer's responsibility (DB TDE / column encryption)."
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: "Filter App:"
+        - textbox "Filter App:" [ref=e14]:
+          - /placeholder: (all)
+          - text: PaymentService
+        - generic [ref=e15]: "Env:"
+        - textbox "Env:" [ref=e16]:
+          - /placeholder: (all)
+          - text: Production
+        - generic [ref=e17]: "Tenant:"
+        - textbox "Tenant:" [ref=e18]:
+          - /placeholder: (global defaults)
+        - generic [ref=e19]: "Include scopes:"
+        - textbox "Include scopes:" [ref=e20]:
+          - /placeholder: Shared, PlatformDefaults
+          - text: Shared, PlatformDefaults
+        - button "Apply" [ref=e21]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - button "Mine" [ref=e24]
+          - button "Shared" [ref=e25]
+          - button "All" [ref=e26]
+        - generic [ref=e27]:
+          - button "Flat" [ref=e28]:
+            - img [ref=e29]
+            - text: Flat
+          - button "Tree" [active] [ref=e31]:
+            - img [ref=e32]
+            - text: Tree
+        - button "Force Reload" [ref=e35]:
+          - img [ref=e36]
+          - text: Force Reload
+        - button "Export" [ref=e41]:
+          - img [ref=e42]
+          - text: Export
+        - button "Import" [ref=e45]:
+          - img [ref=e46]
+          - text: Import
+        - button "New Entry" [ref=e49]:
+          - img [ref=e50]
+          - text: New Entry
+    - generic [ref=e682]:
+      - generic [ref=e683]:
+        - button "Expand all" [ref=e684]
+        - generic [ref=e685]: ·
+        - button "Collapse all" [ref=e686]
+      - table [ref=e688]:
+        - rowgroup [ref=e689]:
+          - row "Key Value AppName Environment Tenant Modified Modified By Actions" [ref=e690]:
+            - columnheader [ref=e691]
+            - columnheader "Key" [ref=e692]
+            - columnheader "Value" [ref=e693]
+            - columnheader "AppName" [ref=e694]
+            - columnheader "Environment" [ref=e695]
+            - columnheader "Tenant" [ref=e696]
+            - columnheader "Modified" [ref=e697]
+            - columnheader "Modified By" [ref=e698]
+            - columnheader "Actions" [ref=e699]
+        - rowgroup [ref=e700]:
+          - row "ConnectionStrings 1" [ref=e701] [cursor=pointer]:
+            - cell [ref=e702]
+            - cell "ConnectionStrings 1" [ref=e703]:
+              - generic [ref=e704]:
+                - img [ref=e705]
+                - generic [ref=e707]: ConnectionStrings
+                - generic [ref=e708]: "1"
+            - cell [ref=e709]
+          - row "EmailNotifications 2" [ref=e710] [cursor=pointer]:
+            - cell [ref=e711]
+            - cell "EmailNotifications 2" [ref=e712]:
+              - generic [ref=e713]:
+                - img [ref=e714]
+                - generic [ref=e716]: EmailNotifications
+                - generic [ref=e717]: "2"
+            - cell [ref=e718]
+          - row "Features 3" [ref=e719] [cursor=pointer]:
+            - cell [ref=e720]
+            - cell "Features 3" [ref=e721]:
+              - generic [ref=e722]:
+                - img [ref=e723]
+                - generic [ref=e725]: Features
+                - generic [ref=e726]: "3"
+            - cell [ref=e727]
+          - row "Stripe 10" [ref=e728] [cursor=pointer]:
+            - cell [ref=e729]
+            - cell "Stripe 10" [ref=e730]:
+              - generic [ref=e731]:
+                - img [ref=e732]
+                - generic [ref=e734]: Stripe
+                - generic [ref=e735]: "10"
+            - cell [ref=e736]
+          - row "Timeouts 3" [ref=e737] [cursor=pointer]:
+            - cell [ref=e738]
+            - cell "Timeouts 3" [ref=e739]:
+              - generic [ref=e740]:
+                - img [ref=e741]
+                - generic [ref=e743]: Timeouts
+                - generic [ref=e744]: "3"
+            - cell [ref=e745]
+          - row "Twilio 3" [ref=e746] [cursor=pointer]:
+            - cell [ref=e747]
+            - cell "Twilio 3" [ref=e748]:
+              - generic [ref=e749]:
+                - img [ref=e750]
+                - generic [ref=e752]: Twilio
+                - generic [ref=e753]: "3"
+            - cell [ref=e754]

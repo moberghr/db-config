@@ -120,7 +120,7 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
                 />
               </TableCell>
               <TableCell className="font-mono text-xs font-medium">{entry.key}</TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell>
                 <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
               </TableCell>
               <TableCell>

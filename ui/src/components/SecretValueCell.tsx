@@ -25,7 +25,10 @@ export function SecretValueCell({ value, isSecret }: SecretValueCellProps) {
         variant="ghost"
         size="icon"
         className="h-6 w-6"
-        onClick={() => setRevealed((r) => !r)}
+        onClick={(e) => {
+          e.stopPropagation()
+          setRevealed((r) => !r)
+        }}
         title={revealed ? 'Hide value' : 'Reveal value'}
       >
         {revealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}

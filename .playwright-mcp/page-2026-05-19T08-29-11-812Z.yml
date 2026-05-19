@@ -1,0 +1,50 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "DbConfig" [level=1] [ref=e5]
+    - button "Switch to dark mode" [ref=e6]:
+      - img [ref=e7]
+  - main [ref=e9]:
+    - generic [ref=e10]: "Warning: Configuration values stored in this database may be visible to anyone with database access. Encryption at rest is the consumer's responsibility (DB TDE / column encryption)."
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: "Filter App:"
+        - textbox "Filter App:" [ref=e14]:
+          - /placeholder: (all)
+          - text: PaymentService
+        - generic [ref=e15]: "Env:"
+        - textbox "Env:" [ref=e16]:
+          - /placeholder: (all)
+          - text: Production
+        - generic [ref=e17]: "Tenant:"
+        - textbox "Tenant:" [ref=e18]:
+          - /placeholder: (global defaults)
+        - generic [ref=e19]: "Include scopes:"
+        - textbox "Include scopes:" [ref=e20]:
+          - /placeholder: Shared, PlatformDefaults
+          - text: Shared, PlatformDefaults
+        - button "Apply" [ref=e21]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - button "Mine" [ref=e24]
+          - button "Shared" [ref=e25]
+          - button "All" [ref=e26]
+        - generic [ref=e27]:
+          - button "Flat" [ref=e28]:
+            - img [ref=e29]
+            - text: Flat
+          - button "Tree" [ref=e31]:
+            - img [ref=e32]
+            - text: Tree
+        - button "Force Reload" [ref=e35]:
+          - img [ref=e36]
+          - text: Force Reload
+        - button "Export" [ref=e41]:
+          - img [ref=e42]
+          - text: Export
+        - button "Import" [ref=e45]:
+          - img [ref=e46]
+          - text: Import
+        - button "New Entry" [ref=e49]:
+          - img [ref=e50]
+          - text: New Entry
+    - generic [ref=e51]: Loading entries…

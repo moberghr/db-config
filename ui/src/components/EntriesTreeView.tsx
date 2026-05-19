@@ -146,7 +146,7 @@ function TreeRows({
                 </span>
               </TableCell>
               {/* Value */}
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell>
                 <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
               </TableCell>
               {/* AppName */}

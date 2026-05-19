@@ -1,0 +1,295 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "DbConfig" [level=1] [ref=e5]
+    - button "Switch to dark mode" [ref=e6]:
+      - img [ref=e7]
+  - main [ref=e9]:
+    - generic [ref=e10]: "Warning: Configuration values stored in this database may be visible to anyone with database access. Encryption at rest is the consumer's responsibility (DB TDE / column encryption)."
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: "Filter App:"
+        - textbox "Filter App:" [ref=e14]:
+          - /placeholder: (all)
+          - text: PaymentService
+        - generic [ref=e15]: "Env:"
+        - textbox "Env:" [ref=e16]:
+          - /placeholder: (all)
+          - text: Production
+        - generic [ref=e17]: "Tenant:"
+        - textbox "Tenant:" [ref=e18]:
+          - /placeholder: (global defaults)
+        - generic [ref=e19]: "Include scopes:"
+        - textbox "Include scopes:" [ref=e20]:
+          - /placeholder: Shared, PlatformDefaults
+          - text: Shared, PlatformDefaults
+        - button "Apply" [ref=e21]
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - button "Mine" [ref=e24]
+          - button "Shared" [ref=e25]
+          - button "All" [ref=e26]
+        - generic [ref=e27]:
+          - button "Flat" [ref=e28]:
+            - img [ref=e29]
+            - text: Flat
+          - button "Tree" [ref=e31]:
+            - img [ref=e32]
+            - text: Tree
+        - button "Force Reload" [ref=e35]:
+          - img [ref=e36]
+          - text: Force Reload
+        - button "Export" [ref=e41]:
+          - img [ref=e42]
+          - text: Export
+        - button "Import" [ref=e45]:
+          - img [ref=e46]
+          - text: Import
+        - button "New Entry" [ref=e49]:
+          - img [ref=e50]
+          - text: New Entry
+    - generic [ref=e51]:
+      - generic [ref=e52]:
+        - button "Expand all" [ref=e53]
+        - generic [ref=e54]: ·
+        - button "Collapse all" [ref=e55]
+      - table [ref=e57]:
+        - rowgroup [ref=e58]:
+          - row "Key Value AppName Environment Tenant Modified Modified By Actions" [ref=e59]:
+            - columnheader [ref=e60]
+            - columnheader "Key" [ref=e61]
+            - columnheader "Value" [ref=e62]
+            - columnheader "AppName" [ref=e63]
+            - columnheader "Environment" [ref=e64]
+            - columnheader "Tenant" [ref=e65]
+            - columnheader "Modified" [ref=e66]
+            - columnheader "Modified By" [ref=e67]
+            - columnheader "Actions" [ref=e68]
+        - rowgroup [ref=e69]:
+          - row "ConnectionStrings 1" [ref=e70] [cursor=pointer]:
+            - cell "ConnectionStrings 1" [ref=e71]:
+              - generic [ref=e72]:
+                - img [ref=e73]
+                - generic [ref=e75]: ConnectionStrings
+                - generic [ref=e76]: "1"
+          - row "EmailNotifications 2" [ref=e77] [cursor=pointer]:
+            - cell "EmailNotifications 2" [ref=e78]:
+              - generic [ref=e79]:
+                - img [ref=e80]
+                - generic [ref=e82]: EmailNotifications
+                - generic [ref=e83]: "2"
+          - row "Features 3" [ref=e84] [cursor=pointer]:
+            - cell "Features 3" [ref=e85]:
+              - generic [ref=e86]:
+                - img [ref=e87]
+                - generic [ref=e89]: Features
+                - generic [ref=e90]: "3"
+          - row "Stripe 10" [ref=e91] [cursor=pointer]:
+            - cell "Stripe 10" [ref=e92]:
+              - generic [ref=e93]:
+                - img [ref=e94]
+                - generic [ref=e96]: Stripe
+                - generic [ref=e97]: "10"
+          - row "Auth 2" [ref=e112] [cursor=pointer]:
+            - cell "Auth 2" [ref=e113]:
+              - generic [ref=e114]:
+                - img [ref=e115]
+                - generic [ref=e117]: Auth
+                - generic [ref=e118]: "2"
+          - row "Select Stripe:Auth:OauthClientId OauthClientId ca_stripe_oauth_client_abc123 PaymentService Production default 5/9/2026, 10:08:49 AM payments-lead@example.com" [ref=e330] [cursor=pointer]:
+            - cell "Select Stripe:Auth:OauthClientId" [ref=e331]:
+              - checkbox "Select Stripe:Auth:OauthClientId" [ref=e332]
+            - cell "OauthClientId" [ref=e333]:
+              - generic [ref=e336]: OauthClientId
+            - cell "ca_stripe_oauth_client_abc123" [ref=e337]
+            - cell "PaymentService" [ref=e338]
+            - cell "Production" [ref=e339]
+            - cell "default" [ref=e340]
+            - cell "5/9/2026, 10:08:49 AM" [ref=e341]
+            - cell "payments-lead@example.com" [ref=e342]
+            - cell [ref=e343]:
+              - generic [ref=e344]:
+                - button "History" [ref=e345]:
+                  - img [ref=e346]
+                - button "Edit" [ref=e350]:
+                  - img [ref=e351]
+                - button "Delete" [ref=e354]:
+                  - img [ref=e355]
+          - row "Select Stripe:Auth:OauthClientSecret OauthClientSecret •••••••• PaymentService Production default 5/9/2026, 10:08:49 AM payments-lead@example.com" [ref=e358] [cursor=pointer]:
+            - cell "Select Stripe:Auth:OauthClientSecret" [ref=e359]:
+              - checkbox "Select Stripe:Auth:OauthClientSecret" [ref=e360]
+            - cell "OauthClientSecret" [ref=e361]:
+              - generic [ref=e364]: OauthClientSecret
+            - cell "••••••••" [ref=e365]:
+              - generic [ref=e366]:
+                - generic [ref=e367]: ••••••••
+                - button "Reveal value" [ref=e368]:
+                  - img [ref=e369]
+            - cell "PaymentService" [ref=e372]
+            - cell "Production" [ref=e373]
+            - cell "default" [ref=e374]
+            - cell "5/9/2026, 10:08:49 AM" [ref=e375]
+            - cell "payments-lead@example.com" [ref=e376]
+            - cell [ref=e377]:
+              - generic [ref=e378]:
+                - button "History" [ref=e379]:
+                  - img [ref=e380]
+                - button "Edit" [ref=e384]:
+                  - img [ref=e385]
+                - button "Delete" [ref=e388]:
+                  - img [ref=e389]
+          - row "Payment 2" [ref=e119] [cursor=pointer]:
+            - cell "Payment 2" [ref=e120]:
+              - generic [ref=e121]:
+                - img [ref=e122]
+                - generic [ref=e124]: Payment
+                - generic [ref=e125]: "2"
+          - row "Select Stripe:ApiKey ApiKey •••••••• PaymentService Production default 5/17/2026, 10:08:49 AM automation-bot@example.com" [ref=e126] [cursor=pointer]:
+            - cell "Select Stripe:ApiKey" [ref=e127]:
+              - checkbox "Select Stripe:ApiKey" [ref=e128]
+            - cell "ApiKey" [ref=e129]:
+              - generic [ref=e132]: ApiKey
+            - cell "••••••••" [ref=e133]:
+              - generic [ref=e134]:
+                - generic [ref=e135]: ••••••••
+                - button "Reveal value" [ref=e136]:
+                  - img [ref=e137]
+            - cell "PaymentService" [ref=e140]
+            - cell "Production" [ref=e141]
+            - cell "default" [ref=e142]
+            - cell "5/17/2026, 10:08:49 AM" [ref=e143]
+            - cell "automation-bot@example.com" [ref=e144]
+            - cell [ref=e145]:
+              - generic [ref=e146]:
+                - button "History" [ref=e147]:
+                  - img [ref=e148]
+                - button "Edit" [ref=e152]:
+                  - img [ref=e153]
+                - button "Delete" [ref=e156]:
+                  - img [ref=e157]
+          - row "Select Stripe:ApiKey ApiKey •••••••• PaymentService Production Acme 5/15/2026, 10:08:49 AM acme-admin@example.com" [ref=e160] [cursor=pointer]:
+            - cell "Select Stripe:ApiKey" [ref=e161]:
+              - checkbox "Select Stripe:ApiKey" [ref=e162]
+            - cell "ApiKey" [ref=e163]:
+              - generic [ref=e166]: ApiKey
+            - cell "••••••••" [ref=e167]:
+              - generic [ref=e168]:
+                - generic [ref=e169]: ••••••••
+                - button "Reveal value" [ref=e170]:
+                  - img [ref=e171]
+            - cell "PaymentService" [ref=e174]
+            - cell "Production" [ref=e175]
+            - cell "Acme" [ref=e176]
+            - cell "5/15/2026, 10:08:49 AM" [ref=e177]
+            - cell "acme-admin@example.com" [ref=e178]
+            - cell [ref=e179]:
+              - generic [ref=e180]:
+                - button "History" [ref=e181]:
+                  - img [ref=e182]
+                - button "Edit" [ref=e186]:
+                  - img [ref=e187]
+                - button "Delete" [ref=e190]:
+                  - img [ref=e191]
+          - row "Select Stripe:ApiKey ApiKey •••••••• PaymentService Production Globex 5/16/2026, 10:08:49 AM globex-admin@example.com" [ref=e194] [cursor=pointer]:
+            - cell "Select Stripe:ApiKey" [ref=e195]:
+              - checkbox "Select Stripe:ApiKey" [ref=e196]
+            - cell "ApiKey" [ref=e197]:
+              - generic [ref=e200]: ApiKey
+            - cell "••••••••" [ref=e201]:
+              - generic [ref=e202]:
+                - generic [ref=e203]: ••••••••
+                - button "Reveal value" [ref=e204]:
+                  - img [ref=e205]
+            - cell "PaymentService" [ref=e208]
+            - cell "Production" [ref=e209]
+            - cell "Globex" [ref=e210]
+            - cell "5/16/2026, 10:08:49 AM" [ref=e211]
+            - cell "globex-admin@example.com" [ref=e212]
+            - cell [ref=e213]:
+              - generic [ref=e214]:
+                - button "History" [ref=e215]:
+                  - img [ref=e216]
+                - button "Edit" [ref=e220]:
+                  - img [ref=e221]
+                - button "Delete" [ref=e224]:
+                  - img [ref=e225]
+          - row "Select Stripe:WebhookSecret WebhookSecret •••••••• PaymentService Production default 5/12/2026, 10:08:49 AM payments-lead@example.com" [ref=e228] [cursor=pointer]:
+            - cell "Select Stripe:WebhookSecret" [ref=e229]:
+              - checkbox "Select Stripe:WebhookSecret" [ref=e230]
+            - cell "WebhookSecret" [ref=e231]:
+              - generic [ref=e234]: WebhookSecret
+            - cell "••••••••" [ref=e235]:
+              - generic [ref=e236]:
+                - generic [ref=e237]: ••••••••
+                - button "Reveal value" [ref=e238]:
+                  - img [ref=e239]
+            - cell "PaymentService" [ref=e242]
+            - cell "Production" [ref=e243]
+            - cell "default" [ref=e244]
+            - cell "5/12/2026, 10:08:49 AM" [ref=e245]
+            - cell "payments-lead@example.com" [ref=e246]
+            - cell [ref=e247]:
+              - generic [ref=e248]:
+                - button "History" [ref=e249]:
+                  - img [ref=e250]
+                - button "Edit" [ref=e254]:
+                  - img [ref=e255]
+                - button "Delete" [ref=e258]:
+                  - img [ref=e259]
+          - row "Select Stripe:WebhookSecret WebhookSecret •••••••• PaymentService Production Acme 5/15/2026, 10:08:49 AM acme-admin@example.com" [ref=e262] [cursor=pointer]:
+            - cell "Select Stripe:WebhookSecret" [ref=e263]:
+              - checkbox "Select Stripe:WebhookSecret" [ref=e264]
+            - cell "WebhookSecret" [ref=e265]:
+              - generic [ref=e268]: WebhookSecret
+            - cell "••••••••" [ref=e269]:
+              - generic [ref=e270]:
+                - generic [ref=e271]: ••••••••
+                - button "Reveal value" [ref=e272]:
+                  - img [ref=e273]
+            - cell "PaymentService" [ref=e276]
+            - cell "Production" [ref=e277]
+            - cell "Acme" [ref=e278]
+            - cell "5/15/2026, 10:08:49 AM" [ref=e279]
+            - cell "acme-admin@example.com" [ref=e280]
+            - cell [ref=e281]:
+              - generic [ref=e282]:
+                - button "History" [ref=e283]:
+                  - img [ref=e284]
+                - button "Edit" [ref=e288]:
+                  - img [ref=e289]
+                - button "Delete" [ref=e292]:
+                  - img [ref=e293]
+          - row "Select Stripe:WebhookSecret WebhookSecret •••••••• PaymentService Production Globex 5/16/2026, 10:08:49 AM globex-admin@example.com" [ref=e296] [cursor=pointer]:
+            - cell "Select Stripe:WebhookSecret" [ref=e297]:
+              - checkbox "Select Stripe:WebhookSecret" [ref=e298]
+            - cell "WebhookSecret" [ref=e299]:
+              - generic [ref=e302]: WebhookSecret
+            - cell "••••••••" [ref=e303]:
+              - generic [ref=e304]:
+                - generic [ref=e305]: ••••••••
+                - button "Reveal value" [ref=e306]:
+                  - img [ref=e307]
+            - cell "PaymentService" [ref=e310]
+            - cell "Production" [ref=e311]
+            - cell "Globex" [ref=e312]
+            - cell "5/16/2026, 10:08:49 AM" [ref=e313]
+            - cell "globex-admin@example.com" [ref=e314]
+            - cell [ref=e315]:
+              - generic [ref=e316]:
+                - button "History" [ref=e317]:
+                  - img [ref=e318]
+                - button "Edit" [ref=e322]:
+                  - img [ref=e323]
+                - button "Delete" [ref=e326]:
+                  - img [ref=e327]
+          - row "Timeouts 3" [ref=e98] [cursor=pointer]:
+            - cell "Timeouts 3" [ref=e99]:
+              - generic [ref=e100]:
+                - img [ref=e101]
+                - generic [ref=e103]: Timeouts
+                - generic [ref=e104]: "3"
+          - row "Twilio 3" [ref=e105] [cursor=pointer]:
+            - cell "Twilio 3" [ref=e106]:
+              - generic [ref=e107]:
+                - img [ref=e108]
+                - generic [ref=e110]: Twilio
+                - generic [ref=e111]: "3"
