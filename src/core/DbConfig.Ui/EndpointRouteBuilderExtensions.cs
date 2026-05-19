@@ -1,9 +1,13 @@
 using DbConfig.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DbConfig.Ui;
 
@@ -114,20 +118,94 @@ public static class EndpointRouteBuilderExtensions
                 await BuiltInLoginEndpoints.HandleLogoutPostAsync(ctx, options, prefix));
         }
 
-        // Serve hashed static assets (JS, CSS, fonts) from the embedded assets/ folder.
-        // The EmbeddedFileProvider is sandboxed to the dist/ namespace, so path traversal
-        // cannot escape to the host file system.
-        group.MapGet("/assets/{**path}", async (HttpContext context, string path) =>
-            await middleware.ServeAssetAsync(context, $"/assets/{path}"));
+        // ASP.NET's built-in StaticFileMiddleware handles every file in the embedded UI
+        // bundle (assets, fonts, favicon, anything Vite emits) with correct Content-Type,
+        // ETag, Last-Modified, conditional GETs, range requests, and cache headers. When
+        // the request doesn't match a file in the bundle, the middleware falls through to
+        // the SPA index — that's the `next` delegate passed below.
+        var staticFileMiddleware = CreateStaticFileMiddleware(
+            endpoints.ServiceProvider,
+            middleware,
+            prefix);
 
-        // Fallback: all other paths under the prefix return index.html (SPA routing).
-        group.MapGet("/{**path}", async (HttpContext context) =>
-            await middleware.ServeIndexAsync(context));
+        // Single catch-all: try the static-file middleware first; if no file matches it
+        // calls `next`, which serves index.html (SPA fallback).
+        group.MapGet("/{**path}", (HttpContext context) =>
+            InvokeStaticFileOrFallbackAsync(staticFileMiddleware, context));
 
-        // Root of the prefix (no trailing path segment).
+        // Root of the prefix (no trailing path segment) always serves the SPA index.
         group.MapGet("/", async (HttpContext context) =>
             await middleware.ServeIndexAsync(context));
 
+        // Browser auto-requests for /favicon.ico (legacy / Edge / IE) are aliased to the
+        // SVG favicon. StaticFileMiddleware wouldn't otherwise serve the .ico path because
+        // there is no .ico file in the bundle.
+        group.MapGet("/favicon.ico", (HttpContext context) =>
+        {
+            context.Request.Path = $"{prefix}/favicon.svg";
+
+            return InvokeStaticFileOrFallbackAsync(staticFileMiddleware, context);
+        });
+
         return group;
+    }
+
+    private static StaticFileMiddleware CreateStaticFileMiddleware(
+        IServiceProvider services,
+        EmbeddedStaticFileMiddleware indexRenderer,
+        string prefix)
+    {
+        var hostingEnv = services.GetRequiredService<IWebHostEnvironment>();
+        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+
+        var staticFileOptions = new StaticFileOptions
+        {
+            RequestPath = prefix,
+            FileProvider = indexRenderer.FileProvider,
+            ContentTypeProvider = BuildContentTypeProvider(),
+        };
+
+        // `next` (invoked when no embedded file matches) is the SPA fallback — every
+        // unknown path under the UI prefix returns the rewritten index.html so client-side
+        // routing can take over.
+        var spaFallback = (RequestDelegate)(context => indexRenderer.ServeIndexAsync(context));
+
+        return new StaticFileMiddleware(
+            spaFallback,
+            hostingEnv,
+            Options.Create(staticFileOptions),
+            loggerFactory);
+    }
+
+    // The framework's default content-type provider returns "text/javascript" for .js per
+    // the current IANA recommendation. The v0.10.0 hand-rolled provider used the older
+    // "application/javascript" — keep that to preserve byte-identical Content-Type headers
+    // for existing consumers.
+    private static FileExtensionContentTypeProvider BuildContentTypeProvider()
+    {
+        var provider = new FileExtensionContentTypeProvider();
+        provider.Mappings[".js"] = "application/javascript";
+
+        return provider;
+    }
+
+    // StaticFileMiddleware short-circuits to `next` when it sees the request has already
+    // matched a routing endpoint (it's designed to run before endpoint routing). Because
+    // we host it inside a route-group endpoint to compose with the consumer's auth policy,
+    // we clear the matched endpoint for the duration of the static-file lookup. If the
+    // middleware doesn't find a file it calls `next` (our SPA fallback) directly.
+    private static async Task InvokeStaticFileOrFallbackAsync(StaticFileMiddleware middleware, HttpContext context)
+    {
+        var originalEndpoint = context.GetEndpoint();
+        context.SetEndpoint(null);
+
+        try
+        {
+            await middleware.Invoke(context);
+        }
+        finally
+        {
+            context.SetEndpoint(originalEndpoint);
+        }
     }
 }
