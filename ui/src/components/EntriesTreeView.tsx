@@ -150,15 +150,15 @@ function TreeRows({
                 <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
               </TableCell>
               {/* AppName */}
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell>
                 <span className="text-xs text-foreground">{entry.appName}</span>
               </TableCell>
               {/* Environment */}
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell>
                 <span className="text-xs text-foreground">{entry.environment}</span>
               </TableCell>
               {/* Tenant */}
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell>
                 {entry.tenantId ? (
                   <span className="text-xs text-foreground">{entry.tenantId}</span>
                 ) : (

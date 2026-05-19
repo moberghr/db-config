@@ -123,13 +123,13 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
               </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell>
                 <span className="text-xs text-foreground">{entry.appName}</span>
               </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell>
                 <span className="text-xs text-foreground">{entry.environment}</span>
               </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell>
                 {entry.tenantId ? (
                   <span className="text-xs text-foreground">{entry.tenantId}</span>
                 ) : (
