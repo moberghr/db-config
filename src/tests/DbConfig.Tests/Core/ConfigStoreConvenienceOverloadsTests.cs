@@ -192,6 +192,143 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         result.ApiKey.ShouldBe("from-settings");
     }
 
+    [TimedFact]
+    public async Task GetAllAsync_ImplicitAppEnv_ReturnsExpectedEntries()
+    {
+        var resolver = new MutableTenantResolver("Acme");
+        var (store, _) = CreateStore(resolver);
+        var t = DateTimeOffset.UtcNow;
+        var ct = TestContext.Current.CancellationToken;
+
+        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "K1", "g1", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "K2", "g2", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntry(App, Env, "Acme", "K1", "a1", false, t, "seed"), ct);
+
+        var result = await store.GetAllAsync(ct);
+
+        result.ShouldNotBeNull();
+        result.Count.ShouldBeGreaterThan(0);
+    }
+
+    [TimedFact]
+    public async Task GetAllForTenantAsync_ImplicitAppEnv_ReturnsOnlyTenantEntries()
+    {
+        var (store, _) = CreateStore(resolver: null);
+        var t = DateTimeOffset.UtcNow;
+        var ct = TestContext.Current.CancellationToken;
+
+        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "GlobalKey", "g", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntry(App, Env, "Globex", "TenantKey1", "v1", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntry(App, Env, "Globex", "TenantKey2", "v2", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntry(App, Env, "Acme", "OtherTenant", "x", false, t, "seed"), ct);
+
+        var result = await store.GetAllForTenantAsync("Globex", ct);
+
+        result.Count.ShouldBe(2);
+        result.ShouldAllBe(e => e.TenantId == "Globex");
+    }
+
+    [TimedFact]
+    public async Task GetForTenantAsync_Typed_NoMatchingKeys_ReturnsDefaultValues()
+    {
+        var (store, _) = CreateStore(resolver: null);
+        var t = DateTimeOffset.UtcNow;
+        var ct = TestContext.Current.CancellationToken;
+
+        // Seed an unrelated key — section "StripeOptions" has no matches.
+        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Unrelated:Key", "x", false, t, "seed"), ct);
+
+        var result = await store.GetForTenantAsync<StripeOptions>("Acme", ct);
+
+        result.ShouldNotBeNull();
+        result.ApiKey.ShouldBe(string.Empty);            // default
+        result.WebhookSecret.ShouldBe(string.Empty);     // default
+        result.DefaultCurrency.ShouldBe("USD");          // POCO's default
+    }
+
+    [TimedFact]
+    public async Task CustomStore_UnoverriddenConvenienceMethod_ThrowsNotSupportedException()
+    {
+        // A custom IConfigStore implementing only the explicit-app/env contract.
+        // Default interface methods on IConfigStore should throw NotSupportedException
+        // rather than corrupt-silently or compile-fail.
+        IConfigStore store = new StubExplicitOnlyStore();
+
+        await Should.ThrowAsync<NotSupportedException>(
+            async () => await store.GetAsync("anything", CancellationToken.None));
+    }
+
+    [TimedFact]
+    public async Task InMemoryStore_NullOptions_ConvenienceMethodThrowsHelpfully()
+    {
+        // No DbConfigOptions passed in → implicit app/env path cannot resolve.
+        // Documented contract: throws InvalidOperationException with a clear hint.
+        var store = new InMemoryConfigStore(
+            encryptor: null,
+            auditStore: null,
+            enableAuditLog: false,
+            options: null,
+            tenantResolver: null);
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "K", "v", false, DateTimeOffset.UtcNow, "seed"),
+            CancellationToken.None);
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await store.GetAsync("K", CancellationToken.None));
+
+        ex.Message.ShouldContain("DbConfigOptions", Case.Insensitive);
+    }
+
+    private sealed class StubExplicitOnlyStore : IConfigStore
+    {
+        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+
+        public Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
+            => Task.FromResult<ConfigEntry?>(null);
+
+        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
+            => Task.FromResult<DateTimeOffset?>(null);
+
+        public Task UpsertAsync(ConfigEntry entry, CancellationToken ct) => Task.CompletedTask;
+
+        public Task DeleteAsync(string appName, string environment, string key, CancellationToken ct) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+
+        public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            => Task.FromResult<DateTimeOffset?>(null);
+
+        public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string appName, string environment, string tenantId, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+
+        public Task<ConfigEntry?> GetForTenantAsync(string appName, string environment, string tenantId, string key, CancellationToken ct)
+            => Task.FromResult<ConfigEntry?>(null);
+
+        public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(string appName, string environment, string tenantId, CancellationToken ct)
+            => Task.FromResult<DateTimeOffset?>(null);
+
+        public Task DeleteForTenantAsync(string appName, string environment, string tenantId, string key, CancellationToken ct)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(string appName, string environment, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+
+        public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(string appName, string environment, CancellationToken ct)
+            => Task.FromResult<DateTimeOffset?>(null);
+
+        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+
+        public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            => Task.FromResult<DateTimeOffset?>(null);
+
+        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+    }
+
     private static (InMemoryConfigStore Store, DbConfigOptions Options) CreateStore(
         ITenantResolver? resolver,
         IConfigEncryptor? encryptor = null)
