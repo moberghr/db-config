@@ -1,0 +1,250 @@
+using DbConfig.Core;
+using DbConfig.Tests.TestData;
+using Shouldly;
+
+namespace DbConfig.Tests.Core;
+
+/// <summary>
+/// Tests for the v0.11.1 convenience overloads on <see cref="IConfigStore"/> — implicit
+/// AppName/Environment via <see cref="DbConfigOptions"/>, current-tenant lookup via
+/// <see cref="ITenantResolver"/>, and typed POCO binders with verbatim type-name section.
+/// </summary>
+[Trait("Category", "Unit")]
+public sealed class ConfigStoreConvenienceOverloadsTests
+{
+    private const string App = "ConvenienceApp";
+    private const string Env = "Test";
+
+    [TimedFact]
+    public async Task GetAsync_NoResolver_ReturnsGlobalEntry()
+    {
+        var (store, options) = CreateStore(resolver: null);
+        var t = DateTimeOffset.UtcNow;
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "Logging:Level", "Info", false, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetAsync("Logging:Level", CancellationToken.None);
+
+        result.ShouldNotBeNull();
+        result!.Value.ShouldBe("Info");
+        result.TenantId.ShouldBe(string.Empty);
+        options.AppName.ShouldBe(App);
+    }
+
+    [TimedFact]
+    public async Task GetAsync_WithResolver_PrefersTenantEntry()
+    {
+        var resolver = new MutableTenantResolver("Acme");
+        var (store, _) = CreateStore(resolver);
+        var t = DateTimeOffset.UtcNow;
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "Feature:Beta", "false", false, t, "seed"),
+            CancellationToken.None);
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, "Acme", "Feature:Beta", "true", false, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetAsync("Feature:Beta", CancellationToken.None);
+
+        result.ShouldNotBeNull();
+        result!.Value.ShouldBe("true");
+        result.TenantId.ShouldBe("Acme");
+    }
+
+    [TimedFact]
+    public async Task GetAsync_WithResolverNullTenant_ReturnsGlobal()
+    {
+        var resolver = new MutableTenantResolver(tenant: null);
+        var (store, _) = CreateStore(resolver);
+        var t = DateTimeOffset.UtcNow;
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "Locale", "en-US", false, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetAsync("Locale", CancellationToken.None);
+
+        result.ShouldNotBeNull();
+        result!.Value.ShouldBe("en-US");
+        result.TenantId.ShouldBe(string.Empty);
+    }
+
+    [TimedFact]
+    public async Task GetForTenantAsync_ImplicitAppEnv_ReturnsTenantEntry()
+    {
+        var (store, _) = CreateStore(resolver: null);
+        var t = DateTimeOffset.UtcNow;
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, "Globex", "Limits:Max", "100000", false, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetForTenantAsync("Globex", "Limits:Max", CancellationToken.None);
+
+        result.ShouldNotBeNull();
+        result!.Value.ShouldBe("100000");
+        result.TenantId.ShouldBe("Globex");
+    }
+
+    [TimedFact]
+    public async Task GetAsync_Typed_BindsCurrentTenantValues()
+    {
+        var resolver = new MutableTenantResolver("Acme");
+        var (store, _) = CreateStore(resolver);
+        var t = DateTimeOffset.UtcNow;
+
+        // Section name = typeof(T).Name verbatim → "StripeOptions:"
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "StripeOptions:ApiKey", "global-key", false, t, "seed"),
+            CancellationToken.None);
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "StripeOptions:DefaultCurrency", "USD", false, t, "seed"),
+            CancellationToken.None);
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "acme-key", false, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetAsync<StripeOptions>(CancellationToken.None);
+
+        result.ShouldNotBeNull();
+        result.ApiKey.ShouldBe("acme-key");
+        result.DefaultCurrency.ShouldBe("USD");
+    }
+
+    [TimedFact]
+    public async Task GetForTenantAsync_Typed_PrefersTenantOverGlobal()
+    {
+        var (store, _) = CreateStore(resolver: null);
+        var t = DateTimeOffset.UtcNow;
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "StripeOptions:ApiKey", "g", false, t, "seed"),
+            CancellationToken.None);
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "a", false, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetForTenantAsync<StripeOptions>("Acme", CancellationToken.None);
+
+        result.ApiKey.ShouldBe("a");
+    }
+
+    [TimedFact]
+    public async Task GetForTenantAsync_Typed_FallsBackToGlobalForMissingTenantKeys()
+    {
+        var (store, _) = CreateStore(resolver: null);
+        var t = DateTimeOffset.UtcNow;
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "StripeOptions:ApiKey", "global-key", false, t, "seed"),
+            CancellationToken.None);
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "StripeOptions:WebhookSecret", "global-webhook", false, t, "seed"),
+            CancellationToken.None);
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "acme-key", false, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetForTenantAsync<StripeOptions>("Acme", CancellationToken.None);
+
+        result.ApiKey.ShouldBe("acme-key", "tenant value should override global");
+        result.WebhookSecret.ShouldBe("global-webhook", "global value passes through for missing tenant key");
+    }
+
+    [TimedFact]
+    public async Task GetForTenantAsync_Typed_DecryptsSecrets()
+    {
+        var encryptor = new ReversibleTestEncryptor();
+        var (store, _) = CreateStore(resolver: null, encryptor: encryptor);
+        var t = DateTimeOffset.UtcNow;
+
+        // The store will encrypt at-rest via the encryptor; the typed bind must return plaintext.
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "sk_live_secret", true, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetForTenantAsync<StripeOptions>("Acme", CancellationToken.None);
+
+        result.ApiKey.ShouldBe("sk_live_secret");
+    }
+
+    [TimedFact]
+    public async Task GetForTenantAsync_Typed_SectionNameIsTypeNameVerbatim()
+    {
+        var (store, _) = CreateStore(resolver: null);
+        var t = DateTimeOffset.UtcNow;
+
+        // Verbatim type name → only "StripeSettings:" prefix is honored.
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "StripeSettings:ApiKey", "from-settings", false, t, "seed"),
+            CancellationToken.None);
+
+        // "Stripe:" entries should NOT be bound — different prefix.
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "Stripe:ApiKey", "from-stripe-prefix", false, t, "seed"),
+            CancellationToken.None);
+
+        var result = await store.GetAsync<StripeSettings>(CancellationToken.None);
+
+        result.ApiKey.ShouldBe("from-settings");
+    }
+
+    private static (InMemoryConfigStore Store, DbConfigOptions Options) CreateStore(
+        ITenantResolver? resolver,
+        IConfigEncryptor? encryptor = null)
+    {
+        var options = new DbConfigOptions
+        {
+            AppName = App,
+            Environment = Env,
+        };
+
+        var store = new InMemoryConfigStore(
+            encryptor: encryptor,
+            auditStore: null,
+            enableAuditLog: false,
+            options: options,
+            tenantResolver: resolver);
+
+        return (store, options);
+    }
+
+    private sealed class StripeOptions
+    {
+        public string ApiKey { get; set; } = string.Empty;
+
+        public string WebhookSecret { get; set; } = string.Empty;
+
+        public string DefaultCurrency { get; set; } = "USD";
+    }
+
+    private sealed class StripeSettings
+    {
+        public string ApiKey { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Test encryptor that wraps values with a stable, reversible prefix so we can detect
+    /// the typed binder is decrypting before bind (otherwise <c>ApiKey</c> would equal the
+    /// wrapped ciphertext, not the original plaintext).
+    /// </summary>
+    private sealed class ReversibleTestEncryptor : IConfigEncryptor
+    {
+        private const string Marker = "ENC::";
+
+        public string Protect(string plaintext) => Marker + plaintext;
+
+        public string Unprotect(string ciphertext)
+        {
+            if (!ciphertext.StartsWith(Marker, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Not a protected payload.");
+            }
+
+            return ciphertext[Marker.Length..];
+        }
+    }
+}

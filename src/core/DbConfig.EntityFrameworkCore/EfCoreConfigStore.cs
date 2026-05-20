@@ -1,5 +1,6 @@
 using DbConfig.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace DbConfig.EntityFrameworkCore;
 
@@ -15,6 +16,8 @@ public sealed class EfCoreConfigStore : IConfigStore
     private readonly TimeProvider _timeProvider;
     private readonly IConfigEncryptor _encryptor;
     private readonly bool _enableAuditLog;
+    private readonly DbConfigOptions? _options;
+    private readonly ITenantResolver? _tenantResolver;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EfCoreConfigStore"/> class.
@@ -48,12 +51,67 @@ public sealed class EfCoreConfigStore : IConfigStore
         TimeProvider timeProvider,
         IConfigEncryptor? encryptor = null,
         bool enableAuditLog = true)
+        : this(factory, detector, timeProvider, encryptor, enableAuditLog, options: null, tenantResolver: null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EfCoreConfigStore"/> class with ambient
+    /// <see cref="DbConfigOptions"/> and an optional <see cref="ITenantResolver"/>.
+    /// The HTTP-side store registration uses this overload so the convenience overloads
+    /// (<c>GetAsync(key)</c>, <c>GetAsync&lt;T&gt;()</c>, etc.) can resolve ambient
+    /// AppName/Environment and the current tenant id without callers passing them on
+    /// every call.
+    /// </summary>
+    /// <param name="factory">EF Core context factory.</param>
+    /// <param name="detector">Provider-specific unique-constraint detector for upsert retry.</param>
+    /// <param name="timeProvider">Time provider for <c>ModifiedUtc</c> stamping.</param>
+    /// <param name="options">
+    /// The host's <see cref="DbConfigOptions"/>. Required for the convenience overloads;
+    /// the explicit-app/env API methods do not consult it.
+    /// </param>
+    /// <param name="encryptor">Optional encryptor (same semantics as the legacy constructor).</param>
+    /// <param name="enableAuditLog">Audit log toggle (same semantics as the legacy constructor).</param>
+    /// <param name="tenantResolver">
+    /// Optional tenant resolver. When provided, <c>GetAsync(key)</c> / <c>GetAllAsync()</c>
+    /// pick the tenant returned by <see cref="ITenantResolver.Resolve"/>; when null, those
+    /// overloads behave as "global only".
+    /// </param>
+    public EfCoreConfigStore(
+        IDbContextFactory<DbConfigDbContext> factory,
+        IUniqueConstraintDetector detector,
+        TimeProvider timeProvider,
+        DbConfigOptions options,
+        IConfigEncryptor? encryptor = null,
+        bool enableAuditLog = true,
+        ITenantResolver? tenantResolver = null)
+        : this(
+            factory,
+            detector,
+            timeProvider,
+            encryptor,
+            enableAuditLog,
+            options ?? throw new ArgumentNullException(nameof(options)),
+            tenantResolver)
+    {
+    }
+
+    private EfCoreConfigStore(
+        IDbContextFactory<DbConfigDbContext> factory,
+        IUniqueConstraintDetector detector,
+        TimeProvider timeProvider,
+        IConfigEncryptor? encryptor,
+        bool enableAuditLog,
+        DbConfigOptions? options,
+        ITenantResolver? tenantResolver)
     {
         _factory = factory;
         _detector = detector;
         _timeProvider = timeProvider;
         _encryptor = encryptor ?? new PassthroughConfigEncryptor();
         _enableAuditLog = enableAuditLog;
+        _options = options;
+        _tenantResolver = tenantResolver;
     }
 
     public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
@@ -80,6 +138,20 @@ public sealed class EfCoreConfigStore : IConfigStore
         return [.. entities.Select(DecryptEntry)];
     }
 
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(CancellationToken ct)
+    {
+        var options = RequireOptions();
+        var tenantId = _tenantResolver?.Resolve();
+
+        if (string.IsNullOrEmpty(tenantId))
+        {
+            return GetAllAsync(options.AppName, options.Environment, ct);
+        }
+
+        return GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct);
+    }
+
     public async Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
@@ -103,6 +175,29 @@ public sealed class EfCoreConfigStore : IConfigStore
             .FirstOrDefaultAsync(ct);
 
         return entity is null ? null : DecryptEntry(entity);
+    }
+
+    /// <inheritdoc/>
+    public Task<ConfigEntry?> GetAsync(string key, CancellationToken ct)
+    {
+        var options = RequireOptions();
+        var tenantId = _tenantResolver?.Resolve();
+
+        if (string.IsNullOrEmpty(tenantId))
+        {
+            return GetAsync(options.AppName, options.Environment, key, ct);
+        }
+
+        return GetForTenantAsync(options.AppName, options.Environment, tenantId, key, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<T> GetAsync<T>(CancellationToken ct)
+        where T : class, new()
+    {
+        var tenantId = _tenantResolver?.Resolve() ?? string.Empty;
+
+        return await BindTypedAsync<T>(tenantId, ct).ConfigureAwait(false);
     }
 
     public async Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
@@ -343,6 +438,16 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
+    public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+
+        var options = RequireOptions();
+
+        return GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct);
+    }
+
+    /// <inheritdoc/>
     public async Task<ConfigEntry?> GetForTenantAsync(
         string appName, string environment, string tenantId, string key, CancellationToken ct)
     {
@@ -367,6 +472,25 @@ public sealed class EfCoreConfigStore : IConfigStore
             .FirstOrDefaultAsync(ct);
 
         return entity is null ? null : DecryptEntry(entity);
+    }
+
+    /// <inheritdoc/>
+    public Task<ConfigEntry?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+
+        var options = RequireOptions();
+
+        return GetForTenantAsync(options.AppName, options.Environment, tenantId, key, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct)
+        where T : class, new()
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+
+        return await BindTypedAsync<T>(tenantId, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -599,6 +723,66 @@ public sealed class EfCoreConfigStore : IConfigStore
             .ToListAsync(ct);
 
         return [.. entities.Select(DecryptEntry)];
+    }
+
+    // -------------------------------------------------------------------------
+    // Convenience overload helpers (v0.11.1).
+    // The implicit-app/env overloads (GetAsync(key), GetAllAsync(), GetForTenantAsync(...),
+    // typed Get<T>/GetForTenant<T>) are co-located with their explicit-arg siblings
+    // above to satisfy S4136 "adjacent overloads". Only helper methods live here.
+    // -------------------------------------------------------------------------
+    private DbConfigOptions RequireOptions()
+    {
+        if (_options is null)
+        {
+            throw new InvalidOperationException(
+                "This EfCoreConfigStore was constructed without DbConfigOptions. The convenience "
+                + "overloads (implicit app/env) require options to be supplied via the DI-friendly "
+                + "constructor. Use the explicit-app/env overload, or construct the store via DI.");
+        }
+
+        return _options;
+    }
+
+    private async Task<T> BindTypedAsync<T>(string tenantId, CancellationToken ct)
+        where T : class, new()
+    {
+        var options = RequireOptions();
+        var prefix = typeof(T).Name + ":";
+
+        // Global layer first, then tenant overrides on top.
+        var globals = await GetAllAsync(options.AppName, options.Environment, ct).ConfigureAwait(false);
+        var merged = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        var globalMatches = globals
+            .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var entry in globalMatches)
+        {
+            merged[entry.Key[prefix.Length..]] = entry.Value;
+        }
+
+        if (!string.IsNullOrEmpty(tenantId))
+        {
+            var tenantEntries = await GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct).ConfigureAwait(false);
+
+            var tenantMatches = tenantEntries
+                .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+            foreach (var entry in tenantMatches)
+            {
+                merged[entry.Key[prefix.Length..]] = entry.Value;
+            }
+        }
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(merged)
+            .Build();
+
+        var instance = new T();
+        configuration.Bind(instance);
+
+        return instance;
     }
 
     private ConfigEntry DecryptEntry(ConfigEntry entry)

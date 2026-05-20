@@ -118,7 +118,21 @@ public static class HostApplicationBuilderExtensions
         hostBuilder.Services.TryAddSingleton(detector);
         hostBuilder.Services.AddDbContextFactory<DbConfigDbContext>(contextConfig);
 
-        hostBuilder.Services.TryAddSingleton<IConfigStore, EfCoreConfigStore>();
+        // Resolve EfCoreConfigStore via a factory so we pass DbConfigOptions and (optionally)
+        // ITenantResolver into the convenience-aware constructor. Both are needed for the
+        // implicit-app/env overloads (GetAsync(key), GetAsync<T>(), GetForTenantAsync<T>(),
+        // etc.) added in v0.11.1.
+        hostBuilder.Services.TryAddSingleton<IConfigStore>(sp =>
+        {
+            return new EfCoreConfigStore(
+                sp.GetRequiredService<IDbContextFactory<DbConfigDbContext>>(),
+                sp.GetRequiredService<IUniqueConstraintDetector>(),
+                sp.GetRequiredService<TimeProvider>(),
+                sp.GetRequiredService<DbConfigOptions>(),
+                sp.GetService<IConfigEncryptor>(),
+                enableAuditLog: true,
+                tenantResolver: sp.GetService<ITenantResolver>());
+        });
 
         // Marker + reload signal — pure object plumbing.
         var marker = new DbConfigRegistrationMarker(dbb);
@@ -174,7 +188,19 @@ public static class HostApplicationBuilderExtensions
 
         IDbContextFactory<DbConfigDbContext> pollingFactory =
             new DirectDbContextFactory(pollingOptionsBuilder.Options);
-        var pollingStore = new EfCoreConfigStore(pollingFactory, detector, TimeProvider.System, encryptor: null);
+
+        // Polling-side store: pass DbConfigOptions so callers that touch the (internal) polling store
+        // through diagnostic surfaces have access to the same convenience overloads. ITenantResolver
+        // is null — the polling store is internal-use only; consumer code uses the HTTP-side
+        // IConfigStore from DI, which has the resolver injected via the factory above.
+        var pollingStore = new EfCoreConfigStore(
+            pollingFactory,
+            detector,
+            TimeProvider.System,
+            options,
+            encryptor: null,
+            enableAuditLog: true,
+            tenantResolver: null);
 
         var source = new DbConfigConfigurationSource(options, pollingStore, TimeProvider.System, NullLoggerFactory.Instance);
         marker.SetSource(source);

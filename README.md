@@ -132,6 +132,28 @@ app can call its own backend right after sign-in.
 See [Authentication & authorization](https://moberg.github.io/db-config/configuration/auth)
 for the full walkthrough.
 
+### Programmatic access
+
+Most code reads config through `IOptionsSnapshot<T>` (tenant-aware automatically) or
+`IConfiguration`. For admin endpoints, background jobs, or diagnostic surfaces that need to
+read explicitly, `IConfigStore` exposes ergonomic overloads that pick up AppName/Environment
+from `DbConfigOptions` and the current tenant from `ITenantResolver`:
+
+```csharp
+// Single key — current tenant or global.
+var entry = await store.GetAsync("Logging:Level", ct);
+
+// Specific tenant.
+var key = await store.GetForTenantAsync("Acme", "Stripe:ApiKey", ct);
+
+// Typed POCO bind — section name is typeof(T).Name verbatim.
+// "StripeOptions:" prefix is matched; tenant entries override global defaults.
+var stripe = await store.GetForTenantAsync<StripeOptions>("Acme", ct);
+```
+
+See [Programmatic access to IConfigStore](https://moberg.github.io/db-config/configuration/programmatic-access)
+for the full walkthrough.
+
 ### Migrations
 
 DbConfig owns its own schema (tables `DbConfig_Entries` and `DbConfig_AuditEntries`).

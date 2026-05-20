@@ -9,19 +9,61 @@ public interface IConfigStore
 {
     /// <summary>
     /// Returns all global (tenantId = "") entries for the given app and environment.
-    /// For tenant-specific entries use <see cref="GetAllForTenantAsync"/> or
+    /// For tenant-specific entries use the tenant-aware overloads or
     /// <see cref="GetAllForAllTenantsAsync"/>.
     /// </summary>
     Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct);
+
+    /// <summary>
+    /// Returns all entries for the AppName and Environment configured on the store's
+    /// <see cref="DbConfigOptions"/>, scoped to the tenant id returned by the injected
+    /// <see cref="ITenantResolver"/> (falls back to global / tenantId = "" when the resolver
+    /// returns null/empty or no resolver is registered). Convenience overload (v0.11.1).
+    /// </summary>
+    Task<IReadOnlyList<ConfigEntry>> GetAllAsync(CancellationToken ct)
+        => throw new NotSupportedException(
+            "This IConfigStore implementation does not support the implicit-app/env GetAllAsync overload. " +
+            "Use GetAllAsync(appName, environment, ct) instead.");
 
     /// <summary>
     /// Returns the single global (tenantId = "") entry identified by (appName, environment, key),
     /// or <see langword="null"/> if no such entry exists.
     /// Implementations must issue a targeted single-row query — callers rely on this
     /// to avoid a full-scope scan when fetching a single key.
-    /// For tenant-specific lookup use <see cref="GetForTenantAsync"/>.
     /// </summary>
     Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct);
+
+    /// <summary>
+    /// Returns the entry for the given <paramref name="key"/> using the AppName and Environment
+    /// configured on the store's <see cref="DbConfigOptions"/>, and the tenant id returned by the
+    /// injected <see cref="ITenantResolver"/> (falls back to global / tenantId = "" when the
+    /// resolver returns null/empty or no resolver is registered). Convenience overload (v0.11.1).
+    /// </summary>
+    /// <remarks>
+    /// Built-in store implementations expose this overload. Custom <see cref="IConfigStore"/>
+    /// implementations that do not maintain ambient AppName/Environment state throw
+    /// <see cref="NotSupportedException"/>; callers must then use the explicit-app/env overload.
+    /// </remarks>
+    Task<ConfigEntry?> GetAsync(string key, CancellationToken ct)
+        => throw new NotSupportedException(
+            "This IConfigStore implementation does not support the implicit-app/env GetAsync overload. " +
+            "Use GetAsync(appName, environment, key, ct) instead.");
+
+    /// <summary>
+    /// Materializes a typed POCO from the configured AppName/Environment for the current tenant
+    /// (via <see cref="ITenantResolver"/>) merged on top of global defaults. The configuration
+    /// section name is <c>typeof(T).Name</c> verbatim — no suffix stripping, no convention magic.
+    /// </summary>
+    /// <remarks>
+    /// Example: for <c>StripeOptions</c>, entries with keys prefixed by <c>"StripeOptions:"</c>
+    /// are bound (e.g. <c>"StripeOptions:ApiKey"</c> → <c>ApiKey</c>). Tenant overrides win on
+    /// keys present in both layers; keys present only in the global layer pass through.
+    /// </remarks>
+    Task<T> GetAsync<T>(CancellationToken ct)
+        where T : class, new()
+        => throw new NotSupportedException(
+            "This IConfigStore implementation does not support typed GetAsync<T>(). " +
+            "Use GetAllAsync(appName, environment, ct) and bind manually instead.");
 
     /// <summary>
     /// Returns the highest <see cref="ConfigEntry.ModifiedUtc"/> value across all global
@@ -36,7 +78,7 @@ public interface IConfigStore
     Task UpsertAsync(ConfigEntry entry, CancellationToken ct);
 
     /// <summary>Deletes the global (tenantId = "") entry identified by (appName, environment, key).
-    /// No-op if not found. For tenant-specific delete use <see cref="DeleteForTenantAsync"/>.</summary>
+    /// No-op if not found. For tenant-specific delete use <c>DeleteForTenantAsync</c>.</summary>
     Task DeleteAsync(string appName, string environment, string key, CancellationToken ct);
 
     /// <summary>
@@ -62,10 +104,20 @@ public interface IConfigStore
 
     /// <summary>
     /// Returns all entries for the given app, environment, and explicit tenant.
-    /// Does NOT include global (tenantId = "") entries — use <see cref="GetAllAsync"/> for those.
+    /// Does NOT include global (tenantId = "") entries — use <c>GetAllAsync</c> for those.
     /// </summary>
     Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
         string appName, string environment, string tenantId, CancellationToken ct);
+
+    /// <summary>
+    /// Returns all entries for <paramref name="tenantId"/> using the AppName and Environment
+    /// configured on the store's <see cref="DbConfigOptions"/>. Does not include global
+    /// (tenantId = "") entries. Convenience overload (v0.11.1).
+    /// </summary>
+    Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
+        => throw new NotSupportedException(
+            "This IConfigStore implementation does not support the implicit-app/env GetAllForTenantAsync overload. " +
+            "Use GetAllForTenantAsync(appName, environment, tenantId, ct) instead.");
 
     /// <summary>
     /// Returns the single entry identified by (appName, environment, tenantId, key),
@@ -74,6 +126,30 @@ public interface IConfigStore
     /// </summary>
     Task<ConfigEntry?> GetForTenantAsync(
         string appName, string environment, string tenantId, string key, CancellationToken ct);
+
+    /// <summary>
+    /// Returns the entry for (<paramref name="tenantId"/>, <paramref name="key"/>) using the
+    /// AppName and Environment configured on the store's <see cref="DbConfigOptions"/>. No
+    /// fallback to global — pass <c>tenantId = ""</c> to read a global entry, or use the typed
+    /// overload <c>GetForTenantAsync&lt;T&gt;</c> for tenant-over-global merge semantics.
+    /// Convenience overload (v0.11.1).
+    /// </summary>
+    Task<ConfigEntry?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
+        => throw new NotSupportedException(
+            "This IConfigStore implementation does not support the implicit-app/env GetForTenantAsync overload. " +
+            "Use GetForTenantAsync(appName, environment, tenantId, key, ct) instead.");
+
+    /// <summary>
+    /// Materializes a typed POCO for the explicit <paramref name="tenantId"/>, layered on top of
+    /// the global (tenantId = "") defaults. Section name is <c>typeof(T).Name</c> verbatim. Tenant
+    /// values override globals on keys present in both; global values pass through for keys
+    /// present only in the global layer. Convenience overload (v0.11.1).
+    /// </summary>
+    Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct)
+        where T : class, new()
+        => throw new NotSupportedException(
+            "This IConfigStore implementation does not support typed GetForTenantAsync<T>(). " +
+            "Use GetAllForTenantAsync(appName, environment, tenantId, ct) and bind manually instead.");
 
     /// <summary>
     /// Returns the highest <see cref="ConfigEntry.ModifiedUtc"/> across all entries for the

@@ -242,6 +242,30 @@ app.MapGet("/api/diag/io", (
     });
 });
 
+// GET /api/diag/cross-tenant-stripe/{tenantId} — v0.11.1 convenience API demo.
+//
+// IConfigStore.GetForTenantAsync<T>(tenantId) reads the full StripeOptions POCO for an
+// EXPLICIT tenant id (not necessarily the request's). The section name is typeof(T).Name
+// verbatim → "StripeOptions:" — so this endpoint reads from a parallel set of seed entries
+// (StripeOptions:*) intentionally added below alongside the existing "Stripe:*" entries
+// used by the per-request IOptionsSnapshot pipeline. No prefix-stripping, no convention
+// magic — the type name IS the section name.
+app.MapGet("/api/diag/cross-tenant-stripe/{tenantId}", async (
+    string tenantId, IConfigStore store, CancellationToken ct) =>
+{
+    var stripe = await store.GetForTenantAsync<StripeOptions>(tenantId, ct);
+
+    return Results.Ok(new
+    {
+        tenantId,
+        apiKeyPrefix = SafePrefix(stripe.ApiKey, 12),
+        defaultCurrency = stripe.DefaultCurrency,
+        webhookSecretPrefix = SafePrefix(stripe.WebhookSecret, 8),
+        note = "Read via IConfigStore.GetForTenantAsync<StripeOptions>(tenantId). "
+            + "Section name is typeof(T).Name verbatim → 'StripeOptions:'.",
+    });
+});
+
 // GET /api/diag/who — smoke test for the resolver.
 app.MapGet("/api/diag/who", (ITenantResolver tenants) =>
 {
@@ -310,6 +334,17 @@ static async Task SeedDemoDataAsync(IConfigStore store, string env, string appNa
         // 4-level nested experiment tree
         new(appName, env, "", "Features:Experiments:Checkout:V2:Enabled", "false", false, now, "seed"),
         new(appName, env, "", "Features:Experiments:Checkout:V2:RolloutPct", "0", false, now, "seed"),
+
+        // v0.11.1 parallel "StripeOptions:" namespace — the convenience API
+        // GetForTenantAsync<StripeOptions>(...) binds from verbatim type name. We seed both
+        // namespaces so the existing per-request IOptionsSnapshot path (Stripe:) keeps working
+        // alongside the new typed-binder demo (StripeOptions:).
+        new(appName, env, "", "StripeOptions:WebhookSecret", "whsec_DEMO_global_webhook", true, now, "seed"),
+        new(appName, env, "", "StripeOptions:DefaultCurrency", "USD", false, now, "seed"),
+        new(appName, env, "", "StripeOptions:IdempotencyWindowSeconds", "60", false, now, "seed"),
+        new(appName, env, "Acme", "StripeOptions:ApiKey", "sk_test_DEMO_acme_key", true, now, "seed"),
+        new(appName, env, "Acme", "StripeOptions:DefaultCurrency", "EUR", false, now, "seed"),
+        new(appName, env, "Globex", "StripeOptions:ApiKey", "sk_test_DEMO_globex_key", true, now, "seed"),
 
         // Tenant Acme overrides
         new(appName, env, "Acme", "Stripe:ApiKey", "sk_test_DEMO_acme_key", true, now, "seed"),

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+
 namespace DbConfig.Core;
 
 /// <summary>
@@ -12,6 +14,8 @@ public sealed class InMemoryConfigStore : IConfigStore
     private readonly IConfigEncryptor _encryptor;
     private readonly InMemoryConfigAuditStore? _auditStore;
     private readonly bool _enableAuditLog;
+    private readonly DbConfigOptions? _options;
+    private readonly ITenantResolver? _tenantResolver;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InMemoryConfigStore"/> class.
@@ -47,20 +51,55 @@ public sealed class InMemoryConfigStore : IConfigStore
         IConfigEncryptor? encryptor,
         InMemoryConfigAuditStore? auditStore,
         bool enableAuditLog = true)
+        : this(encryptor, auditStore, enableAuditLog, options: null, tenantResolver: null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryConfigStore"/> class with optional
+    /// ambient <see cref="DbConfigOptions"/> and <see cref="ITenantResolver"/> wiring.
+    /// </summary>
+    /// <param name="encryptor">
+    /// The encryptor used to protect and unprotect secret values, or <see langword="null"/> for
+    /// the passthrough encryptor.
+    /// </param>
+    /// <param name="auditStore">
+    /// Optional in-memory audit sink (writes occur only when <paramref name="enableAuditLog"/>
+    /// is <see langword="true"/>).
+    /// </param>
+    /// <param name="enableAuditLog">Audit log toggle.</param>
+    /// <param name="options">
+    /// Optional <see cref="DbConfigOptions"/> used by the convenience overloads
+    /// (<c>GetAsync(key)</c>, <c>GetAsync&lt;T&gt;()</c>, etc.). When <see langword="null"/>,
+    /// the convenience overloads throw <see cref="InvalidOperationException"/>.
+    /// </param>
+    /// <param name="tenantResolver">
+    /// Optional <see cref="ITenantResolver"/>. When provided, current-tenant convenience reads
+    /// route to the tenant returned by <see cref="ITenantResolver.Resolve"/>. When
+    /// <see langword="null"/>, current-tenant reads behave as "global only".
+    /// </param>
+    public InMemoryConfigStore(
+        IConfigEncryptor? encryptor,
+        InMemoryConfigAuditStore? auditStore,
+        bool enableAuditLog,
+        DbConfigOptions? options,
+        ITenantResolver? tenantResolver)
     {
         _encryptor = encryptor ?? new PassthroughConfigEncryptor();
         _auditStore = auditStore;
         _enableAuditLog = enableAuditLog;
+        _options = options;
+        _tenantResolver = tenantResolver;
     }
 
     /// <summary>
-    /// Number of times <see cref="GetAllAsync"/> has been called on this instance.
+    /// Number of times <c>GetAllAsync(appName, environment, ct)</c> has been called on this instance.
     /// Useful in tests that verify an endpoint does not perform a full-scope scan.
     /// </summary>
     public int GetAllAsyncCallCount { get; private set; }
 
     /// <summary>
-    /// Number of times <see cref="GetAsync"/> has been called on this instance.
+    /// Number of times <c>GetAsync(appName, environment, key, ct)</c> has been called on this instance.
     /// Useful in tests that verify an endpoint uses the targeted single-key read path.
     /// </summary>
     public int GetAsyncCallCount { get; private set; }
@@ -102,6 +141,20 @@ public sealed class InMemoryConfigStore : IConfigStore
         }
     }
 
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(CancellationToken ct)
+    {
+        var options = RequireOptions();
+        var tenantId = _tenantResolver?.Resolve();
+
+        if (string.IsNullOrEmpty(tenantId))
+        {
+            return GetAllAsync(options.AppName, options.Environment, ct);
+        }
+
+        return GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct);
+    }
+
     public Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
     {
         lock (_lock)
@@ -112,6 +165,29 @@ public sealed class InMemoryConfigStore : IConfigStore
             _entries.TryGetValue(storeKey, out var entry);
             return Task.FromResult(entry is null ? null : DecryptEntry(entry));
         }
+    }
+
+    /// <inheritdoc/>
+    public Task<ConfigEntry?> GetAsync(string key, CancellationToken ct)
+    {
+        var options = RequireOptions();
+        var tenantId = _tenantResolver?.Resolve();
+
+        if (string.IsNullOrEmpty(tenantId))
+        {
+            return GetAsync(options.AppName, options.Environment, key, ct);
+        }
+
+        return GetForTenantAsync(options.AppName, options.Environment, tenantId, key, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<T> GetAsync<T>(CancellationToken ct)
+        where T : class, new()
+    {
+        var tenantId = _tenantResolver?.Resolve() ?? string.Empty;
+
+        return await BindTypedAsync<T>(tenantId, ct).ConfigureAwait(false);
     }
 
     public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
@@ -280,6 +356,16 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
+    public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+
+        var options = RequireOptions();
+
+        return GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct);
+    }
+
+    /// <inheritdoc/>
     public Task<ConfigEntry?> GetForTenantAsync(
         string appName, string environment, string tenantId, string key, CancellationToken ct)
     {
@@ -289,6 +375,25 @@ public sealed class InMemoryConfigStore : IConfigStore
             _entries.TryGetValue(storeKey, out var entry);
             return Task.FromResult(entry is null ? null : DecryptEntry(entry));
         }
+    }
+
+    /// <inheritdoc/>
+    public Task<ConfigEntry?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+
+        var options = RequireOptions();
+
+        return GetForTenantAsync(options.AppName, options.Environment, tenantId, key, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct)
+        where T : class, new()
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+
+        return await BindTypedAsync<T>(tenantId, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -475,6 +580,64 @@ public sealed class InMemoryConfigStore : IConfigStore
 
             return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Convenience overload helpers (v0.11.1).
+    // The implicit-app/env overloads (GetAsync(key), GetAllAsync(), GetForTenantAsync(...),
+    // typed Get<T>/GetForTenant<T>) are co-located with their explicit-arg siblings
+    // above to satisfy S4136 "adjacent overloads". Only helper methods live here.
+    // -------------------------------------------------------------------------
+    private DbConfigOptions RequireOptions()
+    {
+        if (_options is null)
+        {
+            throw new InvalidOperationException(
+                "This overload requires DbConfigOptions to be configured; pass options to the "
+                + "InMemoryConfigStore constructor or use the explicit-app/env method.");
+        }
+
+        return _options;
+    }
+
+    private async Task<T> BindTypedAsync<T>(string tenantId, CancellationToken ct)
+        where T : class, new()
+    {
+        var options = RequireOptions();
+        var prefix = typeof(T).Name + ":";
+
+        var globals = await GetAllAsync(options.AppName, options.Environment, ct).ConfigureAwait(false);
+        var merged = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        var globalMatches = globals
+            .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var entry in globalMatches)
+        {
+            merged[entry.Key[prefix.Length..]] = entry.Value;
+        }
+
+        if (!string.IsNullOrEmpty(tenantId))
+        {
+            var tenantEntries = await GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct).ConfigureAwait(false);
+
+            var tenantMatches = tenantEntries
+                .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+            foreach (var entry in tenantMatches)
+            {
+                merged[entry.Key[prefix.Length..]] = entry.Value;
+            }
+        }
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(merged)
+            .Build();
+
+        var instance = new T();
+        configuration.Bind(instance);
+
+        return instance;
     }
 
     private ConfigEntry EncryptEntry(ConfigEntry entry)
