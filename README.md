@@ -151,6 +151,16 @@ var key = await store.GetForTenantAsync("Acme", "Stripe:ApiKey", ct);
 var stripe = await store.GetForTenantAsync<StripeOptions>("Acme", ct);
 ```
 
+> **Section name is `typeof(T).Name` verbatim** — `StripeOptions` reads
+> from `StripeOptions:` keys, **not** `Stripe:`. This intentionally
+> diverges from the standard ASP.NET Core
+> `services.Configure<StripeOptions>(GetSection("Stripe"))` convention,
+> which uses the short name. The typed `IConfigStore` overloads are for
+> programmatic / cross-tenant reads — keep using `IOptionsSnapshot<T>`
+> for current-tenant reads in request handlers. See the docs page for
+> the two viable naming patterns (type-name-matches-section vs parallel
+> namespaces).
+
 See [Programmatic access to IConfigStore](https://moberg.github.io/db-config/configuration/programmatic-access)
 for the full walkthrough.
 

@@ -259,6 +259,75 @@ public sealed class ConfigStoreConvenienceOverloadsTests
     }
 
     [TimedFact]
+    public async Task GetForTenantAsync_Typed_StripsGenericArity()
+    {
+        // typeof(MyGeneric<int>).Name is "MyGeneric`1" — the bind must strip the arity
+        // so keys prefixed "MyGeneric:" are matched (NOT "MyGeneric`1:").
+        var (store, _) = CreateStore(resolver: null);
+        var t = DateTimeOffset.UtcNow;
+        var ct = TestContext.Current.CancellationToken;
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, "Acme", "MyGeneric:Label", "from-generic", false, t, "seed"),
+            ct);
+
+        var result = await store.GetForTenantAsync<MyGeneric<int>>("Acme", ct);
+
+        result.Label.ShouldBe("from-generic");
+    }
+
+    [TimedFact]
+    public async Task GetAsync_WhitespaceResolver_FallsBackToGlobal()
+    {
+        // ITenantResolver returning whitespace should be treated as null/empty —
+        // we should NOT issue a literal-tenant lookup for "   ".
+        var resolver = new MutableTenantResolver("   ");
+        var (store, _) = CreateStore(resolver);
+        var t = DateTimeOffset.UtcNow;
+        var ct = TestContext.Current.CancellationToken;
+
+        await store.UpsertAsync(
+            new ConfigEntry(App, Env, string.Empty, "Locale", "en-US", false, t, "seed"),
+            ct);
+
+        var result = await store.GetAsync("Locale", ct);
+
+        result.ShouldNotBeNull();
+        result!.Value.ShouldBe("en-US");
+        result.TenantId.ShouldBe(string.Empty);
+    }
+
+    [TimedFact]
+    public async Task BindTypedAsync_UsesQueryAsync_NotFullScan()
+    {
+        // The v0.11.1 review identified that BindTypedAsync was issuing two full-scope
+        // scans (GetAllAsync + GetAllForTenantAsync) and filtering in-memory. The fix
+        // routes through QueryAsync with a keyPrefix filter. Verify by asserting the
+        // counters: zero full-scope calls, at least one QueryAsync call.
+        var resolver = new MutableTenantResolver("Acme");
+        var (store, _) = CreateStore(resolver);
+        var t = DateTimeOffset.UtcNow;
+        var ct = TestContext.Current.CancellationToken;
+
+        // Seed both global and tenant section keys plus an unrelated key.
+        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "StripeOptions:ApiKey", "g", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "a", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Unrelated:Key", "x", false, t, "seed"), ct);
+
+        // Reset counters AFTER seeding so we measure only the typed-bind read path.
+        var beforeGetAll = store.GetAllAsyncCallCount;
+        var beforeGetAllForTenant = store.GetAllForTenantAsyncCallCount;
+        var beforeQuery = store.QueryAsyncCallCount;
+
+        var result = await store.GetAsync<StripeOptions>(ct);
+
+        result.ApiKey.ShouldBe("a");
+        store.GetAllAsyncCallCount.ShouldBe(beforeGetAll, "typed bind must not trigger a full-scope global scan");
+        store.GetAllForTenantAsyncCallCount.ShouldBe(beforeGetAllForTenant, "typed bind must not trigger a full-scope tenant scan");
+        store.QueryAsyncCallCount.ShouldBeGreaterThan(beforeQuery, "typed bind should issue at least one QueryAsync with the section prefix");
+    }
+
+    [TimedFact]
     public async Task InMemoryStore_NullOptions_ConvenienceMethodThrowsHelpfully()
     {
         // No DbConfigOptions passed in → implicit app/env path cannot resolve.
@@ -361,6 +430,11 @@ public sealed class ConfigStoreConvenienceOverloadsTests
     private sealed class StripeSettings
     {
         public string ApiKey { get; set; } = string.Empty;
+    }
+
+    private sealed class MyGeneric<T>
+    {
+        public string Label { get; set; } = string.Empty;
     }
 
     /// <summary>

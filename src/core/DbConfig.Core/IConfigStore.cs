@@ -52,12 +52,26 @@ public interface IConfigStore
     /// <summary>
     /// Materializes a typed POCO from the configured AppName/Environment for the current tenant
     /// (via <see cref="ITenantResolver"/>) merged on top of global defaults. The configuration
-    /// section name is <c>typeof(T).Name</c> verbatim — no suffix stripping, no convention magic.
+    /// section name is <c>typeof(T).Name</c> verbatim (no suffix stripping, no convention magic),
+    /// with the CLR generic-arity suffix removed.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Example: for <c>StripeOptions</c>, entries with keys prefixed by <c>"StripeOptions:"</c>
     /// are bound (e.g. <c>"StripeOptions:ApiKey"</c> → <c>ApiKey</c>). Tenant overrides win on
     /// keys present in both layers; keys present only in the global layer pass through.
+    /// </para>
+    /// <para>
+    /// Returns <typeparamref name="T"/> with default POCO values if no DB entries match the
+    /// section prefix — matches ASP.NET Core's <c>IConfiguration.Bind()</c> semantics. Callers
+    /// requiring at-least-one-key semantics should check the result or inspect via
+    /// <see cref="QueryAsync"/> beforehand.
+    /// </para>
+    /// <para>
+    /// Generic type arity suffix is stripped: <c>MyOptions&lt;TKind&gt;</c> binds from the
+    /// <c>"MyOptions:"</c> prefix. If you have multiple generic instantiations and want
+    /// separate sections, define a non-generic outer type that wraps the generic and bind that.
+    /// </para>
     /// </remarks>
     Task<T> GetAsync<T>(CancellationToken ct)
         where T : class, new()
@@ -141,10 +155,24 @@ public interface IConfigStore
 
     /// <summary>
     /// Materializes a typed POCO for the explicit <paramref name="tenantId"/>, layered on top of
-    /// the global (tenantId = "") defaults. Section name is <c>typeof(T).Name</c> verbatim. Tenant
-    /// values override globals on keys present in both; global values pass through for keys
-    /// present only in the global layer. Convenience overload (v0.11.1).
+    /// the global (tenantId = "") defaults. Section name is <c>typeof(T).Name</c> verbatim (with
+    /// the CLR generic-arity suffix stripped). Tenant values override globals on keys present in
+    /// both; global values pass through for keys present only in the global layer. Convenience
+    /// overload (v0.11.1).
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Returns <typeparamref name="T"/> with default POCO values if no DB entries match the
+    /// section prefix — matches ASP.NET Core's <c>IConfiguration.Bind()</c> semantics. Callers
+    /// requiring at-least-one-key semantics should check the result or inspect via
+    /// <see cref="QueryAsync"/> beforehand.
+    /// </para>
+    /// <para>
+    /// Generic type arity suffix is stripped: <c>MyOptions&lt;TKind&gt;</c> binds from the
+    /// <c>"MyOptions:"</c> prefix. Multiple generic instantiations therefore collide on the
+    /// same section — define a non-generic wrapper type for separate sections.
+    /// </para>
+    /// </remarks>
     Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct)
         where T : class, new()
         => throw new NotSupportedException(

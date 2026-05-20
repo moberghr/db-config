@@ -17,6 +17,39 @@ Most application code reads configuration through `IOptionsSnapshot<T>` or `ICon
 
 The new overloads do not replace the explicit-arg API — they layer on top. Custom non-EF `IConfigStore` implementations that do not maintain ambient state simply throw `NotSupportedException` from the convenience overloads; the explicit-arg methods keep working.
 
+### Section names: `typeof(T).Name` verbatim
+
+The typed-bind overloads use the runtime type name as the section name, exactly.
+`StripeOptions` → keys prefixed `StripeOptions:`. **Not** `Stripe:`.
+
+This intentionally diverges from the standard ASP.NET Core convention
+(`services.Configure<StripeOptions>(config.GetSection("Stripe"))` which uses
+the short name). If you want the standard pattern via `IOptionsSnapshot<T>`,
+keep using `Configure<T>`. The typed-bind overloads on `IConfigStore` are for
+use cases where you read **other tenants'** values programmatically — they're
+NOT meant to replace `IOptionsSnapshot<T>` for current-tenant reads.
+
+Two viable patterns:
+
+1. **Type name matches section name:** `class Stripe { ... }` bound from
+   `Stripe:` — works with both
+   `services.Configure<Stripe>(GetSection("Stripe"))` AND
+   `store.GetForTenantAsync<Stripe>(tenantId)`.
+2. **Parallel namespaces:** `Stripe:` keys consumed by
+   `IOptionsSnapshot<StripeOptions>`, `StripeOptions:` keys consumed by
+   `store.GetForTenantAsync<StripeOptions>(tenantId)` — what the demo
+   currently shows.
+
+Generic types: the CLR generic-arity suffix is stripped, so
+`MyOptions<TKind>` binds from the `MyOptions:` prefix. Multiple
+instantiations of the same open generic therefore share one section —
+define a non-generic wrapper if you need separate sections per
+instantiation.
+
+If `ITenantResolver.Resolve()` returns `null`, empty, or whitespace, the
+convenience overloads fall back to the global (`TenantId = ""`) layer. A
+whitespace tenant id is never queried literally.
+
 ## The six convenience overloads
 
 ```csharp

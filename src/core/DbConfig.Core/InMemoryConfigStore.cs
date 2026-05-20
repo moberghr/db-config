@@ -124,6 +124,20 @@ public sealed class InMemoryConfigStore : IConfigStore
     /// </summary>
     public int GetLatestModifiedUtcScopedAcrossAllTenantsAsyncCallCount { get; private set; }
 
+    /// <summary>
+    /// Number of times <see cref="QueryAsync"/> has been called on this instance.
+    /// Useful in tests that verify the typed-bind / convenience overloads route through
+    /// the targeted-prefix query path instead of falling back to full-scope scans.
+    /// </summary>
+    public int QueryAsyncCallCount { get; private set; }
+
+    /// <summary>
+    /// Number of times <c>GetAllForTenantAsync(appName, environment, tenantId, ct)</c> has been
+    /// called on this instance. Useful in tests that verify typed-bind / convenience overloads
+    /// do not scan the entire tenant scope.
+    /// </summary>
+    public int GetAllForTenantAsyncCallCount { get; private set; }
+
     public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
     {
         lock (_lock)
@@ -147,7 +161,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         var options = RequireOptions();
         var tenantId = _tenantResolver?.Resolve();
 
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
             return GetAllAsync(options.AppName, options.Environment, ct);
         }
@@ -173,7 +187,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         var options = RequireOptions();
         var tenantId = _tenantResolver?.Resolve();
 
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
             return GetAsync(options.AppName, options.Environment, key, ct);
         }
@@ -185,7 +199,12 @@ public sealed class InMemoryConfigStore : IConfigStore
     public async Task<T> GetAsync<T>(CancellationToken ct)
         where T : class, new()
     {
-        var tenantId = _tenantResolver?.Resolve() ?? string.Empty;
+        var tenantId = _tenantResolver?.Resolve();
+
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            tenantId = string.Empty;
+        }
 
         return await BindTypedAsync<T>(tenantId, ct).ConfigureAwait(false);
     }
@@ -344,6 +363,8 @@ public sealed class InMemoryConfigStore : IConfigStore
     {
         lock (_lock)
         {
+            GetAllForTenantAsyncCallCount++;
+
             var result = _entries.Values
                 .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
@@ -547,6 +568,8 @@ public sealed class InMemoryConfigStore : IConfigStore
     {
         lock (_lock)
         {
+            QueryAsyncCallCount++;
+
             var query = _entries.Values.AsEnumerable();
 
             if (appName is not null)
@@ -604,27 +627,37 @@ public sealed class InMemoryConfigStore : IConfigStore
         where T : class, new()
     {
         var options = RequireOptions();
-        var prefix = typeof(T).Name + ":";
+        var prefix = TypedSectionPrefix.For<T>();
 
-        var globals = await GetAllAsync(options.AppName, options.Environment, ct).ConfigureAwait(false);
+        // Use QueryAsync with a keyPrefix filter so the store-side filter narrows the
+        // result set — avoids the previous full-scope scan that this method used to do
+        // before merging in-memory. Pass int.MaxValue: clamping is the HTTP layer's job.
+        var globals = await QueryAsync(
+            appName: options.AppName,
+            environment: options.Environment,
+            tenantId: string.Empty,
+            keyPrefix: prefix,
+            take: int.MaxValue,
+            ct).ConfigureAwait(false);
+
         var merged = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
-        var globalMatches = globals
-            .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-
-        foreach (var entry in globalMatches)
+        foreach (var entry in globals)
         {
             merged[entry.Key[prefix.Length..]] = entry.Value;
         }
 
-        if (!string.IsNullOrEmpty(tenantId))
+        if (!string.IsNullOrWhiteSpace(tenantId))
         {
-            var tenantEntries = await GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct).ConfigureAwait(false);
+            var tenantEntries = await QueryAsync(
+                appName: options.AppName,
+                environment: options.Environment,
+                tenantId: tenantId,
+                keyPrefix: prefix,
+                take: int.MaxValue,
+                ct).ConfigureAwait(false);
 
-            var tenantMatches = tenantEntries
-                .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-
-            foreach (var entry in tenantMatches)
+            foreach (var entry in tenantEntries)
             {
                 merged[entry.Key[prefix.Length..]] = entry.Value;
             }

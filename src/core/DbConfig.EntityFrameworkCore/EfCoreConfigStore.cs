@@ -144,7 +144,7 @@ public sealed class EfCoreConfigStore : IConfigStore
         var options = RequireOptions();
         var tenantId = _tenantResolver?.Resolve();
 
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
             return GetAllAsync(options.AppName, options.Environment, ct);
         }
@@ -183,7 +183,7 @@ public sealed class EfCoreConfigStore : IConfigStore
         var options = RequireOptions();
         var tenantId = _tenantResolver?.Resolve();
 
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
             return GetAsync(options.AppName, options.Environment, key, ct);
         }
@@ -195,7 +195,12 @@ public sealed class EfCoreConfigStore : IConfigStore
     public async Task<T> GetAsync<T>(CancellationToken ct)
         where T : class, new()
     {
-        var tenantId = _tenantResolver?.Resolve() ?? string.Empty;
+        var tenantId = _tenantResolver?.Resolve();
+
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            tenantId = string.Empty;
+        }
 
         return await BindTypedAsync<T>(tenantId, ct).ConfigureAwait(false);
     }
@@ -748,28 +753,38 @@ public sealed class EfCoreConfigStore : IConfigStore
         where T : class, new()
     {
         var options = RequireOptions();
-        var prefix = typeof(T).Name + ":";
+        var prefix = TypedSectionPrefix.For<T>();
 
-        // Global layer first, then tenant overrides on top.
-        var globals = await GetAllAsync(options.AppName, options.Environment, ct).ConfigureAwait(false);
+        // Use QueryAsync with the section prefix so SQL filters server-side via LIKE.
+        // Previously this method called GetAllAsync + GetAllForTenantAsync which scanned
+        // the entire (AppName, Environment) scope on every typed bind. Pass int.MaxValue —
+        // clamping is the HTTP endpoint's job, not the store layer's.
+        var globals = await QueryAsync(
+            appName: options.AppName,
+            environment: options.Environment,
+            tenantId: string.Empty,
+            keyPrefix: prefix,
+            take: int.MaxValue,
+            ct).ConfigureAwait(false);
+
         var merged = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
-        var globalMatches = globals
-            .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-
-        foreach (var entry in globalMatches)
+        foreach (var entry in globals)
         {
             merged[entry.Key[prefix.Length..]] = entry.Value;
         }
 
-        if (!string.IsNullOrEmpty(tenantId))
+        if (!string.IsNullOrWhiteSpace(tenantId))
         {
-            var tenantEntries = await GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct).ConfigureAwait(false);
+            var tenantEntries = await QueryAsync(
+                appName: options.AppName,
+                environment: options.Environment,
+                tenantId: tenantId,
+                keyPrefix: prefix,
+                take: int.MaxValue,
+                ct).ConfigureAwait(false);
 
-            var tenantMatches = tenantEntries
-                .Where(x => x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-
-            foreach (var entry in tenantMatches)
+            foreach (var entry in tenantEntries)
             {
                 merged[entry.Key[prefix.Length..]] = entry.Value;
             }
