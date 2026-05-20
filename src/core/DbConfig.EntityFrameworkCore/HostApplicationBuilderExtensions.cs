@@ -145,6 +145,19 @@ public static class HostApplicationBuilderExtensions
                     "IDbConfigReloadSignal cannot be resolved before host construction has built the configuration system.");
         });
 
+        // Tenant config reader — exposes typed binding scoped to a specific tenant id.
+        // The polling provider implements the AsyncLocal override that the reader uses to
+        // pin the tenant for the duration of an IOptionsSnapshot<T> resolution.
+        hostBuilder.Services.AddSingleton<ITenantConfigReader>(sp =>
+        {
+            var m = sp.GetRequiredService<DbConfigRegistrationMarker>();
+            var provider = m.Source?.Provider
+                ?? throw new InvalidOperationException(
+                    "ITenantConfigReader cannot be resolved before host construction has built the configuration system.");
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            return new TenantConfigReader(provider, scopeFactory);
+        });
+
         // Always register the tenant activator so the provider gets access to the host DI
         // service provider after build. This enables lazy ITenantResolver resolution in TryGet.
         hostBuilder.Services.AddHostedService<DbConfigTenantActivator>();

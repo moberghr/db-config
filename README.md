@@ -136,32 +136,45 @@ for the full walkthrough.
 
 Most code reads config through `IOptionsSnapshot<T>` (tenant-aware automatically) or
 `IConfiguration`. For admin endpoints, background jobs, or diagnostic surfaces that need to
-read explicitly, `IConfigStore` exposes ergonomic overloads that pick up AppName/Environment
-from `DbConfigOptions` and the current tenant from `ITenantResolver`:
+read **another tenant's settings** explicitly, two services are available:
 
 ```csharp
-// Single key — current tenant or global.
-var entry = await store.GetAsync("Logging:Level", ct);
+// v0.11.2 — typed bind via the standard pipeline. Uses the SAME section path you
+// registered for IOptionsSnapshot<T>; no new convention to learn.
+public class AdminController(ITenantConfigReader reader)
+{
+    public IActionResult ShowAcmeStripe()
+    {
+        // Reuses `services.Configure<StripeSettings>(config.GetSection("Stripe"))`
+        // — picks Acme's entries with global fallback, runs PostConfigure delegates.
+        var stripe = reader.GetForTenant<StripeSettings>("Acme");
+        return Ok(stripe);
+    }
+}
 
-// Specific tenant.
-var key = await store.GetForTenantAsync("Acme", "Stripe:ApiKey", ct);
-
-// Typed POCO bind — section name is typeof(T).Name verbatim.
-// "StripeOptions:" prefix is matched; tenant entries override global defaults.
-var stripe = await store.GetForTenantAsync<StripeOptions>("Acme", ct);
+// v0.11.1 — direct DB read with raw entries (IsSecret, ModifiedUtc, ModifiedBy).
+// Bypasses IConfiguration; section name is typeof(T).Name verbatim.
+public class AuditEndpoint(IConfigStore store)
+{
+    public async Task<IActionResult> GetEntry(CancellationToken ct)
+    {
+        var entry = await store.GetForTenantAsync("Acme", "Stripe:ApiKey", ct);
+        return Ok(new { entry?.Value, entry?.IsSecret, entry?.ModifiedUtc });
+    }
+}
 ```
 
-> **Section name is `typeof(T).Name` verbatim** — `StripeOptions` reads
-> from `StripeOptions:` keys, **not** `Stripe:`. This intentionally
-> diverges from the standard ASP.NET Core
-> `services.Configure<StripeOptions>(GetSection("Stripe"))` convention,
-> which uses the short name. The typed `IConfigStore` overloads are for
-> programmatic / cross-tenant reads — keep using `IOptionsSnapshot<T>`
-> for current-tenant reads in request handlers. See the docs page for
-> the two viable naming patterns (type-name-matches-section vs parallel
-> namespaces).
+`ITenantConfigReader` is the right tool for typed-POCO reads in application code. It
+respects every `services.Configure<T>(...)` registration including custom section paths
+and `PostConfigure` delegates — internally it sets an `AsyncLocal` tenant override on
+the polling provider and resolves `IOptionsSnapshot<T>` in a fresh DI scope.
 
-See [Programmatic access to IConfigStore](https://moberg.github.io/db-config/configuration/programmatic-access)
+`IConfigStore` is the right tool for admin tooling that needs raw entries with metadata
+(`IsSecret`, `ModifiedUtc`, `ModifiedBy`) or for binding a type that has no
+`IConfigureOptions<T>` registration. Its typed-bind overloads use `typeof(T).Name`
+verbatim — `StripeOptions` reads `StripeOptions:` keys.
+
+See [Programmatic access to configuration](https://moberg.github.io/db-config/configuration/programmatic-access)
 for the full walkthrough.
 
 ### Migrations

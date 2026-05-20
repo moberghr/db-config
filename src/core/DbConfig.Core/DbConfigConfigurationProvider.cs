@@ -52,6 +52,13 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
     private volatile ITenantResolver? _resolverCached;
 
     /// <summary>
+    /// AsyncLocal tenant override. When set (non-null), <see cref="TryGet"/> uses this
+    /// instead of calling <see cref="ITenantResolver"/>. Used by <see cref="ITenantConfigReader"/>
+    /// to scope a typed bind to a specific tenant id without forking the configuration root.
+    /// </summary>
+    private readonly AsyncLocal<string?> _tenantOverride = new();
+
+    /// <summary>
     /// Marker registration used to access host DI for lazy resolver resolution.
     /// Set after the host is built when the provider gains access to the service provider.
     /// </summary>
@@ -124,8 +131,15 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
     /// </remarks>
     public override bool TryGet(string key, out string? value)
     {
-        var resolver = ResolveTenantResolverLazy();
-        var tenantId = resolver.Resolve();
+        // AsyncLocal override takes precedence over the resolver. ITenantConfigReader sets
+        // this for the duration of a typed bind so the resolver-driven path picks up the
+        // requested tenant without forking the configuration root.
+        var tenantId = _tenantOverride.Value;
+        if (tenantId is null)
+        {
+            var resolver = ResolveTenantResolverLazy();
+            tenantId = resolver.Resolve();
+        }
 
         // Tenant-specific entry (if resolver returned a non-empty tenant).
         if (!string.IsNullOrEmpty(tenantId))
@@ -147,6 +161,28 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
 
         value = null;
         return false;
+    }
+
+    /// <summary>
+    /// Activates an AsyncLocal tenant override for the duration of the returned scope.
+    /// While active, <see cref="TryGet"/> uses <paramref name="tenantId"/> instead of calling
+    /// <see cref="ITenantResolver"/>. The override is restored to its prior value when the
+    /// returned <see cref="IDisposable"/> is disposed.
+    /// </summary>
+    /// <remarks>
+    /// AsyncLocal flow: the override is captured on the calling async context and is visible
+    /// inside <c>using var scope = scopeFactory.CreateScope()</c> blocks created in the same
+    /// flow. Concurrent callers on different async flows do not see each other's overrides.
+    /// Used by <see cref="ITenantConfigReader"/> to bind <c>IOptionsSnapshot&lt;T&gt;</c> for
+    /// a specific tenant without forking the configuration root.
+    /// </remarks>
+    internal IDisposable OverrideTenant(string tenantId)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+
+        var prior = _tenantOverride.Value;
+        _tenantOverride.Value = tenantId;
+        return new TenantOverrideScope(this, prior);
     }
 
     /// <summary>
@@ -376,5 +412,29 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
         _cts.Cancel();
         _cts.Dispose();
         _timer?.Dispose();
+    }
+
+    private sealed class TenantOverrideScope : IDisposable
+    {
+        private readonly DbConfigConfigurationProvider _owner;
+        private readonly string? _prior;
+        private bool _disposed;
+
+        public TenantOverrideScope(DbConfigConfigurationProvider owner, string? prior)
+        {
+            _owner = owner;
+            _prior = prior;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _owner._tenantOverride.Value = _prior;
+        }
     }
 }

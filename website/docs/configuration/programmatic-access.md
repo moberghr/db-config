@@ -2,20 +2,63 @@
 sidebar_position: 7
 ---
 
-# Programmatic access to IConfigStore
+# Programmatic access to configuration
 
-Most application code reads configuration through `IOptionsSnapshot<T>` or `IConfiguration` — the standard ASP.NET Core pipeline already handles tenant fallback, hot reload, and decryption transparently. For the cases where you need to read explicitly (admin tools, background jobs that consult another tenant's settings, diagnostic endpoints, cross-tenant analytics), DbConfig v0.11.1 added six convenience overloads to `IConfigStore` so consumer code does not have to pass `appName` / `environment` on every call.
+Most application code reads configuration through `IOptionsSnapshot<T>` or `IConfiguration` — the standard ASP.NET Core pipeline already handles tenant fallback, hot reload, and decryption transparently. For the cases where you need to read explicitly (admin tools, background jobs that consult another tenant's settings, diagnostic endpoints, cross-tenant analytics), DbConfig provides two complementary services:
+
+- **`ITenantConfigReader`** (v0.11.2) — typed bind that reuses the consumer's existing `services.Configure<T>(...)` registrations, scoped to an explicit tenant id. Recommended for application code that wants a fully-bound POCO without changing how sections are named.
+- **`IConfigStore`** convenience overloads (v0.11.1) — direct DB reads that bypass `IConfiguration`. Returns raw `ConfigEntry` rows with metadata (`IsSecret`, `ModifiedUtc`, `ModifiedBy`) or POCO binds keyed off `typeof(T).Name` verbatim. Best for admin tooling and raw metadata access.
 
 ## When to use
 
 | Use case | Use |
 |---|---|
 | Application code reading the current tenant's settings | `IOptionsSnapshot<T>` (already tenant-aware) |
+| Application code reading a specific tenant's typed settings | `ITenantConfigReader.GetForTenant<T>(tenantId)` |
 | Quick lookup of a single value in a request handler | `IConfigStore.GetAsync(key, ct)` |
-| Background job reading a specific tenant's settings | `IConfigStore.GetForTenantAsync<T>(tenantId, ct)` |
-| Admin endpoint reading every entry across all apps | the explicit `(appName, env, ...)` overloads or `QueryAsync(...)` |
+| Admin tool reading raw entries with metadata (IsSecret, ModifiedUtc) | `IConfigStore.GetForTenantAsync(tenantId, key, ct)` |
+| Background job reading every entry across all apps | the explicit `(appName, env, ...)` overloads or `QueryAsync(...)` |
 
-The new overloads do not replace the explicit-arg API — they layer on top. Custom non-EF `IConfigStore` implementations that do not maintain ambient state simply throw `NotSupportedException` from the convenience overloads; the explicit-arg methods keep working.
+The two services are complementary: `ITenantConfigReader` is high-level and respects all `services.Configure<T>(...)` registrations including `PostConfigure` and custom section paths. `IConfigStore` is low-level and bypasses `IConfiguration` entirely — useful when you need raw metadata or when no `IConfigureOptions<T>` is registered for the type you want to read.
+
+Custom non-EF `IConfigStore` implementations that do not maintain ambient state simply throw `NotSupportedException` from the convenience overloads; the explicit-arg methods keep working. `ITenantConfigReader` is independent of the store implementation — it works against the polling provider directly.
+
+## ITenantConfigReader: typed bind via the standard pipeline
+
+```csharp
+public class AdminController(ITenantConfigReader reader)
+{
+    public IActionResult CompareStripeAcrossTenants()
+    {
+        var acme = reader.GetForTenant<StripeSettings>("Acme");
+        var globex = reader.GetForTenant<StripeSettings>("Globex");
+        return Ok(new { acme, globex });
+    }
+}
+```
+
+The reader uses the section path the consumer **already registered**:
+
+```csharp
+// At startup — registered once.
+services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
+
+// Anywhere later — uses the same "Stripe" section, different tenant.
+var acme = reader.GetForTenant<StripeSettings>("Acme");
+```
+
+No reflection, no `typeof(T).Name` convention, no explicit section path argument. The reader sets an `AsyncLocal` tenant override on the polling provider for the duration of the call, then resolves `IOptionsSnapshot<T>` in a fresh DI scope. The standard `IOptionsFactory<T>` pipeline runs — `PostConfigure<T>`, code-based configurators, and custom section paths all behave identically to a normal request.
+
+**Properties:**
+
+- **Reuses existing registrations.** No second registration for tenant-explicit reads.
+- **Other configuration sources merge naturally.** `appsettings.json`, environment variables, etc. are tenant-unaware and pass through unchanged.
+- **No DB hit per call.** The polling provider has all tenants in memory; the reader is in-memory dictionary lookups.
+- **Thread-safe.** AsyncLocal isolates concurrent calls on different async flows; the override never leaks to the host's ambient `IConfiguration` after the call returns.
+
+**Returns the same shape as `IOptionsSnapshot<T>` would** for a request whose `ITenantResolver` returns the same tenant id. So if you have a binding sharp edge for `IOptionsSnapshot` (e.g. tenant-only keys without a global skeleton), the same sharp edge applies to the reader. This is by design — one binding pipeline, two access patterns.
+
+## IConfigStore: raw entries + verbatim-type-name bind
 
 ### Section names: `typeof(T).Name` verbatim
 

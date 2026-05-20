@@ -242,6 +242,30 @@ app.MapGet("/api/diag/io", (
     });
 });
 
+// GET /api/diag/reader-stripe/{tenantId} — v0.11.2 ITenantConfigReader demo.
+//
+// ITenantConfigReader.GetForTenant<T>(tenantId) binds T using the SAME section path the
+// consumer registered via services.Configure<T>(GetSection("Stripe")) — no parallel namespace,
+// no typeof(T).Name convention. Internally it sets an AsyncLocal tenant override on the
+// polling provider and resolves IOptionsSnapshot<T> in a fresh DI scope, so PostConfigure
+// delegates and other configurators run exactly as for a normal request.
+app.MapGet("/api/diag/reader-stripe/{tenantId}", (
+    string tenantId, ITenantConfigReader reader) =>
+{
+    var stripe = reader.GetForTenant<StripeOptions>(tenantId);
+
+    return Results.Ok(new
+    {
+        tenantId,
+        apiKeyPrefix = SafePrefix(stripe.ApiKey, 12),
+        defaultCurrency = stripe.DefaultCurrency,
+        webhookSecretPrefix = SafePrefix(stripe.WebhookSecret, 8),
+        note = "Read via ITenantConfigReader.GetForTenant<StripeOptions>(tenantId). "
+            + "Uses the same 'Stripe' section as IOptionsSnapshot<StripeOptions> — "
+            + "AsyncLocal override pins the tenant for the bind.",
+    });
+});
+
 // GET /api/diag/cross-tenant-stripe/{tenantId} — v0.11.1 convenience API demo.
 //
 // IConfigStore.GetForTenantAsync<T>(tenantId) reads the full StripeOptions POCO for an
