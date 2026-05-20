@@ -69,9 +69,10 @@ function AuditValueCell({ value, isSecret }: { value: string | null; isSecret: b
 
 interface AuditLogPageProps {
   header?: React.ReactNode
+  headerExtras?: React.ReactNode
 }
 
-export function AuditLogPage({ header }: AuditLogPageProps) {
+export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
   const [entries, setEntries] = useState<ConfigAuditEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -117,7 +118,10 @@ export function AuditLogPage({ header }: AuditLogPageProps) {
           <h1 className="text-xl font-semibold">DbConfig</h1>
           {header}
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          {headerExtras}
+          <ThemeToggle />
+        </div>
       </header>
       <main className="px-6 py-6 space-y-4">
         <AccessWarningBanner />

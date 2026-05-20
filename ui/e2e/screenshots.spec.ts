@@ -403,19 +403,21 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 15 — login-form: built-in cookie login HTML form. The form is server-rendered
-//       C# (BuiltInLoginEndpoints.BuildLoginPage), so we screenshot a static
-//       fixture that mirrors its HTML byte-for-byte. light + dark via ?dark.
+// 15 — login-form: React-rendered LoginPage component, captured by activating
+//       demo mode with `?demoLoggedOut` — the demo auth shim returns
+//       authenticated=false on first probe, so <App> mounts <LoginPage>.
+//       Visual consistency with the dashboard (shared theme tokens, dark mode
+//       via the .dark class) replaces the v0.10.x server-rendered HTML fixture.
 // ─────────────────────────────────────────────────────────────────────────────
 for (const theme of ['light', 'dark'] as const) {
   const suffix = theme === 'dark' ? '-dark' : '';
   test(`15-login-form${suffix}`, async ({ page }) => {
-    const fixturePath = path.join(__dirname, 'fixtures', 'login-form.html');
-    // file:// load so we don't need the Vite server for this one.
-    const fileUrl = `file://${fixturePath.replace(/\\/g, '/')}${theme === 'dark' ? '?dark' : ''}`;
+    await seedTheme(page, theme);
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto(fileUrl);
-    await page.locator('form').waitFor();
+    await page.goto('/?demo&demoLoggedOut');
+    await page.locator('form').waitFor({ timeout: 15000 });
+    // Wait for the sign-in heading so we know <LoginPage> mounted.
+    await page.getByRole('heading', { name: 'DbConfig' }).waitFor();
 
     await page.screenshot({
       path: `${SCREENSHOTS_DIR}/15-login-form${suffix}.png`,

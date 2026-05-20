@@ -1,5 +1,5 @@
 using System.Text;
-using System.Text.Encodings.Web;
+using System.Text.Json;
 using DbConfig.Http;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -8,28 +8,51 @@ using Microsoft.Extensions.DependencyInjection;
 namespace DbConfig.Ui;
 
 /// <summary>
-/// Registers <c>/login</c> (GET + POST) and <c>/logout</c> (POST) endpoints when
-/// <see cref="DbConfigUiOptions.UseBuiltInLogin{TValidator}"/> is configured.
-/// The login form is generated inline (no embedded resource); the cookie value is
-/// signed with ASP.NET Data Protection.
+/// Registers JSON auth endpoints under <c>/api/auth/*</c> when
+/// <see cref="DbConfigUiOptions.UseBuiltInLogin{TValidator}"/> is configured. The
+/// login UI itself is rendered by the React SPA — the catch-all serves
+/// <c>index.html</c> for <c>/login</c>; this class only exposes the JSON contract
+/// the SPA calls (status, login, logout). Mirrors sister project Warp.
 /// </summary>
 internal static class BuiltInLoginEndpoints
 {
     internal const string ProtectorPurpose = "Moberg.DbConfig.Ui.Auth";
     internal const string CookiePayloadPrefix = "dbconfig|";
 
-    internal static async Task HandleLoginGetAsync(HttpContext context, DbConfigUiOptions options, string prefix)
+    internal static async Task HandleAuthStatusAsync(HttpContext context, DbConfigUiOptions options)
     {
-        var returnUrl = context.Request.Query["returnUrl"].FirstOrDefault();
-        var safeReturn = SanitizeReturnUrl(returnUrl, prefix);
-        var error = string.Equals(context.Request.Query["error"].FirstOrDefault(), "1", StringComparison.Ordinal);
+        var hasBuiltInLogin = options.CredentialValidatorType is not null;
+        var authenticated = false;
+        string? username = null;
 
-        context.Response.StatusCode = 200;
-        context.Response.ContentType = "text/html;charset=utf-8";
-        await context.Response.WriteAsync(
-            BuildLoginPage(prefix, safeReturn, error),
-            Encoding.UTF8,
-            context.RequestAborted);
+        if (options.Authorization is not null)
+        {
+            authenticated = await options.Authorization.IsAuthorizedAsync(context);
+        }
+        else if (!hasBuiltInLogin)
+        {
+            // No filter, no built-in login — UI is open. Report authenticated so the
+            // SPA does not gate the dashboard behind a login flow.
+            authenticated = true;
+        }
+
+        if (authenticated && hasBuiltInLogin)
+        {
+            username = TryExtractUsernameFromCookie(context, options);
+        }
+
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = "application/json; charset=utf-8";
+
+        var payload = new
+        {
+            authenticated,
+            hasBuiltInLogin,
+            username,
+        };
+        var json = JsonSerializer.Serialize(payload);
+
+        await context.Response.WriteAsync(json, Encoding.UTF8, context.RequestAborted);
     }
 
     internal static async Task HandleLoginPostAsync(HttpContext context, DbConfigUiOptions options, string prefix)
@@ -41,10 +64,23 @@ internal static class BuiltInLoginEndpoints
             return;
         }
 
-        var form = await context.Request.ReadFormAsync(context.RequestAborted);
-        var username = form["username"].FirstOrDefault() ?? string.Empty;
-        var password = form["password"].FirstOrDefault() ?? string.Empty;
-        var returnUrl = SanitizeReturnUrl(form["returnUrl"].FirstOrDefault(), prefix);
+        LoginRequest? body;
+        try
+        {
+            body = await JsonSerializer.DeserializeAsync<LoginRequest>(
+                context.Request.Body,
+                JsonOptions,
+                context.RequestAborted);
+        }
+        catch (JsonException)
+        {
+            await WriteJsonErrorAsync(context, StatusCodes.Status400BadRequest, "Invalid JSON body");
+
+            return;
+        }
+
+        var username = body?.Username ?? string.Empty;
+        var password = body?.Password ?? string.Empty;
 
         var validator = context.RequestServices.GetService(typeof(IDbConfigCredentialValidator)) as IDbConfigCredentialValidator
             ?? throw new InvalidOperationException(
@@ -53,7 +89,7 @@ internal static class BuiltInLoginEndpoints
         var principal = await validator.ValidateAsync(username, password, context.RequestAborted);
         if (principal is null || principal.Identity is null || !principal.Identity.IsAuthenticated)
         {
-            context.Response.Redirect($"{prefix}/login?error=1&returnUrl={Uri.EscapeDataString(returnUrl)}");
+            await WriteJsonErrorAsync(context, StatusCodes.Status401Unauthorized, "Invalid credentials");
 
             return;
         }
@@ -74,10 +110,10 @@ internal static class BuiltInLoginEndpoints
             Expires = DateTimeOffset.UtcNow.Add(options.CookieExpireTimeSpan),
         });
 
-        context.Response.Redirect(returnUrl);
+        await WriteJsonOkAsync(context);
     }
 
-    internal static Task HandleLogoutPostAsync(HttpContext context, DbConfigUiOptions options, string prefix)
+    internal static async Task HandleLogoutPostAsync(HttpContext context, DbConfigUiOptions options, string prefix)
     {
         context.Response.Cookies.Delete(options.CookieName, new CookieOptions
         {
@@ -86,67 +122,57 @@ internal static class BuiltInLoginEndpoints
             Secure = context.Request.IsHttps,
             Path = options.CookiePath ?? prefix,
         });
-        context.Response.Redirect($"{prefix}/login");
 
-        return Task.CompletedTask;
+        await WriteJsonOkAsync(context);
     }
 
-    private static string SanitizeReturnUrl(string? returnUrl, string prefix)
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private static async Task WriteJsonOkAsync(HttpContext context)
     {
-        if (string.IsNullOrEmpty(returnUrl) || !returnUrl.StartsWith('/'))
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = "application/json; charset=utf-8";
+        await context.Response.WriteAsync("{\"ok\":true}", Encoding.UTF8, context.RequestAborted);
+    }
+
+    private static async Task WriteJsonErrorAsync(HttpContext context, int statusCode, string error)
+    {
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json; charset=utf-8";
+        var payload = JsonSerializer.Serialize(new { error });
+        await context.Response.WriteAsync(payload, Encoding.UTF8, context.RequestAborted);
+    }
+
+    private static string? TryExtractUsernameFromCookie(HttpContext context, DbConfigUiOptions options)
+    {
+        var cookie = context.Request.Cookies[options.CookieName];
+        if (string.IsNullOrEmpty(cookie))
         {
-            return prefix;
+            return null;
         }
 
-        // Reject protocol-relative URLs (//evil.example) and CRLF injection attempts.
-        if (returnUrl.StartsWith("//", StringComparison.Ordinal)
-            || returnUrl.Contains('\r', StringComparison.Ordinal)
-            || returnUrl.Contains('\n', StringComparison.Ordinal))
+        try
         {
-            return prefix;
+            var protector = context.RequestServices
+                .GetRequiredService<IDataProtectionProvider>()
+                .CreateProtector(ProtectorPurpose);
+            var payload = protector.Unprotect(cookie);
+            if (!payload.StartsWith(CookiePayloadPrefix, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            // Payload format: "dbconfig|<username>|<iso-timestamp>"
+            var afterPrefix = payload[CookiePayloadPrefix.Length..];
+            var separator = afterPrefix.IndexOf('|', StringComparison.Ordinal);
+
+            return separator < 0 ? afterPrefix : afterPrefix[..separator];
         }
-
-        return returnUrl;
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            return null;
+        }
     }
 
-    private static string BuildLoginPage(string prefix, string returnUrl, bool error)
-    {
-        var encoder = HtmlEncoder.Default;
-        var errorBanner = error
-            ? "<p class='err'>Invalid credentials. Try again.</p>"
-            : string.Empty;
-
-        return $$"""
-            <!doctype html>
-            <html lang="en"><head><meta charset='utf-8'>
-            <title>db-config sign in</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <style>
-              body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:380px;margin:80px auto;padding:0 24px;color:#111;background:#fff}
-              h1{font-size:1.25rem;margin:0 0 6px}
-              p{color:#555;margin:0 0 18px}
-              p.err{color:#b00020}
-              label{display:block;font-size:.85rem;color:#333;margin-top:14px}
-              input,button{font:inherit;padding:10px 12px;width:100%;box-sizing:border-box;margin-top:6px;border:1px solid #ccc;border-radius:6px}
-              button{background:#0070f3;color:#fff;border:0;cursor:pointer;font-weight:600;margin-top:18px}
-              button:hover{background:#005bce}
-              @media (prefers-color-scheme: dark) {
-                body{background:#111;color:#eee}
-                p{color:#aaa}
-                input{background:#1d1d1d;color:#eee;border-color:#444}
-                label{color:#bbb}
-              }
-            </style></head><body>
-            <h1>Sign in</h1>
-            <p>db-config admin</p>
-            {{errorBanner}}
-            <form method='post' action='{{encoder.Encode(prefix)}}/login'>
-              <input type='hidden' name='returnUrl' value='{{encoder.Encode(returnUrl)}}' />
-              <label>Username<input type='text' name='username' autocomplete='username' autofocus required /></label>
-              <label>Password<input type='password' name='password' autocomplete='current-password' required /></label>
-              <button type='submit'>Sign in</button>
-            </form>
-            </body></html>
-            """;
-    }
+    private sealed record LoginRequest(string? Username, string? Password);
 }

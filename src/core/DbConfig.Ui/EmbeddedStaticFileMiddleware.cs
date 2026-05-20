@@ -17,13 +17,13 @@ internal sealed class EmbeddedStaticFileMiddleware
     private const string EmbeddedNamespace = "DbConfig.Ui.dist";
     private readonly string _indexHtml;
 
-    internal EmbeddedStaticFileMiddleware(string uiPrefix, string apiPrefix)
+    internal EmbeddedStaticFileMiddleware(string uiPrefix, string apiPrefix, bool hasBuiltInLogin)
     {
         FileProvider = new EmbeddedFileProvider(
             typeof(EmbeddedStaticFileMiddleware).GetTypeInfo().Assembly,
             EmbeddedNamespace);
 
-        _indexHtml = BuildIndexHtml(uiPrefix, apiPrefix);
+        _indexHtml = BuildIndexHtml(uiPrefix, apiPrefix, hasBuiltInLogin);
     }
 
     internal EmbeddedFileProvider FileProvider { get; }
@@ -35,7 +35,7 @@ internal sealed class EmbeddedStaticFileMiddleware
         await context.Response.WriteAsync(_indexHtml, Encoding.UTF8, context.RequestAborted);
     }
 
-    private string BuildIndexHtml(string uiPrefix, string apiPrefix)
+    private string BuildIndexHtml(string uiPrefix, string apiPrefix, bool hasBuiltInLogin)
     {
         var fileInfo = FileProvider.GetFileInfo("index.html");
         if (!fileInfo.Exists)
@@ -57,10 +57,12 @@ internal sealed class EmbeddedStaticFileMiddleware
         html = html.Replace("href=\"./", $"href=\"{normalizedPrefix}/", StringComparison.Ordinal);
 
         var metaTag = $"<meta name=\"db-config-api-prefix\" content=\"{apiPrefix}\" />";
+        var hasLoginLiteral = hasBuiltInLogin ? "true" : "false";
+        var scriptBlock = $"<script>window.dbConfig = {{ apiPrefix: \"{apiPrefix}\", hasBuiltInLogin: {hasLoginLiteral} }};</script>";
         var headEndIndex = html.IndexOf("</head>", StringComparison.Ordinal);
         if (headEndIndex >= 0)
         {
-            html = html.Insert(headEndIndex, metaTag);
+            html = html.Insert(headEndIndex, metaTag + scriptBlock);
         }
 
         return html;

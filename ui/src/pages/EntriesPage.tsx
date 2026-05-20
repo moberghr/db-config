@@ -22,9 +22,10 @@ import { Plus, Upload } from 'lucide-react'
 
 interface EntriesPageProps {
   header?: React.ReactNode
+  headerExtras?: React.ReactNode
 }
 
-export function EntriesPage({ header }: EntriesPageProps = {}) {
+export function EntriesPage({ header, headerExtras }: EntriesPageProps = {}) {
   const refresh = useEntriesStore((s) => s.refresh)
   const entries = useEntriesStore((s) => s.entries)
   const appName = useScopeStore((s) => s.appName)
@@ -63,7 +64,10 @@ export function EntriesPage({ header }: EntriesPageProps = {}) {
           <h1 className="text-xl font-semibold">DbConfig</h1>
           {header}
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          {headerExtras}
+          <ThemeToggle />
+        </div>
       </header>
       <main className="px-6 py-6 space-y-4">
         <AccessWarningBanner />

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using DbConfig.Core;
 using DbConfig.Http;
@@ -26,19 +27,12 @@ public sealed class MapDbConfigAdminTests
     {
         await using var app = await BuildAppAsync(opts => opts.UseBuiltInLogin<FakeValidator>());
 
-        // 1. Sign in via the UI's built-in login.
-        var form = new FormUrlEncodedContent(
-        [
-            new KeyValuePair<string, string>("username", "admin"),
-            new KeyValuePair<string, string>("password", "letmein"),
-            new KeyValuePair<string, string>("returnUrl", "/admin/dbconfig"),
-        ]);
-
-        var loginResponse = await app.Client.PostAsync(
-            "/admin/dbconfig/login",
-            form,
+        // 1. Sign in via the UI's built-in JSON login endpoint.
+        var loginResponse = await app.Client.PostAsJsonAsync(
+            "/admin/dbconfig/api/auth/login",
+            new { username = "admin", password = "letmein" },
             TestContext.Current.CancellationToken);
-        loginResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        loginResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
         var setCookie = loginResponse.Headers.GetValues("Set-Cookie").FirstOrDefault() ?? string.Empty;
 
         var cookieValue = ExtractCookieValue(setCookie);
@@ -65,20 +59,25 @@ public sealed class MapDbConfigAdminTests
     }
 
     [TimedFact]
-    public async Task UnifiedMount_WithoutLogin_BothRedirect()
+    public async Task UnifiedMount_WithoutLogin_BrowserGetsSpaShellApiGets401()
     {
         await using var app = await BuildAppAsync(opts => opts.UseBuiltInLogin<FakeValidator>());
 
-        // Browser-style request (Accept: text/html) → 302 to the login page.
+        // v0.11.0: browser GETs no longer 302 to /login — the SPA shell renders and the
+        // React app calls /api/auth/status to decide whether to render LoginPage. The
+        // returned HTML must include the window.dbConfig globals so the SPA knows the
+        // host has built-in login enabled.
         var uiRequest = new HttpRequestMessage(HttpMethod.Get, "/admin/dbconfig");
         uiRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
         var uiResponse = await app.Client.SendAsync(
             uiRequest,
-            HttpCompletionOption.ResponseHeadersRead,
             TestContext.Current.CancellationToken);
 
-        uiResponse.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        uiResponse.Headers.Location?.OriginalString.ShouldContain("/admin/dbconfig/login");
+        uiResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        uiResponse.Content.Headers.ContentType?.MediaType.ShouldBe("text/html");
+        var body = await uiResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.ShouldContain("window.dbConfig");
+        body.ShouldContain("hasBuiltInLogin: true");
 
         // API request without cookie → 401 (the HTTP surface doesn't redirect; it returns 401).
         var apiResponse = await app.Client.GetAsync(

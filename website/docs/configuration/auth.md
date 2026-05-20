@@ -111,24 +111,47 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
 });
 ```
 
-What this wires up:
+What this wires up (v0.11.0 refactor — React-rendered):
 
-- `GET /admin/dbconfig/login` — renders a minimal HTML form (no external CSS/JS).
-- `POST /admin/dbconfig/login` — calls your validator. On success, signs a
-  cookie via `IDataProtectionProvider` and redirects to the validated
-  `returnUrl`. On failure, redirects to `/login?error=1`.
-- `POST /admin/dbconfig/logout` — clears the cookie and redirects to `/login`.
-- Endpoint filter on the route group — redirects unauthorized browser
-  requests to `/login?returnUrl=...` and returns `401` to API/non-browser
-  callers.
+- `GET /admin/dbconfig/login` — serves the SPA `index.html`. The React app
+  detects unauthenticated state via `GET /api/auth/status` and renders its
+  own `<LoginPage>` component (shared theme tokens, dark mode, identical
+  visual language to the rest of the dashboard).
+- `POST /admin/dbconfig/api/auth/login` — accepts JSON
+  `{ "username": "...", "password": "..." }`, calls your validator. On
+  success, signs a cookie via `IDataProtectionProvider` and returns
+  `200 OK { "ok": true }`. On failure, returns
+  `401 Unauthorized { "error": "Invalid credentials" }`.
+- `POST /admin/dbconfig/api/auth/logout` — clears the cookie, returns
+  `200 OK { "ok": true }`.
+- `GET /admin/dbconfig/api/auth/status` — returns
+  `{ "authenticated": bool, "hasBuiltInLogin": true, "username": string? }`.
+  Always reachable (no cookie required) so the SPA can decide whether to
+  render `<LoginPage>` on boot.
+- Endpoint filter on the route group — for unauthorized browser
+  navigations, lets the SPA shell render (the React app handles the login
+  flow itself); for unauthorized API/non-browser callers, returns `401`.
+
+Manual curl example:
+
+```bash
+# Sign in
+curl -i -X POST http://localhost:5000/admin/dbconfig/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"letmein"}'
+
+# Check status (with cookie jar)
+curl -i --cookie cookies.txt http://localhost:5000/admin/dbconfig/api/auth/status
+```
 
 Defaults: cookie name `dbconfig-auth`, expiry 7 days (sliding), path scoped to
 the prefix, `HttpOnly`, `SameSite=Strict`, `Secure` flag auto-set on HTTPS.
 Override via `opts.CookieName` / `opts.CookieExpireTimeSpan`.
 
-**`returnUrl` safety:** the package rejects protocol-relative URLs
-(`//evil.example/...`), CRLF injection, and any URL that doesn't start with
-`/`. Invalid values fall back to the configured prefix.
+**`returnUrl` handling:** because login is now driven by the SPA, there is no
+server-side `returnUrl` parameter to validate. The browser stays on the page
+that triggered the login; once authenticated, the React app simply re-checks
+status and mounts the dashboard.
 
 Shared cookie for the sibling HTTP API: capture the auto-wired filter and
 pass it to a new `MapDbConfigHttp` overload:
@@ -173,7 +196,9 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
 ```
 
 Unauthorized requests get:
-- 302 to the built-in `/login` if `UseBuiltInLogin<T>()` is set, OR
+- The SPA shell (so the React `<LoginPage>` can render) if
+  `UseBuiltInLogin<T>()` is set and the request looks like a browser
+  navigation, OR
 - 302 to `UnauthorizedRedirectUrl?returnUrl=...` for browsers if that is set, OR
 - 401 in every other case.
 
@@ -184,10 +209,10 @@ example (allows loopback addresses; convenient for dev).
 
 | Pattern | Identity owner | Built-in form | Redirect on 401 |
 |---|---|---|---|
-| `MapDbConfigAdmin` + `UseBuiltInLogin<T>` | Consumer-implemented validator | yes | yes (`/login`) |
+| `MapDbConfigAdmin` + `UseBuiltInLogin<T>` | Consumer-implemented validator | yes (React) | SPA gates on `/api/auth/status` |
 | Open access | (none) | n/a | n/a |
 | `RequireAuthorization` | Host's existing auth pipeline | (consumer's) | (consumer's) |
-| Split prefixes + `UseBuiltInLogin<T>` | Consumer-implemented validator | yes | yes (`/login`) |
+| Split prefixes + `UseBuiltInLogin<T>` | Consumer-implemented validator | yes (React) | SPA gates on `/api/auth/status` |
 | Custom filter + `UnauthorizedRedirectUrl` | Consumer-implemented filter | no | yes (consumer's URL) |
 
 Pick pattern 1 when starting fresh. Pick pattern 3 if your host already has

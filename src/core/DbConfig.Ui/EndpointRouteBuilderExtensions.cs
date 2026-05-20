@@ -94,7 +94,7 @@ public static class EndpointRouteBuilderExtensions
         string apiPrefix,
         DbConfigUiOptions options)
     {
-        var middleware = new EmbeddedStaticFileMiddleware(prefix, apiPrefix);
+        var middleware = new EmbeddedStaticFileMiddleware(prefix, apiPrefix, options.CredentialValidatorType is not null);
         var group = endpoints.MapGroup(prefix);
 
         // Auth filter runs first for every endpoint in the group. When no Authorization is
@@ -106,15 +106,20 @@ public static class EndpointRouteBuilderExtensions
         }
 
         // Built-in login endpoints — registered only when UseBuiltInLogin<T>() was called.
+        // The login UI itself is rendered by the React SPA: the catch-all serves index.html
+        // for /login. These JSON endpoints expose the contract the SPA calls. /api/auth/status
+        // MUST be reachable without a valid cookie so the SPA can decide whether to render
+        // the login page; the auth filter exempts /api/auth/* paths for the same reason
+        // /login + /logout were exempted in the server-rendered design.
         if (options.CredentialValidatorType is not null)
         {
-            group.MapGet("/login", async (HttpContext ctx) =>
-                await BuiltInLoginEndpoints.HandleLoginGetAsync(ctx, options, prefix));
+            group.MapGet("/api/auth/status", async (HttpContext ctx) =>
+                await BuiltInLoginEndpoints.HandleAuthStatusAsync(ctx, options));
 
-            group.MapPost("/login", async (HttpContext ctx) =>
+            group.MapPost("/api/auth/login", async (HttpContext ctx) =>
                 await BuiltInLoginEndpoints.HandleLoginPostAsync(ctx, options, prefix));
 
-            group.MapPost("/logout", async (HttpContext ctx) =>
+            group.MapPost("/api/auth/logout", async (HttpContext ctx) =>
                 await BuiltInLoginEndpoints.HandleLogoutPostAsync(ctx, options, prefix));
         }
 

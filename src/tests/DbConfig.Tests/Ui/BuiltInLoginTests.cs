@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using DbConfig.Http;
 using DbConfig.Tests.TestData;
 using DbConfig.Ui;
@@ -13,14 +15,16 @@ using Shouldly;
 namespace DbConfig.Tests.Ui;
 
 /// <summary>
-/// End-to-end of the built-in cookie login: anonymous GET → 302 to /login,
-/// POST /login with valid creds → 302 back with auth cookie, follow-up GET → 200.
+/// End-to-end of the built-in cookie login under the v0.11.0 React-rendered design:
+/// the SPA shell handles the login UI; the backend exposes a JSON contract for
+/// status / login / logout under <c>/api/auth/*</c>. The catch-all serves
+/// <c>index.html</c> for <c>/login</c>.
 /// </summary>
 [Trait("Category", "Unit")]
 public sealed class BuiltInLoginTests : IAsyncLifetime
 {
     private WebApplication? _app;
-    private HttpClient? _noRedirectClient;
+    private HttpClient? _client;
 
     public async ValueTask InitializeAsync()
     {
@@ -34,13 +38,12 @@ public sealed class BuiltInLoginTests : IAsyncLifetime
         _app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts => opts.UseBuiltInLogin<FakeValidator>());
 
         await _app.StartAsync(TestContext.Current.CancellationToken);
-        _noRedirectClient = _app.GetTestServer().CreateClient();
-        _noRedirectClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+        _client = _app.GetTestServer().CreateClient();
     }
 
     public async ValueTask DisposeAsync()
     {
-        _noRedirectClient?.Dispose();
+        _client?.Dispose();
         if (_app is not null)
         {
             await _app.StopAsync(CancellationToken.None);
@@ -49,108 +52,139 @@ public sealed class BuiltInLoginTests : IAsyncLifetime
     }
 
     [TimedFact]
-    public async Task AnonymousRequest_RedirectsToLoginWithReturnUrl()
+    public async Task LoginGet_NowServesSpaIndexHtml()
     {
-        var response = await _noRedirectClient!.GetAsync(
-            "/admin/dbconfig",
-            HttpCompletionOption.ResponseHeadersRead,
-            TestContext.Current.CancellationToken);
+        var request = new HttpRequestMessage(HttpMethod.Get, "/admin/dbconfig/login");
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        var location = response.Headers.Location?.OriginalString ?? string.Empty;
-        location.ShouldContain("/admin/dbconfig/login");
-        location.ShouldContain("returnUrl=");
-    }
-
-    [TimedFact]
-    public async Task LoginGet_RendersForm()
-    {
-        var response = await _noRedirectClient!.GetAsync(
-            "/admin/dbconfig/login",
-            TestContext.Current.CancellationToken);
+        var response = await _client!.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/html");
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        body.ShouldContain("<form");
-        body.ShouldContain("name='password'");
+        body.ShouldContain("<html");
+        body.ShouldContain("window.dbConfig");
+        body.ShouldContain("hasBuiltInLogin: true");
     }
 
     [TimedFact]
-    public async Task LoginPost_ValidCreds_SetsCookieAndRedirects()
+    public async Task LoginPost_ValidCredentials_ReturnsOkWithCookie()
     {
-        var form = new FormUrlEncodedContent(
-        [
-            new KeyValuePair<string, string>("username", "admin"),
-            new KeyValuePair<string, string>("password", "letmein"),
-            new KeyValuePair<string, string>("returnUrl", "/admin/dbconfig"),
-        ]);
-
-        var response = await _noRedirectClient!.PostAsync(
-            "/admin/dbconfig/login",
-            form,
+        var response = await _client!.PostAsJsonAsync(
+            "/admin/dbconfig/api/auth/login",
+            new { username = "admin", password = "letmein" },
             TestContext.Current.CancellationToken);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        response.Headers.Location?.OriginalString.ShouldBe("/admin/dbconfig");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
 
         var setCookie = response.Headers.GetValues("Set-Cookie").FirstOrDefault() ?? string.Empty;
         setCookie.ShouldContain("dbconfig-auth=");
 
-        // Extract the cookie value and use it to call the protected root again.
         var cookieValue = ExtractCookieValue(setCookie);
         cookieValue.ShouldNotBeNullOrEmpty();
 
+        // Re-issue an authed request and confirm the cookie unlocks the UI.
         var authedRequest = new HttpRequestMessage(HttpMethod.Get, "/admin/dbconfig");
         authedRequest.Headers.Add("Cookie", $"dbconfig-auth={cookieValue}");
 
-        var authed = await _noRedirectClient.SendAsync(
+        var authed = await _client!.SendAsync(
             authedRequest,
             TestContext.Current.CancellationToken);
 
         authed.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var body = await authed.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        body.ShouldContain("<html");
     }
 
     [TimedFact]
-    public async Task LoginPost_InvalidCreds_RedirectsToErrorForm()
+    public async Task LoginPost_InvalidCredentials_Returns401WithJsonError()
     {
-        var form = new FormUrlEncodedContent(
-        [
-            new KeyValuePair<string, string>("username", "admin"),
-            new KeyValuePair<string, string>("password", "wrong"),
-            new KeyValuePair<string, string>("returnUrl", "/admin/dbconfig"),
-        ]);
-
-        var response = await _noRedirectClient!.PostAsync(
-            "/admin/dbconfig/login",
-            form,
+        var response = await _client!.PostAsJsonAsync(
+            "/admin/dbconfig/api/auth/login",
+            new { username = "admin", password = "wrong" },
             TestContext.Current.CancellationToken);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        var location = response.Headers.Location?.OriginalString ?? string.Empty;
-        location.ShouldContain("/admin/dbconfig/login");
-        location.ShouldContain("error=1");
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetProperty("error").GetString().ShouldNotBeNullOrEmpty();
     }
 
     [TimedFact]
-    public async Task LoginPost_OpenRedirectAttempt_FallsBackToPrefix()
+    public async Task Logout_ClearsCookieAndReturnsOk()
     {
-        var form = new FormUrlEncodedContent(
-        [
-            new KeyValuePair<string, string>("username", "admin"),
-            new KeyValuePair<string, string>("password", "letmein"),
-            new KeyValuePair<string, string>("returnUrl", "//evil.example/path"),
-        ]);
-
-        var response = await _noRedirectClient!.PostAsync(
-            "/admin/dbconfig/login",
-            form,
+        var response = await _client!.PostAsync(
+            "/admin/dbconfig/api/auth/logout",
+            content: null,
             TestContext.Current.CancellationToken);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        response.Headers.Location?.OriginalString.ShouldBe("/admin/dbconfig");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
+
+        // Delete cookie semantics: emit a Set-Cookie that expires the cookie.
+        var setCookie = response.Headers.GetValues("Set-Cookie").FirstOrDefault() ?? string.Empty;
+        setCookie.ShouldContain("dbconfig-auth=");
+    }
+
+    [TimedFact]
+    public async Task AuthStatus_Unauthenticated_ReturnsAuthenticatedFalseWithHasBuiltInLoginTrue()
+    {
+        var response = await _client!.GetAsync(
+            "/admin/dbconfig/api/auth/status",
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetProperty("authenticated").GetBoolean().ShouldBeFalse();
+        doc.RootElement.GetProperty("hasBuiltInLogin").GetBoolean().ShouldBeTrue();
+    }
+
+    [TimedFact]
+    public async Task AuthStatus_AfterLogin_ReturnsAuthenticatedTrueWithUsername()
+    {
+        // Sign in to acquire a cookie.
+        var login = await _client!.PostAsJsonAsync(
+            "/admin/dbconfig/api/auth/login",
+            new { username = "admin", password = "letmein" },
+            TestContext.Current.CancellationToken);
+
+        login.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var cookieValue = ExtractCookieValue(login.Headers.GetValues("Set-Cookie").First());
+        cookieValue.ShouldNotBeNullOrEmpty();
+
+        // Hit status with the cookie attached.
+        var request = new HttpRequestMessage(HttpMethod.Get, "/admin/dbconfig/api/auth/status");
+        request.Headers.Add("Cookie", $"dbconfig-auth={cookieValue}");
+
+        var response = await _client!.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var doc = JsonDocument.Parse(body);
+        doc.RootElement.GetProperty("authenticated").GetBoolean().ShouldBeTrue();
+        doc.RootElement.GetProperty("hasBuiltInLogin").GetBoolean().ShouldBeTrue();
+        doc.RootElement.GetProperty("username").GetString().ShouldBe("admin");
+    }
+
+    [TimedFact]
+    public async Task BrowserNavigation_Unauthenticated_ServesSpaShellNotRedirect()
+    {
+        // v0.11.0: browser GETs no longer 302 to /login — the SPA shell renders and
+        // the React app calls /api/auth/status to decide whether to show LoginPage.
+        var request = new HttpRequestMessage(HttpMethod.Get, "/admin/dbconfig");
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+
+        var response = await _client!.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("text/html");
     }
 
     private static string? ExtractCookieValue(string setCookieHeader)

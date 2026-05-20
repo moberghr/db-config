@@ -8,30 +8,30 @@ namespace DbConfig.Ui;
 /// <summary>
 /// Endpoint filter that enforces <see cref="DbConfigUiOptions.Authorization"/> on every
 /// request that enters the UI route group. When the request is unauthorized, the filter
-/// short-circuits with an HTTP 401 (API/non-browser callers) or a 302 to either the
-/// built-in <c>/login</c> page or <see cref="DbConfigUiOptions.UnauthorizedRedirectUrl"/>.
+/// short-circuits with an HTTP 401 (API callers), a 302 to
+/// <see cref="DbConfigUiOptions.UnauthorizedRedirectUrl"/> (browser, custom redirect), or
+/// lets the SPA shell render so the React app can show its own login page (browser,
+/// built-in login enabled).
 /// </summary>
 internal sealed class DbConfigUiAuthFilter : IEndpointFilter
 {
     private readonly DbConfigUiOptions _options;
-    private readonly string _prefix;
-    private readonly string _loginPath;
+    private readonly string _authPathPrefix;
 
     internal DbConfigUiAuthFilter(DbConfigUiOptions options, string prefix)
     {
         _options = options;
-        _prefix = prefix;
-        _loginPath = $"{prefix}/login";
+        _authPathPrefix = $"{prefix}/api/auth/";
     }
 
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var httpContext = context.HttpContext;
 
-        // /login and /logout endpoints are always reachable; the login endpoints
-        // themselves are the way to acquire credentials in the first place.
+        // /api/auth/* endpoints are always reachable: status is the way the SPA detects
+        // login state in the first place, and login/logout are the credential exchange.
         var path = httpContext.Request.Path.Value ?? string.Empty;
-        if (IsLoginOrLogoutPath(path))
+        if (IsAuthApiPath(path))
         {
             return await next(context);
         }
@@ -47,24 +47,14 @@ internal sealed class DbConfigUiAuthFilter : IEndpointFilter
             return await next(context);
         }
 
-        return UnauthorizedResult(httpContext);
-    }
-
-    private bool IsLoginOrLogoutPath(string path)
-    {
-        return string.Equals(path, _loginPath, StringComparison.Ordinal)
-            || string.Equals(path, $"{_prefix}/logout", StringComparison.Ordinal);
-    }
-
-    private IResult UnauthorizedResult(HttpContext httpContext)
-    {
         var isBrowser = LooksLikeBrowserRequest(httpContext.Request);
 
+        // Built-in login is enabled and the request looks like a browser navigation:
+        // let the SPA shell render so the React app can show its own login page. The
+        // SPA hits /api/auth/status (always reachable) on mount to decide what to render.
         if (isBrowser && _options.CredentialValidatorType is not null)
         {
-            var returnUrl = Uri.EscapeDataString(httpContext.Request.Path + httpContext.Request.QueryString);
-
-            return Results.Redirect($"{_loginPath}?returnUrl={returnUrl}");
+            return await next(context);
         }
 
         if (isBrowser && !string.IsNullOrEmpty(_options.UnauthorizedRedirectUrl))
@@ -76,6 +66,11 @@ internal sealed class DbConfigUiAuthFilter : IEndpointFilter
         }
 
         return Results.StatusCode(StatusCodes.Status401Unauthorized);
+    }
+
+    private bool IsAuthApiPath(string path)
+    {
+        return path.StartsWith(_authPathPrefix, StringComparison.Ordinal);
     }
 
     private static bool LooksLikeBrowserRequest(HttpRequest request)
