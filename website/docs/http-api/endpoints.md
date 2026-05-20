@@ -14,11 +14,11 @@ return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp` (
 |--------|------|------|---------|-------------|
 | `GET` | `/` | — | 200 / 403 | Flat-query all entries with optional filters |
 | `GET` | `/audit` | — | 200 / 403 | Flat-query audit timeline with optional filters |
-| `GET` | `/{appName}/{environment}/{*key}` | — | 200 / 404 | Get a single entry |
-| `PUT` | `/{appName}/{environment}/{*key}` | `UpsertEntryRequest` | 204 | Create or update an entry |
-| `DELETE` | `/{appName}/{environment}/{*key}` | — | 204 | Delete an entry |
+| `GET` | `/{scope}/{environment}/{*key}` | — | 200 / 404 | Get a single entry |
+| `PUT` | `/{scope}/{environment}/{*key}` | `UpsertEntryRequest` | 204 | Create or update an entry |
+| `DELETE` | `/{scope}/{environment}/{*key}` | — | 204 | Delete an entry |
 | `POST` | `/reload` | — | 204 | Trigger immediate in-process reload |
-| `GET` | `/{appName}/{environment}/audit/{*key}` | — | 200 | Get audit history for a key |
+| `GET` | `/{scope}/{environment}/audit/{*key}` | — | 200 | Get audit history for a key |
 
 All paths are relative to the prefix passed to `MapDbConfigHttp`. With prefix
 `/api/dbconfig`, the flat-query endpoint is `GET /api/dbconfig/`. With the unified
@@ -28,24 +28,24 @@ All paths are relative to the prefix passed to `MapDbConfigHttp`. With prefix
 
 Returns every entry across all apps, environments, and tenants with optional
 query-string filters. Used by the admin UI on first paint so operators see data
-immediately without having to enter `AppName` + `Environment` first.
+immediately without having to enter `Scope` + `Environment` first.
 
 **Optional query string filters (AND semantics — each narrows the result):**
 
 | Param | Behaviour |
 |---|---|
-| `appName` | Equality match on `AppName` |
+| `scope` | Equality match on `Scope` |
 | `environment` | Equality match on `Environment` |
 | `tenantId` | Case-sensitive equality on `TenantId`. Empty string matches global defaults |
 | `keyPrefix` | Case-insensitive `StartsWith` match on `Key` |
 | `take` | Result cap. Default `1000`, max `10000`. Out-of-range values are clamped |
 
-**Ordering:** `(AppName, Environment, TenantId, Key)` ascending. Stable across
+**Ordering:** `(Scope, Environment, TenantId, Key)` ascending. Stable across
 repeated calls with the same data — safe for paging.
 
 **Scope filter:** when the group was mounted with `MapDbConfigHttp(scopeFilter: "X")`,
-the endpoint forces `appName=X`. A caller-supplied `appName` that mismatches the filter
-returns `403 Forbidden`; an omitted `appName` is silently substituted with the filter.
+the endpoint forces `scope=X`. A caller-supplied `scope` that mismatches the filter
+returns `403 Forbidden`; an omitted `scope` is silently substituted with the filter.
 
 **Response:** `200 OK` with a JSON array of `ConfigEntry` (empty array when no rows
 match — never `404`). Secret entries are returned **decrypted** in plaintext, just
@@ -56,7 +56,7 @@ like the existing single-key `GET` endpoint.
 curl http://localhost:5000/admin/dbconfig/api/
 
 # Narrow by app + key prefix
-curl "http://localhost:5000/admin/dbconfig/api/?appName=MyApp&keyPrefix=Stripe:"
+curl "http://localhost:5000/admin/dbconfig/api/?scope=MyApp&keyPrefix=Stripe:"
 
 # Per-tenant view
 curl "http://localhost:5000/admin/dbconfig/api/?tenantId=Acme&take=50"
@@ -72,7 +72,7 @@ entries that no longer exist remain visible.
 
 | Param | Behaviour |
 |---|---|
-| `appName` | Equality match on `AppName` |
+| `scope` | Equality match on `Scope` |
 | `environment` | Equality match on `Environment` |
 | `tenantId` | Case-sensitive equality on `TenantId` |
 | `keyPrefix` | Case-insensitive `StartsWith` match on `Key` |
@@ -81,7 +81,7 @@ entries that no longer exist remain visible.
 
 **Ordering:** `ModifiedUtc DESC` (most recent first).
 
-**Scope filter:** same enforcement as `GET /` — a mismatch on `appName` returns
+**Scope filter:** same enforcement as `GET /` — a mismatch on `scope` returns
 `403 Forbidden`.
 
 **Response:** `200 OK` with a JSON array of `ConfigAuditEntry`. `Action` is serialized
@@ -96,9 +96,9 @@ curl http://localhost:5000/admin/dbconfig/api/audit
 curl "http://localhost:5000/admin/dbconfig/api/audit?action=Delete&take=50"
 ```
 
-## `GET /{appName}/{environment}/{*key}` — get single entry
+## `GET /{scope}/{environment}/{*key}` — get single entry
 
-Returns the single `ConfigEntry` identified by `(appName, environment, key)`, or `404 Not
+Returns the single `ConfigEntry` identified by `(scope, environment, key)`, or `404 Not
 Found` if no such entry exists. The `{*key}` catch-all route segment normalizes forward
 slashes to `:`, so `/Database/ConnectionString` and `/Database:ConnectionString` are
 equivalent.
@@ -112,7 +112,7 @@ Response (200):
 
 ```json
 {
-  "appName": "MyApp",
+  "scope": "MyApp",
   "environment": "Production",
   "tenantId": "",
   "key": "Database:ConnectionString",
@@ -126,7 +126,7 @@ Response (200):
 The `tenantId` defaults to the global default sentinel (`""`). Use the `?tenantId=` query
 string parameter on this endpoint to target a tenant-specific row.
 
-## `PUT /{appName}/{environment}/{*key}` — upsert
+## `PUT /{scope}/{environment}/{*key}` — upsert
 
 Creates a new entry or overwrites an existing one. Last-writer-wins on concurrent upserts
 to the same key. After a successful write, fires `IDbConfigReloadSignal.Trigger()`.
@@ -153,10 +153,10 @@ omitted. `tenantId` defaults to `""` (global default).
 
 Response: `204 No Content`.
 
-## `DELETE /{appName}/{environment}/{*key}` — delete
+## `DELETE /{scope}/{environment}/{*key}` — delete
 
 Removes the entry. No-op if the key does not exist. Targets the row identified by
-`{appName}/{environment}/{key}` and the `?tenantId=` query string parameter (default
+`{scope}/{environment}/{key}` and the `?tenantId=` query string parameter (default
 `""`). After a successful delete (including no-op), fires
 `IDbConfigReloadSignal.Trigger()`.
 
@@ -179,10 +179,10 @@ curl -X POST http://localhost:5000/admin/dbconfig/api/reload \
   -b "dbconfig-auth=$COOKIE"
 ```
 
-Note: the route is `/reload` with no `/{appName}/{environment}` prefix. It affects only
+Note: the route is `/reload` with no `/{scope}/{environment}` prefix. It affects only
 the in-process provider for this host.
 
-## `GET /{appName}/{environment}/audit/{*key}` — per-key audit history
+## `GET /{scope}/{environment}/audit/{*key}` — per-key audit history
 
 Returns the audit history for a single specific key, ordered most-recent-first. Backs the
 per-row history dialog in the UI.
@@ -200,7 +200,7 @@ Response (200):
 [
   {
     "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "appName": "MyApp",
+    "scope": "MyApp",
     "environment": "Production",
     "tenantId": "",
     "key": "Database:ConnectionString",
@@ -227,7 +227,7 @@ string name.
 | 204 | Successful PUT, DELETE, or POST /reload |
 | 400 | `?take` exceeds the per-endpoint cap |
 | 401 | Authorization filter rejected the request (built-in cookie or custom filter) |
-| 403 | `scopeFilter` mismatch — request appName does not match the group's filter |
+| 403 | `scopeFilter` mismatch — request scope does not match the group's filter |
 | 404 | Key not found on single-entry GET |
 | 500 | Unexpected store error |
 

@@ -8,7 +8,7 @@
   "out_of_scope": [
     "At-rest value encryption (deferred to v0.2.0+; v0.1.0 relies on DB TDE/column encryption)",
     "Audit log table with history (only inline ModifiedUtc/ModifiedBy)",
-    "Multi-tenancy beyond (AppName, Environment)",
+    "Multi-tenancy beyond (Scope, Environment)",
     "Push-based reload (Service Broker / LISTEN-NOTIFY)",
     "Import/export to JSON or appsettings format",
     "Diff view / history in the UI",
@@ -167,8 +167,8 @@
         "acceptance": [
           "UseSqlServer(connString) registers an EfCoreConfigStore that reads/writes a real SQL Server DB",
           "InitialCreate migration generates the DbConfig_Entries table per spec data model",
-          "Unique index on (AppName, Environment, Key) enforced",
-          "Index on (AppName, Environment, ModifiedUtc DESC) supports watermark query",
+          "Unique index on (Scope, Environment, Key) enforced",
+          "Index on (Scope, Environment, ModifiedUtc DESC) supports watermark query",
           "Integration tests round-trip CRUD and reload-on-watermark-advance"
         ],
         "verification": [
@@ -321,7 +321,7 @@
         ],
         "acceptance": [
           "Demo host runs with SQL Server connection from appsettings",
-          "DbConfig wired with AppName=DemoApp, Environment from IHostEnvironment",
+          "DbConfig wired with Scope=DemoApp, Environment from IHostEnvironment",
           "Demo DbConfigAdmin policy via API key middleware (clearly labeled NOT FOR PROD)",
           "SPA reachable at /admin/dbconfig",
           "JSON API reachable at /api/dbconfig"

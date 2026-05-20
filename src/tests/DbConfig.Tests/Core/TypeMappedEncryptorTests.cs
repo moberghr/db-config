@@ -46,7 +46,7 @@ public sealed class TypeMappedEncryptorTests
         ];
 
         var store = new RawValueStore(App, Env, entries);
-        var options = new DbConfigOptions { AppName = App, Environment = Env };
+        var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
             store,
@@ -72,7 +72,7 @@ public sealed class TypeMappedEncryptorTests
         ];
 
         var store = new RawValueStore(App, Env, entries);
-        var options = new DbConfigOptions { AppName = App, Environment = Env };
+        var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
             store,
@@ -104,7 +104,7 @@ public sealed class TypeMappedEncryptorTests
         ];
 
         var store = new RawValueStore(App, Env, entries);
-        var options = new DbConfigOptions { AppName = App, Environment = Env };
+        var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
             store,
@@ -140,7 +140,7 @@ public sealed class TypeMappedEncryptorTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = App;
+                b.Options.Scope = App;
                 b.Options.Environment = Env;
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
@@ -177,7 +177,7 @@ public sealed class TypeMappedEncryptorTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = App;
+                b.Options.Scope = App;
                 b.Options.Environment = Env;
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
@@ -214,7 +214,7 @@ public sealed class TypeMappedEncryptorTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = App;
+                b.Options.Scope = App;
                 b.Options.Environment = Env;
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
@@ -260,7 +260,7 @@ public sealed class TypeMappedEncryptorTests
         // Polling-side store carries raw ciphertext — mirrors the post-fix AddDbConfig
         // wiring where the polling EfCoreConfigStore is given encryptor: null.
         var store = new RawValueStore(App, Env, entries);
-        var options = new DbConfigOptions { AppName = App, Environment = Env };
+        var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
             store,
@@ -293,7 +293,7 @@ public sealed class TypeMappedEncryptorTests
         ];
 
         var store = new RawValueStore(App, Env, entries);
-        var options = new DbConfigOptions { AppName = App, Environment = Env };
+        var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
             store,
@@ -323,7 +323,7 @@ public sealed class TypeMappedEncryptorTests
         ];
 
         var store = new RawValueStore(App, Env, entries);
-        var options = new DbConfigOptions { AppName = App, Environment = Env };
+        var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
             store,
@@ -383,20 +383,20 @@ public sealed class TypeMappedEncryptorTests
     /// </summary>
     private sealed class RawValueStore : IConfigStore
     {
-        private readonly string _appName;
+        private readonly string _scope;
         private readonly string _environment;
         private readonly IReadOnlyList<ConfigEntry> _entries;
 
-        public RawValueStore(string appName, string environment, IReadOnlyList<ConfigEntry> entries)
+        public RawValueStore(string scope, string environment, IReadOnlyList<ConfigEntry> entries)
         {
-            _appName = appName;
+            _scope = scope;
             _environment = environment;
             _entries = entries;
         }
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
         {
-            if (!string.Equals(appName, _appName, StringComparison.OrdinalIgnoreCase) ||
+            if (!string.Equals(scope, _scope, StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(environment, _environment, StringComparison.OrdinalIgnoreCase))
             {
                 return Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
@@ -405,20 +405,20 @@ public sealed class TypeMappedEncryptorTests
             return Task.FromResult(_entries);
         }
 
-        public Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
+        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
         {
             var entry = _entries.FirstOrDefault(e =>
-                string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(e.Key, key, StringComparison.OrdinalIgnoreCase));
             return Task.FromResult(entry);
         }
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
+        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
         {
             var latest = _entries
                 .Where(e =>
-                    string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Max(e => (DateTimeOffset?)e.ModifiedUtc);
             return Task.FromResult(latest);
@@ -427,38 +427,38 @@ public sealed class TypeMappedEncryptorTests
         public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
             => throw new NotSupportedException("RawValueStore is read-only.");
 
-        public Task DeleteAsync(string appName, string environment, string key, CancellationToken ct)
+        public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
             => throw new NotSupportedException("RawValueStore is read-only.");
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
-            var result = appNames
-                .SelectMany(appName => _entries
+            var result = scopes
+                .SelectMany(scope => _entries
                     .Where(e =>
-                        string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
                         string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
             return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             var latest = _entries
                 .Where(e =>
-                    appNames.Contains(e.AppName, StringComparer.OrdinalIgnoreCase) &&
+                    scopes.Contains(e.Scope, StringComparer.OrdinalIgnoreCase) &&
                     string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Max(e => (DateTimeOffset?)e.ModifiedUtc);
             return Task.FromResult(latest);
         }
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
-            string appName, string environment, string tenantId, CancellationToken ct)
+            string scope, string environment, string tenantId, CancellationToken ct)
         {
             var result = _entries
                 .Where(e =>
-                    string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(e.TenantId, tenantId, StringComparison.Ordinal))
                 .ToList();
@@ -466,10 +466,10 @@ public sealed class TypeMappedEncryptorTests
         }
 
         public Task<ConfigEntry?> GetForTenantAsync(
-            string appName, string environment, string tenantId, string key, CancellationToken ct)
+            string scope, string environment, string tenantId, string key, CancellationToken ct)
         {
             var entry = _entries.FirstOrDefault(e =>
-                string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(e.TenantId, tenantId, StringComparison.Ordinal) &&
                 string.Equals(e.Key, key, StringComparison.OrdinalIgnoreCase));
@@ -477,11 +477,11 @@ public sealed class TypeMappedEncryptorTests
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
-            string appName, string environment, string tenantId, CancellationToken ct)
+            string scope, string environment, string tenantId, CancellationToken ct)
         {
             var latest = _entries
                 .Where(e =>
-                    string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(e.TenantId, tenantId, StringComparison.Ordinal))
                 .Max(e => (DateTimeOffset?)e.ModifiedUtc);
@@ -489,41 +489,41 @@ public sealed class TypeMappedEncryptorTests
         }
 
         public Task DeleteForTenantAsync(
-            string appName, string environment, string tenantId, string key, CancellationToken ct)
+            string scope, string environment, string tenantId, string key, CancellationToken ct)
             => throw new NotSupportedException("RawValueStore is read-only.");
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
-            string appName, string environment, CancellationToken ct)
+            string scope, string environment, CancellationToken ct)
         {
             var result = _entries
                 .Where(e =>
-                    string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(
-            string appName, string environment, CancellationToken ct)
+            string scope, string environment, CancellationToken ct)
         {
             var latest = _entries
                 .Where(e =>
-                    string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(e.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Max(e => (DateTimeOffset?)e.ModifiedUtc);
             return Task.FromResult(latest);
         }
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => GetAllScopedAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => GetAllScopedAsync(scopes, environment, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => GetLatestModifiedUtcScopedAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
-            string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
             => throw new NotSupportedException("RawValueStore does not implement QueryAsync.");
     }
 }

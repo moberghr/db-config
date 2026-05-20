@@ -18,7 +18,7 @@ internal static class QueryAuditEndpoint
 
     internal static async Task HandleAsync(
         HttpContext httpContext,
-        [FromQuery] string? appName,
+        [FromQuery] string? scope,
         [FromQuery] string? environment,
         [FromQuery] string? tenantId,
         [FromQuery] string? keyPrefix,
@@ -29,14 +29,14 @@ internal static class QueryAuditEndpoint
         CancellationToken ct)
     {
         // Scope filter enforcement — mirrors QueryEntriesEndpoint.
-        var effectiveAppName = appName;
+        var effectiveScope = scope;
         if (scopeFilter is not null)
         {
-            if (string.IsNullOrEmpty(effectiveAppName))
+            if (string.IsNullOrEmpty(effectiveScope))
             {
-                effectiveAppName = scopeFilter;
+                effectiveScope = scopeFilter;
             }
-            else if (!string.Equals(effectiveAppName, scopeFilter, StringComparison.Ordinal))
+            else if (!string.Equals(effectiveScope, scopeFilter, StringComparison.Ordinal))
             {
                 httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return;
@@ -74,7 +74,7 @@ internal static class QueryAuditEndpoint
             effectiveTake = MaxTake;
         }
 
-        var normalizedAppName = string.IsNullOrEmpty(effectiveAppName) ? null : effectiveAppName;
+        var normalizedScope = string.IsNullOrEmpty(effectiveScope) ? null : effectiveScope;
         var normalizedEnvironment = string.IsNullOrEmpty(environment) ? null : environment;
         var normalizedTenantId = tenantId; // empty string is valid (global-default sentinel)
         var normalizedKeyPrefix = string.IsNullOrEmpty(keyPrefix) ? null : keyPrefix;
@@ -90,7 +90,7 @@ internal static class QueryAuditEndpoint
         }
 
         var entries = await store.QueryAsync(
-            normalizedAppName,
+            normalizedScope,
             normalizedEnvironment,
             normalizedTenantId,
             normalizedKeyPrefix,

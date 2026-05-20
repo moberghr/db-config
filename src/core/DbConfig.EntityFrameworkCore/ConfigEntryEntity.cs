@@ -9,7 +9,7 @@ internal sealed class ConfigEntryEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    public string AppName { get; set; } = string.Empty;
+    public string Scope { get; set; } = string.Empty;
 
     public string Environment { get; set; } = string.Empty;
 
@@ -21,7 +21,7 @@ internal sealed class ConfigEntryEntity
 
     public bool IsSecret { get; set; }
 
-    public DateTime ModifiedUtc { get; set; }
+    public DateTimeOffset ModifiedUtc { get; set; }
 
     public string? ModifiedBy { get; set; }
 }

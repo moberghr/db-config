@@ -41,7 +41,7 @@ public sealed class QueryAuditEndpointTests
     }
 
     [TimedFact]
-    public async Task FilterByAppName_ReturnsOnlyMatching()
+    public async Task FilterByScope_ReturnsOnlyMatching()
     {
         var auditStore = new InMemoryConfigAuditStore();
         var now = DateTimeOffset.UtcNow;
@@ -55,14 +55,14 @@ public sealed class QueryAuditEndpointTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            "/api/dbconfig/audit?appName=AppA",
+            "/api/dbconfig/audit?scope=AppA",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var entries = await response.Content.ReadFromJsonAsync<JsonElement[]>(TestContext.Current.CancellationToken);
         entries.ShouldNotBeNull();
         entries.Length.ShouldBe(2);
-        entries.ShouldAllBe(e => e.GetProperty("appName").GetString() == "AppA");
+        entries.ShouldAllBe(e => e.GetProperty("scope").GetString() == "AppA");
     }
 
     [TimedFact]
@@ -180,7 +180,7 @@ public sealed class QueryAuditEndpointTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            "/api/dbconfig/audit?appName=B",
+            "/api/dbconfig/audit?scope=B",
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -204,7 +204,7 @@ public sealed class QueryAuditEndpointTests
         var entries = await response.Content.ReadFromJsonAsync<JsonElement[]>(TestContext.Current.CancellationToken);
         entries.ShouldNotBeNull();
         entries.Length.ShouldBe(1);
-        entries[0].GetProperty("appName").GetString().ShouldBe("A");
+        entries[0].GetProperty("scope").GetString().ShouldBe("A");
     }
 
     [TimedFact]
@@ -228,7 +228,7 @@ public sealed class QueryAuditEndpointTests
 
     private static void SeedAuditEntry(
         InMemoryConfigAuditStore auditStore,
-        string appName,
+        string scope,
         string environment,
         string key,
         DateTimeOffset modifiedUtc,
@@ -236,7 +236,7 @@ public sealed class QueryAuditEndpointTests
     {
         var entry = new ConfigAuditEntry(
             Id: Guid.NewGuid(),
-            AppName: appName,
+            Scope: scope,
             Environment: environment,
             TenantId: string.Empty,
             Key: key,

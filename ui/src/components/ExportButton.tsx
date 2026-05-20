@@ -6,15 +6,15 @@ import { flatToNested } from '@/lib/appsettings'
 import { Download } from 'lucide-react'
 
 export function ExportButton() {
-  const appName = useScopeStore((s) => s.appName)
+  const scope = useScopeStore((s) => s.scope)
   const environment = useScopeStore((s) => s.environment)
   const [exporting, setExporting] = useState(false)
 
   async function handleExport() {
-    if (!appName || !environment) return
+    if (!scope || !environment) return
     setExporting(true)
     try {
-      const entries = await queryEntries({ appName, environment, tenantId: '' })
+      const entries = await queryEntries({ scope, environment, tenantId: '' })
 
       const { config, metadata } = flatToNested(entries)
 
@@ -35,7 +35,7 @@ export function ExportButton() {
 
       const isoDate = new Date().toISOString().slice(0, 10)
       const safeName = (s: string) => s.replace(/[^a-zA-Z0-9-_]/g, '_')
-      const filename = `dbconfig-${safeName(appName)}-${safeName(environment)}-${isoDate}.json`
+      const filename = `dbconfig-${safeName(scope)}-${safeName(environment)}-${isoDate}.json`
 
       const anchor = document.createElement('a')
       anchor.href = url
@@ -52,7 +52,7 @@ export function ExportButton() {
       size="sm"
       variant="outline"
       className="gap-1.5"
-      disabled={!appName || !environment || exporting}
+      disabled={!scope || !environment || exporting}
       onClick={() => { void handleExport() }}
     >
       <Download className="h-3.5 w-3.5" />

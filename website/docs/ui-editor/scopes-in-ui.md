@@ -11,17 +11,17 @@ written to.
 
 ## Scope selector
 
-<Screenshot light="/img/screenshots/09-scope-selector.png" dark="/img/screenshots/09-scope-selector-dark.png" alt="Scope selector showing AppName, Environment, and IncludeScopes fields" />
+<Screenshot light="/img/screenshots/09-scope-selector.png" dark="/img/screenshots/09-scope-selector-dark.png" alt="Scope selector showing Scope, Environment, and IncludeScopes fields" />
 
 The scope selector panel has three fields:
 
-- **AppName** — the primary scope. New entries are written here unless the create dialog
-  overrides it. Corresponds to `DbConfigOptions.AppName` on the server.
+- **Scope** — the primary scope. New entries are written here unless the create dialog
+  overrides it. Corresponds to `DbConfigOptions.Scope` on the server.
 - **Environment** — the deployment environment (`Production`, `Development`, `Staging`,
   etc.). Filters all queries to this environment.
-- **IncludeScopes** — comma-separated list of additional `AppName` values to include.
+- **IncludeScopes** — comma-separated list of additional `Scope` values to include.
   Uses the same precedence rules as `DbConfigOptions.IncludeScopes`: the primary
-  `AppName` always wins. Example: `PlatformDefaults,Shared`.
+  `Scope` always wins. Example: `PlatformDefaults,Shared`.
 
 The selector values are persisted to `localStorage`. Refreshing the page restores the
 previous selection.
@@ -32,8 +32,8 @@ A toggle above the entries table switches between three view modes:
 
 | Mode | What it shows |
 |------|--------------|
-| **Mine** | Only entries from the primary `AppName` |
-| **Shared** | Only entries from the `IncludeScopes` (not the primary AppName) |
+| **Mine** | Only entries from the primary `Scope` |
+| **Shared** | Only entries from the `IncludeScopes` (not the primary Scope) |
 | **All** | All entries from all configured scopes, merged with precedence |
 
 The `All` view is the most useful for debugging: it shows which scope each value comes
@@ -42,7 +42,7 @@ from and makes shadowed/overridden entries visible.
 ## Scope badge
 
 In the `All` or `Shared` views, the **Scope** column shows a colored badge with the source
-`AppName` for each row. The badge color is consistent per scope name across the session.
+`Scope` for each row. The badge color is consistent per scope name across the session.
 
 Rows from included scopes have their edit and delete buttons disabled. The title attribute
 on the disabled button explains:
@@ -55,12 +55,12 @@ configured with `scopeFilter: "Shared"` or navigate to the admin UI for that sco
 ## Selector state and server-side options
 
 The scope selector is a client-side control — the values you type are used to construct
-the HTTP request (`GET /api/dbconfig/{appName}/{env}?includeScopes=...`). The UI does not
+the HTTP request (`GET /api/dbconfig/{scope}/{env}?includeScopes=...`). The UI does not
 enforce any server-side `IncludeScopes` configuration; you can query any scope you have
 read access to.
 
 If your host has `scopeFilter: "PaymentService"` set on the API group, queries for other
-`AppName` values will return `403`. The selector lets you try any scope; the server
+`Scope` values will return `403`. The selector lets you try any scope; the server
 enforces what you are allowed to read.
 
 ## Tree view
@@ -89,7 +89,7 @@ The Flat | Tree preference is persisted to `localStorage` via the scope store.
 
 ## Tenant scoping
 
-The scope selector has a **Tenant** input alongside AppName, Environment, and IncludeScopes.
+The scope selector has a **Tenant** input alongside Scope, Environment, and IncludeScopes.
 
 <Screenshot light="/img/screenshots/12-tenant-selector.png" dark="/img/screenshots/12-tenant-selector-dark.png" alt="Scope selector with Tenant field filled with Acme" />
 

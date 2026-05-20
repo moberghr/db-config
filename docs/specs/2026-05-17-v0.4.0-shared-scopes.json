@@ -61,7 +61,7 @@
         ],
         "acceptance": [
           "DbConfigOptions.IncludeScopes default empty; non-empty triggers scoped polling",
-          "Polling loop merges entries lowest-precedence-first; own AppName last (wins ties)",
+          "Polling loop merges entries lowest-precedence-first; own Scope last (wins ties)",
           "Watermark reload triggers on any included scope's ModifiedUtc advance",
           "Test doubles (FaultyWrapperStore, CountingWatermarkStore) get mechanical stubs"
         ],
@@ -78,7 +78,7 @@
           "src/tests/DbConfig.Tests/PostgreSql/PostgreSqlStoreScopedTests.cs"
         ],
         "acceptance": [
-          "GetAllScopedAsync issues a single SELECT with WHERE AppName IN (...) (verified via EF query logging)",
+          "GetAllScopedAsync issues a single SELECT with WHERE Scope IN (...) (verified via EF query logging)",
           "GetLatestModifiedUtcScopedAsync issues a single SELECT MAX(ModifiedUtc) over the IN set",
           "Parity tests on both SQL Server and PostgreSQL"
         ],
@@ -95,7 +95,7 @@
         ],
         "acceptance": [
           "GET /{app}/{env}?includeScopes=Shared,PlatformDefaults returns rows from all listed scopes",
-          "Each row's AppName field indicates source scope",
+          "Each row's Scope field indicates source scope",
           "Default (no query string) is unchanged: only own scope returned",
           "Server does NOT merge — returns all rows; UI/consumer merges"
         ],
@@ -112,8 +112,8 @@
         ],
         "acceptance": [
           "scopeFilter parameter accepted, default null",
-          "When set, an IEndpointFilter at the group level rejects mismatched {appName} routes with 403",
-          "Reload endpoint (no appName in route) always allowed",
+          "When set, an IEndpointFilter at the group level rejects mismatched {scope} routes with 403",
+          "Reload endpoint (no scope in route) always allowed",
           "Without scopeFilter, behavior is unchanged (regression)"
         ],
         "verification": ["dotnet build clean", "Suite ~100 → ~104"],
@@ -138,7 +138,7 @@
           "ScopeSelector accepts comma-separated IncludeScopes; persists to localStorage",
           "EntriesTable shows Scope column with colored badge (own = primary, shared = secondary)",
           "ViewModeToggle (Mine/Shared/All) filters the visible rows",
-          "Edit/Delete buttons disabled on rows where row.appName !== ownScope",
+          "Edit/Delete buttons disabled on rows where row.scope !== ownScope",
           "CreateEntryDialog includes scope selector (defaults to own)",
           "npm run build clean"
         ],
@@ -186,7 +186,7 @@
         ],
         "build": { "ok": true, "evidence": "0 errors" },
         "tests": { "ok": true, "evidence": "94/94 pass (+9 vs 85 baseline)" },
-        "behavioral_diff": "DbConfigOptions gains IncludeScopes; IConfigStore gains GetAllScopedAsync and GetLatestModifiedUtcScopedAsync as required methods; polling provider merges entries lowest-precedence-first with own AppName always winning ties; InMemoryConfigStore gets mechanical scoped implementations.",
+        "behavioral_diff": "DbConfigOptions gains IncludeScopes; IConfigStore gains GetAllScopedAsync and GetLatestModifiedUtcScopedAsync as required methods; polling provider merges entries lowest-precedence-first with own Scope always winning ties; InMemoryConfigStore gets mechanical scoped implementations.",
         "deviations": [
           { "kind": "extra-file", "detail": "FaultyWrapperStore and CountingWatermarkStore test doubles received mechanical GetAllScopedAsync and GetLatestModifiedUtcScopedAsync stubs", "justification": "Interface-compliance addition required by the new required methods; no logic change." }
         ]
@@ -200,7 +200,7 @@
         ],
         "build": { "ok": true, "evidence": "0 errors" },
         "tests": { "ok": true, "evidence": "108/108 pass (+14 vs 94)" },
-        "behavioral_diff": "EfCoreConfigStore.GetAllScopedAsync issues a single SELECT with WHERE AppName IN (...) then re-orders results in memory to match input list order (SQL IN does not preserve order); GetLatestModifiedUtcScopedAsync issues a single SELECT MAX(ModifiedUtc) over the IN set. Parity tests on both SQL Server and PostgreSQL.",
+        "behavioral_diff": "EfCoreConfigStore.GetAllScopedAsync issues a single SELECT with WHERE Scope IN (...) then re-orders results in memory to match input list order (SQL IN does not preserve order); GetLatestModifiedUtcScopedAsync issues a single SELECT MAX(ModifiedUtc) over the IN set. Parity tests on both SQL Server and PostgreSQL.",
         "deviations": []
       },
       {
@@ -211,7 +211,7 @@
         ],
         "build": { "ok": true, "evidence": "0 errors" },
         "tests": { "ok": true, "evidence": "114/114 pass (+6 vs 108)" },
-        "behavioral_diff": "ListEntriesEndpoint accepts optional ?includeScopes query string; when present it calls GetAllScopedAsync with the appName list (path appName appended last); server returns raw ordered rows — no server-side merging; each row's AppName field identifies the source scope. Default behavior (no query string) is unchanged.",
+        "behavioral_diff": "ListEntriesEndpoint accepts optional ?includeScopes query string; when present it calls GetAllScopedAsync with the scope list (path scope appended last); server returns raw ordered rows — no server-side merging; each row's Scope field identifies the source scope. Default behavior (no query string) is unchanged.",
         "deviations": []
       },
       {
@@ -222,7 +222,7 @@
         ],
         "build": { "ok": true, "evidence": "0 errors" },
         "tests": { "ok": true, "evidence": "122/122 pass (+8 vs 114)" },
-        "behavioral_diff": "MapDbConfigHttp gains optional scopeFilter parameter; when set an IEndpointFilter at the group level rejects requests whose {appName} route value differs from the filter with 403; the /reload endpoint (no appName route value) is always allowed; without scopeFilter behavior is unchanged.",
+        "behavioral_diff": "MapDbConfigHttp gains optional scopeFilter parameter; when set an IEndpointFilter at the group level rejects requests whose {scope} route value differs from the filter with 403; the /reload endpoint (no scope route value) is always allowed; without scopeFilter behavior is unchanged.",
         "deviations": []
       },
       {
@@ -240,7 +240,7 @@
         ],
         "build": { "ok": true, "evidence": "npm run build 0 errors" },
         "tests": { "ok": true, "evidence": "122/122 (UI build only; no new .NET tests)" },
-        "behavioral_diff": "React UI gains: ScopeSelector persists IncludeScopes to localStorage; EntriesTable shows Scope column with colored badge (own = primary, shared = secondary); ViewModeToggle (Mine/Shared/All) filters visible rows; Edit/Delete buttons disabled on rows where entry.AppName !== ownScope; CreateEntryDialog includes scope selector defaulting to own scope.",
+        "behavioral_diff": "React UI gains: ScopeSelector persists IncludeScopes to localStorage; EntriesTable shows Scope column with colored badge (own = primary, shared = secondary); ViewModeToggle (Mine/Shared/All) filters visible rows; Edit/Delete buttons disabled on rows where entry.Scope !== ownScope; CreateEntryDialog includes scope selector defaulting to own scope.",
         "deviations": []
       },
       {
@@ -260,6 +260,6 @@
         "deviations": []
       }
     ],
-    "behavioral_diff": "v0.4.0 delivered: DbConfigOptions.IncludeScopes enables multi-scope polling with explicit precedence (own AppName always wins); IConfigStore gains two required scoped methods (GetAllScopedAsync, GetLatestModifiedUtcScopedAsync) implemented in EfCoreConfigStore via single IN-clause queries with in-memory ordering; ListEntriesEndpoint accepts ?includeScopes for on-demand merged reads; MapDbConfigHttp gains optional scopeFilter for per-scope group-level authorization; React UI renders scope badges, a view-mode toggle, per-row write guards, and a scope selector in the create dialog. Test suite grew 85 → 122."
+    "behavioral_diff": "v0.4.0 delivered: DbConfigOptions.IncludeScopes enables multi-scope polling with explicit precedence (own Scope always wins); IConfigStore gains two required scoped methods (GetAllScopedAsync, GetLatestModifiedUtcScopedAsync) implemented in EfCoreConfigStore via single IN-clause queries with in-memory ordering; ListEntriesEndpoint accepts ?includeScopes for on-demand merged reads; MapDbConfigHttp gains optional scopeFilter for per-scope group-level authorization; React UI renders scope badges, a view-mode toggle, per-row write guards, and a scope selector in the create dialog. Test suite grew 85 → 122."
   }
 }

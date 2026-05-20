@@ -18,7 +18,7 @@ public sealed class PollingReloadTests
         var interval = reloadInterval ?? TimeSpan.FromSeconds(30);
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = interval,
         };
@@ -96,7 +96,7 @@ public sealed class PollingReloadTests
         var interval = TimeSpan.FromSeconds(30);
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = interval,
         };
@@ -165,16 +165,16 @@ public sealed class PollingReloadTests
             _inner = inner;
         }
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
-            => _inner.GetAllAsync(appName, environment, ct);
+        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
+            => _inner.GetAllAsync(scope, environment, ct);
 
-        public Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
-            => _inner.GetAsync(appName, environment, key, ct);
+        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+            => _inner.GetAsync(scope, environment, key, ct);
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
+        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
         {
             Interlocked.Increment(ref _watermarkCallCount);
-            var result = _inner.GetLatestModifiedUtcAsync(appName, environment, ct);
+            var result = _inner.GetLatestModifiedUtcAsync(scope, environment, ct);
             _nextCallTcs?.TrySetResult(true);
             return result;
         }
@@ -182,67 +182,67 @@ public sealed class PollingReloadTests
         public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
             => _inner.UpsertAsync(entry, ct);
 
-        public Task DeleteAsync(string appName, string environment, string key, CancellationToken ct)
-            => _inner.DeleteAsync(appName, environment, key, ct);
+        public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
+            => _inner.DeleteAsync(scope, environment, key, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => _inner.GetAllScopedAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => _inner.GetAllScopedAsync(scopes, environment, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             Interlocked.Increment(ref _watermarkCallCount);
-            var result = _inner.GetLatestModifiedUtcScopedAsync(appNames, environment, ct);
+            var result = _inner.GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
             _nextCallTcs?.TrySetResult(true);
             return result;
         }
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
-            string appName, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetAllForTenantAsync(appName, environment, tenantId, ct);
+            string scope, string environment, string tenantId, CancellationToken ct)
+            => _inner.GetAllForTenantAsync(scope, environment, tenantId, ct);
 
         public Task<ConfigEntry?> GetForTenantAsync(
-            string appName, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.GetForTenantAsync(appName, environment, tenantId, key, ct);
+            string scope, string environment, string tenantId, string key, CancellationToken ct)
+            => _inner.GetForTenantAsync(scope, environment, tenantId, key, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
-            string appName, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcForTenantAsync(appName, environment, tenantId, ct);
+            string scope, string environment, string tenantId, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcForTenantAsync(scope, environment, tenantId, ct);
 
         public Task DeleteForTenantAsync(
-            string appName, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.DeleteForTenantAsync(appName, environment, tenantId, key, ct);
+            string scope, string environment, string tenantId, string key, CancellationToken ct)
+            => _inner.DeleteForTenantAsync(scope, environment, tenantId, key, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
-            string appName, string environment, CancellationToken ct)
-            => _inner.GetAllForAllTenantsAsync(appName, environment, ct);
+            string scope, string environment, CancellationToken ct)
+            => _inner.GetAllForAllTenantsAsync(scope, environment, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(
-            string appName, string environment, CancellationToken ct)
+            string scope, string environment, CancellationToken ct)
         {
             Interlocked.Increment(ref _watermarkCallCount);
-            var result = _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(appName, environment, ct);
+            var result = _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(scope, environment, ct);
             _nextCallTcs?.TrySetResult(true);
             return result;
         }
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => _inner.GetAllScopedForAllTenantsAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => _inner.GetAllScopedForAllTenantsAsync(scopes, environment, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             Interlocked.Increment(ref _watermarkCallCount);
-            var result = _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(appNames, environment, ct);
+            var result = _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(scopes, environment, ct);
             _nextCallTcs?.TrySetResult(true);
             return result;
         }
 
         public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
-            string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
-            => _inner.QueryAsync(appName, environment, tenantId, keyPrefix, take, ct);
+            string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
     }
 
     [TimedFact]

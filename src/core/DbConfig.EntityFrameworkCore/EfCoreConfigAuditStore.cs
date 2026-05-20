@@ -33,7 +33,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
         var entity = new ConfigAuditEntryEntity
         {
             Id = entry.Id,
-            AppName = entry.AppName,
+            Scope = entry.Scope,
             Environment = entry.Environment,
             TenantId = entry.TenantId,
             Key = entry.Key,
@@ -51,19 +51,19 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
-        string appName, string environment, string key, int take, CancellationToken ct)
+        string scope, string environment, string key, int take, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var rows = await context.AuditEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName && x.Environment == environment && x.TenantId == string.Empty && x.Key == key)
+            .Where(x => x.Scope == scope && x.Environment == environment && x.TenantId == string.Empty && x.Key == key)
             .OrderByDescending(x => x.ModifiedUtc)
             .Take(take)
             .Select(x => new
             {
                 x.Id,
-                x.AppName,
+                x.Scope,
                 x.Environment,
                 x.TenantId,
                 x.Key,
@@ -90,7 +90,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
             return new ConfigAuditEntry(
                 row.Id,
-                row.AppName,
+                row.Scope,
                 row.Environment,
                 row.TenantId,
                 row.Key,
@@ -105,7 +105,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
-        string? appName,
+        string? scope,
         string? environment,
         string? tenantId,
         string? keyPrefix,
@@ -119,9 +119,9 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
             .AsNoTracking()
             .AsQueryable();
 
-        if (appName is not null)
+        if (scope is not null)
         {
-            query = query.Where(x => x.AppName == appName);
+            query = query.Where(x => x.Scope == scope);
         }
 
         if (environment is not null)
@@ -153,7 +153,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
             .Select(x => new
             {
                 x.Id,
-                x.AppName,
+                x.Scope,
                 x.Environment,
                 x.TenantId,
                 x.Key,
@@ -180,7 +180,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
             return new ConfigAuditEntry(
                 row.Id,
-                row.AppName,
+                row.Scope,
                 row.Environment,
                 row.TenantId,
                 row.Key,
@@ -208,19 +208,19 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
-        string appName, string environment, string tenantId, string key, int take, CancellationToken ct)
+        string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var rows = await context.AuditEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName && x.Environment == environment && x.TenantId == tenantId && x.Key == key)
+            .Where(x => x.Scope == scope && x.Environment == environment && x.TenantId == tenantId && x.Key == key)
             .OrderByDescending(x => x.ModifiedUtc)
             .Take(take)
             .Select(x => new
             {
                 x.Id,
-                x.AppName,
+                x.Scope,
                 x.Environment,
                 x.TenantId,
                 x.Key,
@@ -247,7 +247,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
             return new ConfigAuditEntry(
                 row.Id,
-                row.AppName,
+                row.Scope,
                 row.Environment,
                 row.TenantId,
                 row.Key,

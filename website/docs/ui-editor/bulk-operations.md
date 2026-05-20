@@ -41,12 +41,12 @@ entries where you understand the current storage state.
 
 ### Move to scope
 
-Moves selected entries to a different scope (different `AppName`). A scope picker dialog
+Moves selected entries to a different scope (different `Scope`). A scope picker dialog
 appears; choose the target scope from a dropdown.
 
 The move operation runs per entry:
-1. `PUT` to `/{targetAppName}/{env}/{key}` with the current value and `isSecret` flag
-2. If the PUT succeeds: `DELETE` from `/{sourceAppName}/{env}/{key}`
+1. `PUT` to `/{targetScope}/{env}/{key}` with the current value and `isSecret` flag
+2. If the PUT succeeds: `DELETE` from `/{sourceScope}/{env}/{key}`
 3. If the PUT fails: the DELETE is skipped — the original entry is preserved
 
 This two-step approach avoids data loss if the write to the target scope fails. It is

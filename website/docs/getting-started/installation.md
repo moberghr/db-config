@@ -68,7 +68,7 @@ conventions:
 ```csharp
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
     // b.Options.SchemaMode = SchemaMode.CreateIfMissing; // already the default
@@ -87,7 +87,7 @@ CI/CD pipeline owns the schema and applies it out of band:
 builder.AddDbConfig(b =>
 {
     b.Options.SchemaMode = SchemaMode.None;
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
 });
@@ -116,7 +116,7 @@ Three migrations ship with each provider:
 |-----------|-------------|
 | `InitialCreate` | Creates `DbConfig_Entries` table with the composite unique constraint and polling index |
 | `AddAuditEntries` | Creates `DbConfig_AuditEntries` table for the audit log |
-| `CaseSensitiveScopeColumns` | Sets binary collation on `AppName`, `Environment`, `TenantId`, and `Key` columns in both tables |
+| `CaseSensitiveScopeColumns` | Sets binary collation on `Scope`, `Environment`, `TenantId`, and `Key` columns in both tables |
 
 You do not need to run `dotnet ef migrations add` yourself. The migrations are embedded in
 the provider assembly. See [Migrations](../operations/migrations.md) for the full runbook
@@ -129,7 +129,7 @@ Once the packages are installed:
 ```csharp
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
 });

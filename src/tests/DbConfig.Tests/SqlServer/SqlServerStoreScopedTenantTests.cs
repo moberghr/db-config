@@ -55,14 +55,14 @@ public sealed class SqlServerStoreScopedTenantTests : IAsyncLifetime
         var results = await _store.GetAllScopedForAllTenantsAsync([AppShared, AppOwn], Env, CancellationToken.None);
 
         results.Count.ShouldBe(4);
-        results.ShouldContain(e => e.AppName == AppOwn && e.TenantId == string.Empty);
-        results.ShouldContain(e => e.AppName == AppShared && e.TenantId == string.Empty);
-        results.ShouldContain(e => e.AppName == AppOwn && e.TenantId == TenantAcme);
-        results.ShouldContain(e => e.AppName == AppShared && e.TenantId == TenantAcme);
+        results.ShouldContain(e => e.Scope == AppOwn && e.TenantId == string.Empty);
+        results.ShouldContain(e => e.Scope == AppShared && e.TenantId == string.Empty);
+        results.ShouldContain(e => e.Scope == AppOwn && e.TenantId == TenantAcme);
+        results.ShouldContain(e => e.Scope == AppShared && e.TenantId == TenantAcme);
     }
 
     [TimedFact(30_000)]
-    public async Task GetAllScopedForAllTenants_OrdersByAppNamePositionInInputList()
+    public async Task GetAllScopedForAllTenants_OrdersByScopePositionInInputList()
     {
         var t = DateTimeOffset.UtcNow;
         await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "K", "own", false, t, null), CancellationToken.None);
@@ -70,13 +70,13 @@ public sealed class SqlServerStoreScopedTenantTests : IAsyncLifetime
 
         var sharedFirst = await _store.GetAllScopedForAllTenantsAsync([AppShared, AppOwn], Env, CancellationToken.None);
         sharedFirst.Count.ShouldBe(2);
-        sharedFirst[0].AppName.ShouldBe(AppShared);
-        sharedFirst[1].AppName.ShouldBe(AppOwn);
+        sharedFirst[0].Scope.ShouldBe(AppShared);
+        sharedFirst[1].Scope.ShouldBe(AppOwn);
 
         var ownFirst = await _store.GetAllScopedForAllTenantsAsync([AppOwn, AppShared], Env, CancellationToken.None);
         ownFirst.Count.ShouldBe(2);
-        ownFirst[0].AppName.ShouldBe(AppOwn);
-        ownFirst[1].AppName.ShouldBe(AppShared);
+        ownFirst[0].Scope.ShouldBe(AppOwn);
+        ownFirst[1].Scope.ShouldBe(AppShared);
     }
 
     [TimedFact(30_000)]

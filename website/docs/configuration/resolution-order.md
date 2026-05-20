@@ -13,11 +13,11 @@ For per-dimension detail see [Scopes](./scopes.md) and [Multi-tenant config](./m
 | Dimension | DB filter | Composable? | Where decided |
 |---|---|---|---|
 | Environment | hard scalar `WHERE Environment = @env` | No | At startup via `DbConfigOptions.Environment`; never changes |
-| AppName | hard `WHERE AppName IN (own + IncludeScopes)` | Yes, via `IncludeScopes` | At startup via `DbConfigOptions.AppName` + `IncludeScopes` |
+| Scope | hard `WHERE Scope IN (own + IncludeScopes)` | Yes, via `IncludeScopes` | At startup via `DbConfigOptions.Scope` + `IncludeScopes` |
 | TenantId | not in DB query — every tenant loaded into memory | Picked per-read | Via `ITenantResolver.Resolve()` on every `TryGet` |
 | Key | dictionary lookup in memory | n/a | Via the `IConfiguration[key]` argument |
 
-`Environment` and `AppName` are decided at host startup and frozen for the lifetime of the process. `TenantId` is decided on every read, and `Key` is the lookup argument itself.
+`Environment` and `Scope` are decided at host startup and frozen for the lifetime of the process. `TenantId` is decided on every read, and `Key` is the lookup argument itself.
 
 ## Load time vs read time
 
@@ -26,7 +26,7 @@ DbConfig splits work between a periodic load and a per-read resolve:
 ```
 [ LOAD (every ReloadInterval, and on /reload signal) ]
   SELECT * FROM DbConfig_Entries
-   WHERE AppName IN (own AppName + IncludeScopes)
+   WHERE Scope IN (own Scope + IncludeScopes)
      AND Environment = @env
   → builds three in-memory structures:
       Data                    — global entries only (TenantId = "")
@@ -36,26 +36,26 @@ DbConfig splits work between a periodic load and a per-read resolve:
 [ READ (every IConfiguration[key] call) ]
   TryGet(key)
    → resolver.Resolve() → tenantId
-   → walk precedence (tenant-specific first, then global; AppName beats IncludeScopes)
+   → walk precedence (tenant-specific first, then global; Scope beats IncludeScopes)
    → decrypt if IsSecret
    → return value
 ```
 
-The DB query happens once per reload tick — it covers every tenant for this host's `(AppName ∪ IncludeScopes, Environment)` slice. The walk happens on every read, but it is pure dictionary lookups against the in-memory snapshot.
+The DB query happens once per reload tick — it covers every tenant for this host's `(Scope ∪ IncludeScopes, Environment)` slice. The walk happens on every read, but it is pure dictionary lookups against the in-memory snapshot.
 
 ## Precedence walk for a single read
 
 For a key, `TryGet` walks four candidate buckets in this order and returns the first match:
 
-1. **Tenant-specific, own AppName** — `_tenantData[tenantId][key]` where the row's `AppName` equals `Options.AppName`.
-2. **Tenant-specific, IncludeScope** — same `_tenantData[tenantId][key]`, but the row's `AppName` is one of `IncludeScopes`. Among multiple IncludeScopes, lowest-precedence-first in array order; later entries overwrite earlier ones during load.
-3. **Global, own AppName** — `Data[key]` from a row with `TenantId = ""` and `AppName = Options.AppName`.
-4. **Global, IncludeScope** — `Data[key]` from a row with `TenantId = ""` and `AppName` in `IncludeScopes`, lowest-precedence-first.
+1. **Tenant-specific, own Scope** — `_tenantData[tenantId][key]` where the row's `Scope` equals `Options.Scope`.
+2. **Tenant-specific, IncludeScope** — same `_tenantData[tenantId][key]`, but the row's `Scope` is one of `IncludeScopes`. Among multiple IncludeScopes, lowest-precedence-first in array order; later entries overwrite earlier ones during load.
+3. **Global, own Scope** — `Data[key]` from a row with `TenantId = ""` and `Scope = Options.Scope`.
+4. **Global, IncludeScope** — `Data[key]` from a row with `TenantId = ""` and `Scope` in `IncludeScopes`, lowest-precedence-first.
 
 Two rules emerge:
 
-- **Tenant axis dominates the scope axis.** A tenant-specific entry beats any global entry, regardless of which scope (own AppName vs IncludeScope) it lives in.
-- **Within a single bag (tenant-specific or global), scope precedence is AppName-wins.** This matches the rule from [Scopes](./scopes.md): own AppName is read last during load, so it wins ties.
+- **Tenant axis dominates the scope axis.** A tenant-specific entry beats any global entry, regardless of which scope (own Scope vs IncludeScope) it lives in.
+- **Within a single bag (tenant-specific or global), scope precedence is Scope-wins.** This matches the rule from [Scopes](./scopes.md): own Scope is read last during load, so it wins ties.
 
 If the resolver returns `null` or `""`, steps 1 and 2 are skipped — the read becomes global-only.
 
@@ -64,7 +64,7 @@ If the resolver returns `null` or `""`, steps 1 and 2 are skipped — the read b
 Configuration:
 
 ```csharp
-b.Options.AppName = "PaymentService";
+b.Options.Scope = "PaymentService";
 b.Options.Environment = "Production";
 b.Options.IncludeScopes = ["PlatformDefaults", "Shared"];
 b.AddTenantResolver<MyTenantResolver>();
@@ -73,7 +73,7 @@ b.AddTenantResolver<MyTenantResolver>();
 Seeded rows:
 
 ```
-AppName          TenantId   Key                Value
+Scope          TenantId   Key                Value
 -----------------------------------------------------------------
 PaymentService   ""         Stripe:ApiKey      sk_live_global_payment
 PaymentService   "Acme"     Stripe:ApiKey      sk_live_acme_payment
@@ -86,15 +86,15 @@ Resolution table for `IConfiguration["Stripe:ApiKey"]`:
 
 | Resolver returns | Walked buckets | Result |
 |---|---|---|
-| `"Acme"` | Tenant×AppName hits | `sk_live_acme_payment` |
-| `"Globex"` | Tenant buckets miss; global×AppName hits | `sk_live_global_payment` |
-| `null` | Tenant buckets skipped; global×AppName hits | `sk_live_global_payment` |
+| `"Acme"` | Tenant×Scope hits | `sk_live_acme_payment` |
+| `"Globex"` | Tenant buckets miss; global×Scope hits | `sk_live_global_payment` |
+| `null` | Tenant buckets skipped; global×Scope hits | `sk_live_global_payment` |
 
 Resolution table for `IConfiguration["Logging:Level"]`:
 
 | Resolver returns | Walked buckets | Result |
 |---|---|---|
-| `"Globex"` | Tenant×AppName miss; Tenant×Shared hits | `Debug` |
+| `"Globex"` | Tenant×Scope miss; Tenant×Shared hits | `Debug` |
 | `"Acme"` | Tenant buckets miss; global buckets miss | `null` |
 | `null` | Tenant buckets skipped; global buckets miss | `null` |
 
@@ -134,9 +134,74 @@ All four scope columns use case-sensitive comparison. `"Acme"` and `"acme"` are 
 
 Flipping `IsSecret` on a stored row after the fact produces undefined behavior. `true → false` leaves ciphertext in a plaintext-shaped slot (the decrypt step is skipped). `false → true` causes the next read to attempt to decrypt a plaintext value and throw. Delete and re-insert if you need to change the flag.
 
+## Behavior on delete
+
+Reload replaces the polling provider's snapshot **entirely** — it is not an incremental merge. Each reload builds fresh dictionaries from `IConfigStore.GetAllScopedForAllTenantsAsync(...)` and atomically swaps them in:
+
+```csharp
+// DbConfigConfigurationProvider.LoadAsync (simplified)
+var newTenantData = new ConcurrentDictionary<...>();
+var newData = new Dictionary<...>();
+foreach (var entry in entries) { /* populate fresh dicts */ }
+Data = newData;                                    // replace base
+Volatile.Write(ref _tenantData, newTenantData);    // replace tenant bag
+OnReload();                                        // fire IChangeToken
+```
+
+A deleted key is simply absent from the query result, so it's absent from the new dictionaries. The previous value is dropped when the old dictionaries go out of scope. After the reload:
+
+- `IConfiguration["DeletedKey"]` → `null`
+- `IOptionsSnapshot<T>.Value` (after re-bind on the next scope) → property gets CLR default (`null` / `0` / `false` / `default(T)`)
+- `IOptionsMonitor<T>.OnChange(...)` callbacks fire via the change token
+
+### When the reload happens
+
+The deletion takes effect in-process at different latencies depending on the delete path:
+
+| Delete path | Reload trigger | Latency |
+|---|---|---|
+| `DELETE` HTTP endpoint via UI / API | Endpoint calls `IDbConfigReloadSignal.TriggerReload()` after the row is deleted | Immediate (next async tick) |
+| `IConfigStore.DeleteAsync(...)` from your code | No automatic signal — inject `IDbConfigReloadSignal` and call `TriggerReload()` yourself, or wait for the next poll tick | Up to one poll interval (default 30s) |
+| Direct SQL `DELETE FROM DbConfig_Entries WHERE ...` | No signal. **Watermark does not advance** (DELETE doesn't bump any row's `ModifiedUtc`) | **The polling provider will NOT reload until some other row's `ModifiedUtc` advances.** Until then, the deleted value persists in-memory |
+
+The direct-SQL caveat is the only known invariant violation in the current design — mutations should always go through the API. See [scopes.md](./scopes.md) for write-isolation patterns.
+
+### Layered fallback after deletes
+
+Because the snapshot is rebuilt from scratch, deleting a higher-precedence entry can reveal a lower-precedence value that was previously shadowed:
+
+**Tenant override deleted, global default remains:**
+```
+Before:
+  ("MyApp", "Prod", "",     "Stripe:Key") → "sk_live_global"
+  ("MyApp", "Prod", "Acme", "Stripe:Key") → "sk_live_acme"
+
+DELETE the Acme row.
+
+After reload (resolver returns "Acme"):
+  → TryGet: _tenantData["Acme"]["Stripe:Key"] not found
+  → falls back to base Data["Stripe:Key"] → "sk_live_global"
+```
+
+**Own-scope entry deleted, IncludeScopes layer remains:**
+```
+Before:
+  Scope=Shared          Key=Logging:Level → "Information"
+  Scope=PaymentService  Key=Logging:Level → "Debug"
+
+DELETE the PaymentService row.
+
+After reload:
+  → Polling provider loads (Shared, PaymentService) in scope order.
+  → "Information" lands in the dict first; nothing overwrites it.
+  → IConfiguration["Logging:Level"] → "Information"
+```
+
+In both cases, the key doesn't *disappear* — it resolves from the next layer down. To make the key truly absent, delete it at every layer.
+
 ## See also
 
-- [Scopes](./scopes.md) — `AppName` and `IncludeScopes` in detail
+- [Scopes](./scopes.md) — `Scope` and `IncludeScopes` in detail
 - [Multi-tenant config](./multi-tenant.md) — `ITenantResolver`, fallback, schema
 - [Encryption](./encryption.md) — how `IsSecret` interacts with reads
 - Architecture rule §2.16 — engineering reference in `.claude/rules/architecture.md`

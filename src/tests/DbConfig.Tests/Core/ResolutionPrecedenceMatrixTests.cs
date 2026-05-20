@@ -8,9 +8,9 @@ namespace DbConfig.Tests.Core;
 
 /// <summary>
 /// Full 2^5 = 32-case precedence matrix proving that
-/// <c>(tenant=Acme, AppName=MyApp) → (tenant=Acme, AppName=Shared)
-/// → (global, AppName=MyApp) → (global, AppName=Shared) → null</c>
-/// is the resolution order for a host with <c>AppName="MyApp"</c> and
+/// <c>(tenant=Acme, Scope=MyApp) → (tenant=Acme, Scope=Shared)
+/// → (global, Scope=MyApp) → (global, Scope=Shared) → null</c>
+/// is the resolution order for a host with <c>Scope="MyApp"</c> and
 /// <c>IncludeScopes=["Shared"]</c>.
 /// </summary>
 [Trait("Category", "Unit")]
@@ -116,7 +116,7 @@ public sealed class ResolutionPrecedenceMatrixTests
 
         var options = new DbConfigOptions
         {
-            AppName = OwnApp,
+            Scope = OwnApp,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
             IncludeScopes = [SharedApp],

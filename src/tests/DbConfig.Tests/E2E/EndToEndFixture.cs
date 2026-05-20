@@ -19,7 +19,7 @@ public sealed class E2ECollection : ICollectionFixture<EndToEndFixture>;
 public sealed class EndToEndFixture : IAsyncLifetime
 {
     public const string CollectionName = "E2E";
-    public const string AppName = "E2E";
+    public const string Scope = "E2E";
     public const string EnvName = "Test";
 
     private readonly MsSqlContainer _container = new MsSqlBuilder()
@@ -58,7 +58,7 @@ public sealed class EndToEndFixture : IAsyncLifetime
 
         builder.AddDbConfig(b =>
         {
-            b.Options.AppName = AppName;
+            b.Options.Scope = Scope;
             b.Options.Environment = EnvName;
             b.Options.ReloadInterval = TimeSpan.FromMilliseconds(200);
             b.UseSqlServer(connectionString);

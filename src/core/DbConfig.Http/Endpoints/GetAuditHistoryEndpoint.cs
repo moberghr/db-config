@@ -15,7 +15,7 @@ internal static class GetAuditHistoryEndpoint
         HttpContext httpContext,
         [FromServices] IConfigAuditStore? auditStore,
         [FromServices] ILogger<GetAuditHistoryEndpointMarker>? logger,
-        string appName,
+        string scope,
         string environment,
         string key,
         int? take,
@@ -46,11 +46,11 @@ internal static class GetAuditHistoryEndpoint
         }
         else if (!string.IsNullOrEmpty(tenantId))
         {
-            history = await auditStore.GetHistoryForTenantAsync(appName, environment, tenantId, normalizedKey, requestedTake, ct);
+            history = await auditStore.GetHistoryForTenantAsync(scope, environment, tenantId, normalizedKey, requestedTake, ct);
         }
         else
         {
-            history = await auditStore.GetHistoryAsync(appName, environment, normalizedKey, requestedTake, ct);
+            history = await auditStore.GetHistoryAsync(scope, environment, normalizedKey, requestedTake, ct);
         }
 
         httpContext.Response.ContentType = "application/json; charset=utf-8";

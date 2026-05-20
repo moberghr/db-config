@@ -13,7 +13,7 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table'
-import { History, Pencil, Trash2, ChevronRight } from 'lucide-react'
+import { Copy, History, Pencil, Trash2, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const CROSS_SCOPE_TITLE =
@@ -25,13 +25,14 @@ const CROSS_SCOPE_TITLE =
 const INDENT_PX = 28
 
 function compositeKey(entry: ConfigEntry): string {
-  return `${entry.appName}|${entry.environment}|${entry.tenantId}|${entry.key}`
+  return `${entry.scope}|${entry.environment}|${entry.tenantId}|${entry.key}`
 }
 
 interface EntriesTreeViewProps {
   onEdit: (entry: ConfigEntry) => void
   onDelete: (entry: ConfigEntry) => void
   onHistory: (entry: ConfigEntry) => void
+  onDuplicate: (entry: ConfigEntry) => void
   visibleEntries: ConfigEntry[]
 }
 
@@ -58,9 +59,10 @@ interface TreeRowsProps {
   onEdit: (entry: ConfigEntry) => void
   onDelete: (entry: ConfigEntry) => void
   onHistory: (entry: ConfigEntry) => void
+  onDuplicate: (entry: ConfigEntry) => void
   selectedKeys: Set<string>
   toggleSelection: (ck: string) => void
-  currentAppName: string
+  currentScope: string
 }
 
 /**
@@ -103,9 +105,10 @@ function TreeRows({
   onEdit,
   onDelete,
   onHistory,
+  onDuplicate,
   selectedKeys,
   toggleSelection,
-  currentAppName,
+  currentScope,
 }: TreeRowsProps) {
   return (
     <>
@@ -113,7 +116,7 @@ function TreeRows({
         if (node.entry !== null) {
           // Leaf row — render like EntriesTable row
           const entry = node.entry
-          const isOwn = !currentAppName || entry.appName === currentAppName
+          const isOwn = !currentScope || entry.scope === currentScope
           const ck = compositeKey(entry)
           const isSelected = selectedKeys.has(ck)
 
@@ -149,9 +152,9 @@ function TreeRows({
               <TableCell>
                 <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
               </TableCell>
-              {/* AppName */}
+              {/* Scope */}
               <TableCell>
-                <span className="text-xs text-foreground">{entry.appName}</span>
+                <span className="text-xs text-foreground">{entry.scope}</span>
               </TableCell>
               {/* Environment */}
               <TableCell>
@@ -184,6 +187,15 @@ function TreeRows({
                     onClick={() => onHistory(entry)}
                   >
                     <History className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Duplicate — opens a Create dialog pre-filled from this entry"
+                    onClick={() => onDuplicate(entry)}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -248,9 +260,10 @@ function TreeRows({
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onHistory={onHistory}
+                onDuplicate={onDuplicate}
                 selectedKeys={selectedKeys}
                 toggleSelection={toggleSelection}
-                currentAppName={currentAppName}
+                currentScope={currentScope}
               />
             )}
           </>
@@ -260,12 +273,12 @@ function TreeRows({
   )
 }
 
-export function EntriesTreeView({ onEdit, onDelete, onHistory, visibleEntries }: EntriesTreeViewProps) {
+export function EntriesTreeView({ onEdit, onDelete, onHistory, onDuplicate, visibleEntries }: EntriesTreeViewProps) {
   const loading = useEntriesStore((s) => s.loading)
   const error = useEntriesStore((s) => s.error)
   const selectedKeys = useEntriesStore((s) => s.selectedKeys)
   const toggleSelection = useEntriesStore((s) => s.toggleSelection)
-  const currentAppName = useScopeStore((s) => s.appName)
+  const currentScope = useScopeStore((s) => s.scope)
 
   const [expandedPrefixes, setExpandedPrefixes] = useState<Set<string>>(new Set())
 
@@ -344,7 +357,7 @@ export function EntriesTreeView({ onEdit, onDelete, onHistory, visibleEntries }:
             <TableHead className="w-10" />
             <TableHead>Key</TableHead>
             <TableHead>Value</TableHead>
-            <TableHead>AppName</TableHead>
+            <TableHead>Scope</TableHead>
             <TableHead>Environment</TableHead>
             <TableHead>Tenant</TableHead>
             <TableHead>Modified</TableHead>
@@ -361,9 +374,10 @@ export function EntriesTreeView({ onEdit, onDelete, onHistory, visibleEntries }:
             onEdit={onEdit}
             onDelete={onDelete}
             onHistory={onHistory}
+            onDuplicate={onDuplicate}
             selectedKeys={selectedKeys}
             toggleSelection={toggleSelection}
-            currentAppName={currentAppName}
+            currentScope={currentScope}
           />
         </TableBody>
       </Table>

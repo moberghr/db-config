@@ -10,7 +10,7 @@ source, and reload signal in one shot.
 ```csharp
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.ReloadInterval = TimeSpan.FromSeconds(30);
     b.Options.IncludeScopes = ["PlatformDefaults", "Shared"]; // optional; see §2.11
@@ -52,11 +52,11 @@ tests.
 ```csharp
 public interface IConfigStore
 {
-    Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct);
-    Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct);
-    Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct);
+    Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct);
+    Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct);
+    Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct);
     Task UpsertAsync(ConfigEntry entry, CancellationToken ct);
-    Task DeleteAsync(string appName, string environment, string key, CancellationToken ct);
+    Task DeleteAsync(string scope, string environment, string key, CancellationToken ct);
 }
 ```
 
@@ -64,8 +64,8 @@ Rules:
 - `GetAsync` MUST issue a single-row targeted query (`WHERE Key = @k`) — never call
   `GetAllAsync` and filter in memory for single-key HTTP endpoints.
 - `GetLatestModifiedUtcAsync` is the only query the polling loop runs when nothing has
-  changed. It MUST be cheap — uses the `(AppName, Environment, ModifiedUtc DESC)` index.
-- `UpsertAsync` is last-writer-wins. Concurrent upserts to the same `(AppName, Env, Key)` must
+  changed. It MUST be cheap — uses the `(Scope, Environment, ModifiedUtc DESC)` index.
+- `UpsertAsync` is last-writer-wins. Concurrent upserts to the same `(Scope, Env, Key)` must
   not throw; they resolve to one winner silently.
 - `InMemoryConfigStore` uses a plain `Dictionary` and is NOT thread-safe in ways that matter
   for production; it is test-only by design.
@@ -104,7 +104,7 @@ public static IResult Handle(IDbConfigReloadSignal signal)
 }
 ```
 
-`PUT /{appName}/{env}/{*key}` and `DELETE /{appName}/{env}/{*key}` also call
+`PUT /{scope}/{env}/{*key}` and `DELETE /{scope}/{env}/{*key}` also call
 `signal.TriggerReload()` after mutating the store, so in-process consumers see the updated
 values immediately without waiting for the polling interval.
 
@@ -199,7 +199,7 @@ provider packages.
 
 `DbConfigDbContext` lives in `Moberg.DbConfig.EntityFrameworkCore` (shared across both
 providers). It owns the `DbConfig_Entries` table model with its composite unique constraint on
-`(AppName, Environment, Key)` and the polling index on `(AppName, Environment, ModifiedUtc DESC)`.
+`(Scope, Environment, Key)` and the polling index on `(Scope, Environment, ModifiedUtc DESC)`.
 
 Migrations live in each provider package. Both providers configure:
 
@@ -319,29 +319,29 @@ v0.4.0 supports exactly one `AddDbConfig` call per host. Calling it twice on the
 `IDbConfigReloadSignal` resolution walks the registered marker to reach the first (and only)
 provider instance.
 
-Multi-scope support (multiple `(AppName, Environment)` pairs from different DB connections in
+Multi-scope support (multiple `(Scope, Environment)` pairs from different DB connections in
 a single host) is not in scope for v0.4.0. Track it separately if required.
 
 ## §2.11 — Scope Merging and Precedence
 
 When `DbConfigOptions.IncludeScopes` is non-empty, the polling provider reads from multiple
-AppNames in one query and merges entries with explicit precedence.
+Scopes in one query and merges entries with explicit precedence.
 
-**Scope ordering:** `[..IncludeScopes, AppName]` — own AppName always last (wins ties).
+**Scope ordering:** `[..IncludeScopes, Scope]` — own Scope always last (wins ties).
 
-**Server contract:** `IConfigStore.GetAllScopedAsync(appNames, env, ct)` returns entries
-ordered by their AppName's position in the input list. The polling provider iterates the
+**Server contract:** `IConfigStore.GetAllScopedAsync(scopes, env, ct)` returns entries
+ordered by their Scope's position in the input list. The polling provider iterates the
 returned sequence and applies last-writer-wins to the internal dictionary. The server does
 NOT merge — both the polling provider AND the UI receive the raw, ordered list and merge
 client-side. This keeps the server side a thin pass-through and lets the UI render a
 "shadowed by override" indicator.
 
-**Watermark:** `GetLatestModifiedUtcScopedAsync(appNames, env, ct)` issues `MAX(ModifiedUtc)`
+**Watermark:** `GetLatestModifiedUtcScopedAsync(scopes, env, ct)` issues `MAX(ModifiedUtc)`
 over the IN set. A change in any included scope advances the watermark.
 
-**Authorization:** `MapDbConfigHttp(scopeFilter: "X")` enforces `path.appName == X` at the
+**Authorization:** `MapDbConfigHttp(scopeFilter: "X")` enforces `path.scope == X` at the
 group level. Use multiple groups with different filters + policies for app-team vs
-platform-team auth separation. The `/reload` endpoint has no appName route value and is
+platform-team auth separation. The `/reload` endpoint has no scope route value and is
 always allowed (any group's reload affects only that host's in-process configuration).
 
 ## §2.12 — Encryption Strategy
@@ -409,8 +409,8 @@ either both succeed or both roll back.
 **Encryption:** OldValue and NewValue carry the same form as the source entry's Value column
 (ciphertext when IsSecret=true). The audit reader decrypts before returning to the caller.
 
-**Read API:** `IConfigAuditStore.GetHistoryAsync(appName, env, key, take, ct)` issues a
-targeted query on the composite index `(AppName, Environment, Key, ModifiedUtc DESC)` and
+**Read API:** `IConfigAuditStore.GetHistoryAsync(scope, env, key, take, ct)` issues a
+targeted query on the composite index `(Scope, Environment, Key, ModifiedUtc DESC)` and
 returns up to `take` rows ordered most-recent-first. The HTTP endpoint
 `GET /{app}/{env}/audit/{*key}?take=N` caps `take` at 500.
 
@@ -507,27 +507,27 @@ Every `IConfiguration[key]` read walks four scoping dimensions. Two are decided 
 | Dimension | DB filter | Composable? | Decided at |
 |---|---|---|---|
 | Environment | hard scalar `WHERE Environment = @env` | No | Startup (`DbConfigOptions.Environment`) |
-| AppName | hard `WHERE AppName IN (own + IncludeScopes)` | Yes via `IncludeScopes` | Startup (`DbConfigOptions.AppName` + `IncludeScopes`) |
+| Scope | hard `WHERE Scope IN (own + IncludeScopes)` | Yes via `IncludeScopes` | Startup (`DbConfigOptions.Scope` + `IncludeScopes`) |
 | TenantId | not in DB query — all tenants loaded into memory | Per-read | `ITenantResolver.Resolve()` on every `TryGet` |
 | Key | dictionary lookup | n/a | The `IConfiguration[key]` argument |
 
-**Load-time vs read-time split.** The polling provider issues ONE query per reload tick that fetches every row for this host's `(AppName ∪ IncludeScopes, Environment)` slice, across ALL tenants. The result is split into `Data` (global, `TenantId = ""`) and `_tenantData[tenantId][key]`. Reads then do pure in-memory dictionary lookups.
+**Load-time vs read-time split.** The polling provider issues ONE query per reload tick that fetches every row for this host's `(Scope ∪ IncludeScopes, Environment)` slice, across ALL tenants. The result is split into `Data` (global, `TenantId = ""`) and `_tenantData[tenantId][key]`. Reads then do pure in-memory dictionary lookups.
 
 **Precedence walk** (pseudocode, called from `DbConfigConfigurationProvider.TryGet`):
 
 ```
 tenantId = resolver?.Resolve()
 if !string.IsNullOrEmpty(tenantId):
-    if _tenantData[tenantId][key] from row where AppName == Options.AppName → return        # 1
-    if _tenantData[tenantId][key] from row where AppName ∈ IncludeScopes    → return        # 2
-if Data[key] from row where AppName == Options.AppName                      → return        # 3
-if Data[key] from row where AppName ∈ IncludeScopes                         → return        # 4
+    if _tenantData[tenantId][key] from row where Scope == Options.Scope → return        # 1
+    if _tenantData[tenantId][key] from row where Scope ∈ IncludeScopes    → return        # 2
+if Data[key] from row where Scope == Options.Scope                      → return        # 3
+if Data[key] from row where Scope ∈ IncludeScopes                         → return        # 4
 return not-found
 ```
 
 Steps 2 and 4 resolve in-memory at load time: the load walks scopes lowest-precedence-first, and later writes to the same key in the same tenant bag overwrite earlier ones. So by the time `TryGet` runs, the bag already holds the winning value for that bucket.
 
-**Composition rule.** The tenant axis dominates the scope axis. A tenant-specific entry beats any global entry, regardless of whether the tenant entry came from the own AppName or an IncludeScope. Within a single bag, AppName beats IncludeScopes (matches §2.11).
+**Composition rule.** The tenant axis dominates the scope axis. A tenant-specific entry beats any global entry, regardless of whether the tenant entry came from the own Scope or an IncludeScope. Within a single bag, Scope beats IncludeScopes (matches §2.11).
 
 **Sharp edges** (terse — long-form at `website/docs/configuration/resolution-order.md`):
 

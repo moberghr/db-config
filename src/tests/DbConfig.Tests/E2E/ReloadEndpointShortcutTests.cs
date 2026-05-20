@@ -29,7 +29,7 @@ public sealed class ReloadEndpointShortcutTests
 
         var body = new { value = "immediate", isSecret = false };
         var putResponse = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{key}",
             body,
             TestContext.Current.CancellationToken);
         putResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);

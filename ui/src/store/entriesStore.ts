@@ -9,7 +9,7 @@ import {
 import { useScopeStore } from './scopeStore'
 
 export interface UpsertCoords {
-  appName: string
+  scope: string
   environment: string
   tenantId: string
   key: string
@@ -18,16 +18,24 @@ export interface UpsertCoords {
 }
 
 export interface RemoveCoords {
-  appName: string
+  scope: string
   environment: string
   tenantId: string
   key: string
 }
 
+/**
+ * Default server cap on the flat-query endpoint. Mirrored client-side so the UI can detect
+ * when the response was capped (entries.length === DefaultQueryTake) and surface a banner
+ * suggesting filters. Keep in sync with QueryEntriesEndpoint.DefaultTake on the server.
+ */
+export const DefaultQueryTake = 1000
+
 interface EntriesState {
   entries: ConfigEntry[]
   loading: boolean
   error: string | null
+  truncated: boolean
   selectedKeys: Set<string>
   /**
    * Fetches entries for the current scope.
@@ -38,10 +46,10 @@ interface EntriesState {
    *   the Zustand store), it can pass those values here.  When omitted,
    *   values are read from `useScopeStore.getState()` as usual.
    */
-  refresh: (overrides?: { appName?: string; environment?: string; tenantId?: string }) => Promise<void>
+  refresh: (overrides?: { scope?: string; environment?: string; tenantId?: string }) => Promise<void>
   /**
    * Upsert an entry. Callers MUST pass the full coordinates of the target
-   * entry — appName, environment, tenantId, key. The scopeStore is only a
+   * entry — scope, environment, tenantId, key. The scopeStore is only a
    * UI filter and may be empty when the user is in "show all" mode.
    */
   upsert: (coords: UpsertCoords) => Promise<void>
@@ -56,11 +64,12 @@ interface EntriesState {
 }
 
 async function reloadEntriesForCurrentScope(): Promise<ConfigEntry[]> {
-  const { appName, environment, tenantId } = useScopeStore.getState()
+  const { scope, environment, tenantId } = useScopeStore.getState()
   return queryEntries({
-    appName: appName || undefined,
+    scope: scope || undefined,
     environment: environment || undefined,
     tenantId: tenantId || undefined,
+    take: DefaultQueryTake,
   })
 }
 
@@ -68,11 +77,12 @@ export const useEntriesStore = create<EntriesState>((set) => ({
   entries: [],
   loading: false,
   error: null,
+  truncated: false,
   selectedKeys: new Set<string>(),
 
   refresh: async (overrides) => {
     const storeState = useScopeStore.getState()
-    const appName = overrides?.appName ?? storeState.appName
+    const scope = overrides?.scope ?? storeState.scope
     const environment = overrides?.environment ?? storeState.environment
     const tenantId = overrides?.tenantId ?? storeState.tenantId
     set({ loading: true, error: null })
@@ -80,33 +90,34 @@ export const useEntriesStore = create<EntriesState>((set) => ({
       // Flat-query the unified entries endpoint with any selected filters; the toolbar
       // fields are optional filters, not required preconditions.
       const entries = await queryEntries({
-        appName: appName || undefined,
+        scope: scope || undefined,
         environment: environment || undefined,
         tenantId: tenantId || undefined,
+        take: DefaultQueryTake,
       })
-      set({ entries, loading: false })
+      set({ entries, loading: false, truncated: entries.length >= DefaultQueryTake })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load entries'
       set({ loading: false, error: message })
     }
   },
 
-  upsert: async ({ appName, environment, tenantId, key, value, isSecret }) => {
-    await upsertEntry(appName, environment, key, value, isSecret, tenantId || undefined)
+  upsert: async ({ scope, environment, tenantId, key, value, isSecret }) => {
+    await upsertEntry(scope, environment, key, value, isSecret, tenantId || undefined)
     const entries = await reloadEntriesForCurrentScope()
-    set({ entries })
+    set({ entries, truncated: entries.length >= DefaultQueryTake })
   },
 
-  remove: async ({ appName, environment, tenantId, key }) => {
-    await deleteEntry(appName, environment, key, tenantId || undefined)
+  remove: async ({ scope, environment, tenantId, key }) => {
+    await deleteEntry(scope, environment, key, tenantId || undefined)
     const entries = await reloadEntriesForCurrentScope()
-    set({ entries })
+    set({ entries, truncated: entries.length >= DefaultQueryTake })
   },
 
   reload: async () => {
     await triggerReload()
     const entries = await reloadEntriesForCurrentScope()
-    set({ entries })
+    set({ entries, truncated: entries.length >= DefaultQueryTake })
   },
 
   toggleSelection: (compositeKey) => set((state) => {

@@ -32,7 +32,7 @@ public sealed class FullRoundTripTests
         var body = new { value = "42", isSecret = false };
 
         var putResponse = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{key}",
             body,
             TestContext.Current.CancellationToken);
 
@@ -56,7 +56,7 @@ public sealed class FullRoundTripTests
         // First PUT.
         var body1 = new { value = "first", isSecret = false };
         var put1 = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{key}",
             body1,
             TestContext.Current.CancellationToken);
         put1.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -69,7 +69,7 @@ public sealed class FullRoundTripTests
         // Second PUT overwrites.
         var body2 = new { value = "latest", isSecret = false };
         var put2 = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{key}",
             body2,
             TestContext.Current.CancellationToken);
         put2.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -92,7 +92,7 @@ public sealed class FullRoundTripTests
         // PUT the entry first.
         var body = new { value = "to-delete", isSecret = false };
         var putResponse = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{key}",
             body,
             TestContext.Current.CancellationToken);
         putResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -105,7 +105,7 @@ public sealed class FullRoundTripTests
 
         // DELETE the entry.
         var deleteResponse = await _client.DeleteAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{key}",
             TestContext.Current.CancellationToken);
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
@@ -114,7 +114,7 @@ public sealed class FullRoundTripTests
         const string sentinelKey = "DeleteSection/Sentinel";
         var sentinelBody = new { value = "sentinel", isSecret = false };
         await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{sentinelKey}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{sentinelKey}",
             sentinelBody,
             TestContext.Current.CancellationToken);
 
@@ -133,13 +133,13 @@ public sealed class FullRoundTripTests
 
         var body = new { value = "getvalue", isSecret = false };
         var putResponse = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{key}",
             body,
             TestContext.Current.CancellationToken);
         putResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var getResponse = await _client.GetAsync(
-            $"/api/dbconfig/{EndToEndFixture.AppName}/{EndToEndFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndFixture.Scope}/{EndToEndFixture.EnvName}/{key}",
             TestContext.Current.CancellationToken);
         getResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 

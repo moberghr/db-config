@@ -20,7 +20,7 @@ public interface IConfigAuditStore
     /// ordered most-recent-first.
     /// For tenant-specific history use <see cref="GetHistoryForTenantAsync"/>.
     /// </summary>
-    /// <param name="appName">The application name scope.</param>
+    /// <param name="scope">The scope (logical application name).</param>
     /// <param name="environment">The environment name scope.</param>
     /// <param name="key">The configuration key.</param>
     /// <param name="take">Maximum number of entries to return.</param>
@@ -31,20 +31,20 @@ public interface IConfigAuditStore
     /// key has no audit history.
     /// </returns>
     Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
-        string appName, string environment, string key, int take, CancellationToken ct);
+        string scope, string environment, string key, int take, CancellationToken ct);
 
     /// <summary>
     /// Returns the most recent audit entries for the given tenant-specific key,
     /// ordered most-recent-first.
     /// </summary>
-    /// <param name="appName">The application name scope.</param>
+    /// <param name="scope">The scope (logical application name).</param>
     /// <param name="environment">The environment name scope.</param>
     /// <param name="tenantId">The tenant identifier. Pass empty string for global (default) entries.</param>
     /// <param name="key">The configuration key.</param>
     /// <param name="take">Maximum number of entries to return.</param>
     /// <param name="ct">Cancellation token.</param>
     Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
-        string appName, string environment, string tenantId, string key, int take, CancellationToken ct);
+        string scope, string environment, string tenantId, string key, int take, CancellationToken ct);
 
     /// <summary>
     /// Writes an audit row out-of-transaction. Used by HTTP read-audit logic.
@@ -60,7 +60,7 @@ public interface IConfigAuditStore
     /// Returned values are plaintext when <see cref="ConfigAuditEntry.IsSecret"/> is
     /// <see langword="true"/>; the store handles decryption internally.
     /// </summary>
-    /// <param name="appName">Exact-match <see cref="ConfigAuditEntry.AppName"/> filter, or <see langword="null"/>.</param>
+    /// <param name="scope">Exact-match <see cref="ConfigAuditEntry.Scope"/> filter, or <see langword="null"/>.</param>
     /// <param name="environment">Exact-match <see cref="ConfigAuditEntry.Environment"/> filter, or <see langword="null"/>.</param>
     /// <param name="tenantId">Exact-match <see cref="ConfigAuditEntry.TenantId"/> filter (empty string = global), or <see langword="null"/> for no filter.</param>
     /// <param name="keyPrefix">Case-insensitive starts-with filter on <see cref="ConfigAuditEntry.Key"/>, or <see langword="null"/>.</param>
@@ -68,7 +68,7 @@ public interface IConfigAuditStore
     /// <param name="take">Maximum number of entries to return.</param>
     /// <param name="ct">Cancellation token.</param>
     Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
-        string? appName,
+        string? scope,
         string? environment,
         string? tenantId,
         string? keyPrefix,

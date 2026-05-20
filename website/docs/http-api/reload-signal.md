@@ -27,8 +27,8 @@ polling timer does on every tick, but on-demand.
 
 The HTTP layer calls `Trigger()` automatically after every mutation:
 
-- `PUT /{appName}/{environment}/{*key}` — calls `Trigger()` after `UpsertAsync`
-- `DELETE /{appName}/{environment}/{*key}` — calls `Trigger()` after `DeleteAsync`
+- `PUT /{scope}/{environment}/{*key}` — calls `Trigger()` after `UpsertAsync`
+- `DELETE /{scope}/{environment}/{*key}` — calls `Trigger()` after `DeleteAsync`
 - `POST /reload` — calls `Trigger()` directly and returns 204
 
 This means in-process consumers see the updated values within milliseconds of a write via

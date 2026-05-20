@@ -33,7 +33,7 @@ public sealed class AddDbConfigShapeTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = App;
+                b.Options.Scope = App;
                 b.Options.Environment = Env;
                 b.Options.ReloadInterval = TimeSpan.FromSeconds(30);
                 b.Options.SchemaMode = SchemaMode.None;
@@ -62,7 +62,7 @@ public sealed class AddDbConfigShapeTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = App;
+                b.Options.Scope = App;
                 b.Options.Environment = Env;
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
@@ -77,7 +77,7 @@ public sealed class AddDbConfigShapeTests
         var exception = Should.Throw<InvalidOperationException>(
             () => builder.AddDbConfig(b =>
             {
-                b.Options.AppName = "App2";
+                b.Options.Scope = "App2";
                 b.Options.Environment = Env;
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
@@ -100,7 +100,7 @@ public sealed class AddDbConfigShapeTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = App;
+                b.Options.Scope = App;
                 b.Options.Environment = Env;
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
@@ -129,7 +129,7 @@ public sealed class AddDbConfigShapeTests
         var exception = Should.Throw<InvalidOperationException>(
             () => builder.AddDbConfig(b =>
             {
-                b.Options.AppName = App;
+                b.Options.Scope = App;
                 b.Options.Environment = Env;
 
                 // No UseSqlServer / UsePostgreSql call.

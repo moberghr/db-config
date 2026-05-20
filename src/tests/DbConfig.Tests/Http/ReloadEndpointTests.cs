@@ -47,7 +47,7 @@ public sealed class ReloadEndpointTests
 
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = reloadInterval,
         };

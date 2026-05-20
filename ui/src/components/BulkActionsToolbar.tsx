@@ -24,20 +24,20 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
   const selectedKeys = useEntriesStore((s) => s.selectedKeys)
   const clearSelection = useEntriesStore((s) => s.clearSelection)
   const refresh = useEntriesStore((s) => s.refresh)
-  const currentAppName = useScopeStore((s) => s.appName)
+  const currentScope = useScopeStore((s) => s.scope)
   const includeScopes = useScopeStore((s) => s.includeScopes)
 
   const [activeAction, setActiveAction] = useState<BulkAction>(null)
   const [movePickerOpen, setMovePickerOpen] = useState(false)
-  const [targetScope, setTargetScope] = useState(currentAppName)
+  const [targetScope, setTargetScope] = useState(currentScope)
 
   if (selectedKeys.size === 0) return null
 
   // Resolve selected entries from visibleEntries — use the same composite key
-  // as the table builds (appName|environment|tenantId|key).
+  // as the table builds (scope|environment|tenantId|key).
   function getSelectedEntries(): ConfigEntry[] {
     return visibleEntries.filter((e) => {
-      const ck = `${e.appName}|${e.environment}|${e.tenantId}|${e.key}`
+      const ck = `${e.scope}|${e.environment}|${e.tenantId}|${e.key}`
       return selectedKeys.has(ck)
     })
   }
@@ -48,19 +48,19 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
   // user can move across whatever scopes are visible even if scopeStore is empty.
   const scopeOptions = (() => {
     const set = new Set<string>()
-    if (currentAppName) set.add(currentAppName)
+    if (currentScope) set.add(currentScope)
     for (const s of includeScopes) {
       if (s) set.add(s)
     }
     for (const entry of selectedEntries) {
-      if (entry.appName) set.add(entry.appName)
+      if (entry.scope) set.add(entry.scope)
     }
     return [...set]
   })()
 
   // Toggle IsSecret — use entry's own coords (env + tenantId).
   async function executeToggleSecret(entry: ConfigEntry): Promise<void> {
-    await upsertEntry(entry.appName, entry.environment, entry.key, entry.value, !entry.isSecret, entry.tenantId || undefined)
+    await upsertEntry(entry.scope, entry.environment, entry.key, entry.value, !entry.isSecret, entry.tenantId || undefined)
   }
 
   // Move: PUT to new scope (same env + tenant as the source entry), then DELETE
@@ -71,14 +71,14 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
     if (putResponse.status < 200 || putResponse.status >= 300) {
       throw new Error(`Move failed: PUT returned status ${putResponse.status}`)
     }
-    if (entry.appName !== targetScope) {
-      await deleteEntry(entry.appName, entry.environment, entry.key, entry.tenantId || undefined)
+    if (entry.scope !== targetScope) {
+      await deleteEntry(entry.scope, entry.environment, entry.key, entry.tenantId || undefined)
     }
   }
 
   // Delete — use entry's own coords (env + tenantId).
   async function executeDelete(entry: ConfigEntry): Promise<void> {
-    await deleteEntry(entry.appName, entry.environment, entry.key, entry.tenantId || undefined)
+    await deleteEntry(entry.scope, entry.environment, entry.key, entry.tenantId || undefined)
   }
 
   function afterBulkClose() {
@@ -93,7 +93,7 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
   }
 
   function getEntryLabel(entry: ConfigEntry): string {
-    return `${entry.appName} / ${entry.key}`
+    return `${entry.scope} / ${entry.key}`
   }
 
   return (
@@ -163,7 +163,7 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
               >
                 {scopeOptions.map((scope) => (
                   <option key={scope} value={scope}>
-                    {scope}{scope === currentAppName ? ' (own)' : ' (shared)'}
+                    {scope}{scope === currentScope ? ' (own)' : ' (shared)'}
                   </option>
                 ))}
               </select>

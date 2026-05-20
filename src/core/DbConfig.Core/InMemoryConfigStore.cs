@@ -8,8 +8,8 @@ namespace DbConfig.Core;
 /// </summary>
 public sealed class InMemoryConfigStore : IConfigStore
 {
-    // Key: (AppName, Environment, TenantId, Key) — stored case-insensitively on Key; TenantId is case-sensitive.
-    private readonly Dictionary<(string AppName, string Environment, string TenantId, string Key), ConfigEntry> _entries = [];
+    // Key: (Scope, Environment, TenantId, Key) — stored case-insensitively on Key; TenantId is case-sensitive.
+    private readonly Dictionary<(string Scope, string Environment, string TenantId, string Key), ConfigEntry> _entries = [];
     private readonly object _lock = new();
     private readonly IConfigEncryptor _encryptor;
     private readonly InMemoryConfigAuditStore? _auditStore;
@@ -93,13 +93,13 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     /// <summary>
-    /// Number of times <c>GetAllAsync(appName, environment, ct)</c> has been called on this instance.
+    /// Number of times <c>GetAllAsync(scope, environment, ct)</c> has been called on this instance.
     /// Useful in tests that verify an endpoint does not perform a full-scope scan.
     /// </summary>
     public int GetAllAsyncCallCount { get; private set; }
 
     /// <summary>
-    /// Number of times <c>GetAsync(appName, environment, key, ct)</c> has been called on this instance.
+    /// Number of times <c>GetAsync(scope, environment, key, ct)</c> has been called on this instance.
     /// Useful in tests that verify an endpoint uses the targeted single-key read path.
     /// </summary>
     public int GetAsyncCallCount { get; private set; }
@@ -132,20 +132,20 @@ public sealed class InMemoryConfigStore : IConfigStore
     public int QueryAsyncCallCount { get; private set; }
 
     /// <summary>
-    /// Number of times <c>GetAllForTenantAsync(appName, environment, tenantId, ct)</c> has been
+    /// Number of times <c>GetAllForTenantAsync(scope, environment, tenantId, ct)</c> has been
     /// called on this instance. Useful in tests that verify typed-bind / convenience overloads
     /// do not scan the entire tenant scope.
     /// </summary>
     public int GetAllForTenantAsyncCallCount { get; private set; }
 
-    public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
+    public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
             GetAllAsyncCallCount++;
 
             var result = _entries.Values
-                .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Where(x => x.TenantId == string.Empty)
                 .Select(DecryptEntry)
@@ -163,19 +163,19 @@ public sealed class InMemoryConfigStore : IConfigStore
 
         if (string.IsNullOrWhiteSpace(tenantId))
         {
-            return GetAllAsync(options.AppName, options.Environment, ct);
+            return GetAllAsync(options.Scope, options.Environment, ct);
         }
 
-        return GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct);
+        return GetAllForTenantAsync(options.Scope, options.Environment, tenantId, ct);
     }
 
-    public Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
+    public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
     {
         lock (_lock)
         {
             GetAsyncCallCount++;
 
-            var storeKey = (appName, environment, string.Empty, key);
+            var storeKey = (scope, environment, string.Empty, key);
             _entries.TryGetValue(storeKey, out var entry);
             return Task.FromResult(entry is null ? null : DecryptEntry(entry));
         }
@@ -189,10 +189,10 @@ public sealed class InMemoryConfigStore : IConfigStore
 
         if (string.IsNullOrWhiteSpace(tenantId))
         {
-            return GetAsync(options.AppName, options.Environment, key, ct);
+            return GetAsync(options.Scope, options.Environment, key, ct);
         }
 
-        return GetForTenantAsync(options.AppName, options.Environment, tenantId, key, ct);
+        return GetForTenantAsync(options.Scope, options.Environment, tenantId, key, ct);
     }
 
     /// <inheritdoc/>
@@ -209,12 +209,12 @@ public sealed class InMemoryConfigStore : IConfigStore
         return await BindTypedAsync<T>(tenantId, ct).ConfigureAwait(false);
     }
 
-    public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
+    public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
             var entries = _entries.Values
-                .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Where(x => x.TenantId == string.Empty)
                 .ToList();
@@ -232,7 +232,7 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
     {
-        var key = (entry.AppName, entry.Environment, entry.TenantId, entry.Key);
+        var key = (entry.Scope, entry.Environment, entry.TenantId, entry.Key);
         var stored = EncryptEntry(entry);
 
         lock (_lock)
@@ -256,7 +256,7 @@ public sealed class InMemoryConfigStore : IConfigStore
             {
                 _auditStore.Add(new ConfigAuditEntry(
                     Guid.NewGuid(),
-                    entry.AppName,
+                    entry.Scope,
                     entry.Environment,
                     entry.TenantId,
                     entry.Key,
@@ -272,9 +272,9 @@ public sealed class InMemoryConfigStore : IConfigStore
         return Task.CompletedTask;
     }
 
-    public Task DeleteAsync(string appName, string environment, string key, CancellationToken ct)
+    public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
     {
-        var storeKey = (appName, environment, string.Empty, key);
+        var storeKey = (scope, environment, string.Empty, key);
 
         lock (_lock)
         {
@@ -286,7 +286,7 @@ public sealed class InMemoryConfigStore : IConfigStore
                 {
                     _auditStore.Add(new ConfigAuditEntry(
                         Guid.NewGuid(),
-                        appName,
+                        scope,
                         environment,
                         existing.TenantId,
                         key,
@@ -308,18 +308,18 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
-        IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
             GetAllScopedAsyncCallCount++;
 
-            // Return entries in the same order as the input appNames list so that
+            // Return entries in the same order as the input scopes list so that
             // callers can rely on precedence iteration order (last element wins per key).
             // Only global (TenantId = "") entries are returned — tenant-aware callers use GetAllForTenantAsync.
-            var result = appNames
-                .SelectMany(appName => _entries.Values
-                    .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
+            var result = scopes
+                .SelectMany(scope => _entries.Values
+                    .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase))
                     .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                     .Where(x => x.TenantId == string.Empty)
                     .Select(DecryptEntry))
@@ -330,14 +330,14 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(
-        IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
             GetLatestModifiedUtcScopedAsyncCallCount++;
 
             var entries = _entries.Values
-                .Where(x => appNames.Any(a => string.Equals(x.AppName, a, StringComparison.OrdinalIgnoreCase)))
+                .Where(x => scopes.Any(a => string.Equals(x.Scope, a, StringComparison.OrdinalIgnoreCase)))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Where(x => x.TenantId == string.Empty)
                 .ToList();
@@ -359,14 +359,14 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
-        string appName, string environment, string tenantId, CancellationToken ct)
+        string scope, string environment, string tenantId, CancellationToken ct)
     {
         lock (_lock)
         {
             GetAllForTenantAsyncCallCount++;
 
             var result = _entries.Values
-                .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.TenantId, tenantId, StringComparison.Ordinal))
                 .Select(DecryptEntry)
@@ -383,16 +383,16 @@ public sealed class InMemoryConfigStore : IConfigStore
 
         var options = RequireOptions();
 
-        return GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct);
+        return GetAllForTenantAsync(options.Scope, options.Environment, tenantId, ct);
     }
 
     /// <inheritdoc/>
     public Task<ConfigEntry?> GetForTenantAsync(
-        string appName, string environment, string tenantId, string key, CancellationToken ct)
+        string scope, string environment, string tenantId, string key, CancellationToken ct)
     {
         lock (_lock)
         {
-            var storeKey = (appName, environment, tenantId, key);
+            var storeKey = (scope, environment, tenantId, key);
             _entries.TryGetValue(storeKey, out var entry);
             return Task.FromResult(entry is null ? null : DecryptEntry(entry));
         }
@@ -405,7 +405,7 @@ public sealed class InMemoryConfigStore : IConfigStore
 
         var options = RequireOptions();
 
-        return GetForTenantAsync(options.AppName, options.Environment, tenantId, key, ct);
+        return GetForTenantAsync(options.Scope, options.Environment, tenantId, key, ct);
     }
 
     /// <inheritdoc/>
@@ -419,12 +419,12 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
-        string appName, string environment, string tenantId, CancellationToken ct)
+        string scope, string environment, string tenantId, CancellationToken ct)
     {
         lock (_lock)
         {
             var entries = _entries.Values
-                .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.TenantId, tenantId, StringComparison.Ordinal))
                 .ToList();
@@ -442,9 +442,9 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public Task DeleteForTenantAsync(
-        string appName, string environment, string tenantId, string key, CancellationToken ct)
+        string scope, string environment, string tenantId, string key, CancellationToken ct)
     {
-        var storeKey = (appName, environment, tenantId, key);
+        var storeKey = (scope, environment, tenantId, key);
 
         lock (_lock)
         {
@@ -456,7 +456,7 @@ public sealed class InMemoryConfigStore : IConfigStore
                 {
                     _auditStore.Add(new ConfigAuditEntry(
                         Guid.NewGuid(),
-                        appName,
+                        scope,
                         environment,
                         tenantId,
                         key,
@@ -475,12 +475,12 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
-        string appName, string environment, CancellationToken ct)
+        string scope, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
             var result = _entries.Values
-                .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .Select(DecryptEntry)
                 .ToList();
@@ -491,12 +491,12 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(
-        string appName, string environment, CancellationToken ct)
+        string scope, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
             var entries = _entries.Values
-                .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
@@ -513,18 +513,18 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
-        IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
             GetAllScopedForAllTenantsAsyncCallCount++;
 
-            // Return entries in the same order as the input appNames list so that
+            // Return entries in the same order as the input scopes list so that
             // callers can rely on precedence iteration order (last element wins per (tenant, key)).
             // ALL tenants (including global TenantId = "") are included.
-            var result = appNames
-                .SelectMany(appName => _entries.Values
-                    .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase))
+            var result = scopes
+                .SelectMany(scope => _entries.Values
+                    .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase))
                     .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                     .Select(DecryptEntry))
                 .ToList();
@@ -535,14 +535,14 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
-        IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
             GetLatestModifiedUtcScopedAcrossAllTenantsAsyncCallCount++;
 
             var entries = _entries.Values
-                .Where(x => appNames.Any(a => string.Equals(x.AppName, a, StringComparison.OrdinalIgnoreCase)))
+                .Where(x => scopes.Any(a => string.Equals(x.Scope, a, StringComparison.OrdinalIgnoreCase)))
                 .Where(x => string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
@@ -559,7 +559,7 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
-        string? appName,
+        string? scope,
         string? environment,
         string? tenantId,
         string? keyPrefix,
@@ -572,9 +572,9 @@ public sealed class InMemoryConfigStore : IConfigStore
 
             var query = _entries.Values.AsEnumerable();
 
-            if (appName is not null)
+            if (scope is not null)
             {
-                query = query.Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase));
             }
 
             if (environment is not null)
@@ -593,7 +593,7 @@ public sealed class InMemoryConfigStore : IConfigStore
             }
 
             var result = query
-                .OrderBy(x => x.AppName, StringComparer.Ordinal)
+                .OrderBy(x => x.Scope, StringComparer.Ordinal)
                 .ThenBy(x => x.Environment, StringComparer.Ordinal)
                 .ThenBy(x => x.TenantId, StringComparer.Ordinal)
                 .ThenBy(x => x.Key, StringComparer.Ordinal)
@@ -633,7 +633,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         // result set — avoids the previous full-scope scan that this method used to do
         // before merging in-memory. Pass int.MaxValue: clamping is the HTTP layer's job.
         var globals = await QueryAsync(
-            appName: options.AppName,
+            scope: options.Scope,
             environment: options.Environment,
             tenantId: string.Empty,
             keyPrefix: prefix,
@@ -650,7 +650,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         if (!string.IsNullOrWhiteSpace(tenantId))
         {
             var tenantEntries = await QueryAsync(
-                appName: options.AppName,
+                scope: options.Scope,
                 environment: options.Environment,
                 tenantId: tenantId,
                 keyPrefix: prefix,

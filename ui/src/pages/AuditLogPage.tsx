@@ -77,7 +77,7 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [appNameFilter, setAppNameFilter] = useState('')
+  const [scopeFilter, setScopeFilter] = useState('')
   const [environmentFilter, setEnvironmentFilter] = useState('')
   const [tenantFilter, setTenantFilter] = useState('')
   const [keyPrefixFilter, setKeyPrefixFilter] = useState('')
@@ -90,7 +90,7 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
     setError(null)
     try {
       const data = await queryAuditEntries({
-        appName: appNameFilter || undefined,
+        scope: scopeFilter || undefined,
         environment: environmentFilter || undefined,
         tenantId: tenantFilter || undefined,
         keyPrefix: keyPrefixFilter || undefined,
@@ -127,10 +127,10 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
         <AccessWarningBanner />
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">AppName</label>
+            <label className="text-xs text-muted-foreground">Scope</label>
             <Input
-              value={appNameFilter}
-              onChange={(e) => setAppNameFilter(e.target.value)}
+              value={scopeFilter}
+              onChange={(e) => setScopeFilter(e.target.value)}
               placeholder="all"
               className="h-8 w-40"
             />
@@ -208,7 +208,7 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
                 <TableHead>Key</TableHead>
                 <TableHead>Old Value</TableHead>
                 <TableHead>New Value</TableHead>
-                <TableHead>AppName</TableHead>
+                <TableHead>Scope</TableHead>
                 <TableHead>Environment</TableHead>
                 <TableHead>Tenant</TableHead>
                 <TableHead>Modified UTC</TableHead>
@@ -234,7 +234,7 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
                     <AuditValueCell value={entry.newValue} isSecret={entry.isSecret} />
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs text-foreground">{entry.appName}</span>
+                    <span className="text-xs text-foreground">{entry.scope}</span>
                   </TableCell>
                   <TableCell>
                     <span className="text-xs text-foreground">{entry.environment}</span>
@@ -261,7 +261,7 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
       <EntryHistoryDialog
         open={!!historyEntry}
         onClose={() => setHistoryEntry(null)}
-        appName={historyEntry?.appName ?? ''}
+        scope={historyEntry?.scope ?? ''}
         environment={historyEntry?.environment ?? ''}
         tenantId={historyEntry?.tenantId ?? ''}
         entryKey={historyEntry?.key ?? ''}

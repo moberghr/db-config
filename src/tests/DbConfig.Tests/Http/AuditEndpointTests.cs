@@ -176,7 +176,7 @@ public sealed class AuditEndpointTests
     }
 
     [TimedFact]
-    public async Task GetAudit_WithScopeFilter_NonMatchingAppName_Returns403()
+    public async Task GetAudit_WithScopeFilter_NonMatchingScope_Returns403()
     {
         var auditStore = new InMemoryConfigAuditStore();
 
@@ -192,7 +192,7 @@ public sealed class AuditEndpointTests
     }
 
     [TimedFact]
-    public async Task GetAudit_WithScopeFilter_MatchingAppName_Returns200()
+    public async Task GetAudit_WithScopeFilter_MatchingScope_Returns200()
     {
         const string allowedApp = "AllowedApp";
         var auditStore = new InMemoryConfigAuditStore();
@@ -222,7 +222,7 @@ public sealed class AuditEndpointTests
         // Simulate a secret entry — audit store returns plaintext (decrypted) values.
         var entry = new ConfigAuditEntry(
             Id: Guid.NewGuid(),
-            AppName: App,
+            Scope: App,
             Environment: Env,
             TenantId: string.Empty,
             Key: "SecretKey",
@@ -256,7 +256,7 @@ public sealed class AuditEndpointTests
 
     private static void SeedAuditEntry(
         InMemoryConfigAuditStore auditStore,
-        string appName,
+        string scope,
         string environment,
         string key,
         DateTimeOffset modifiedUtc,
@@ -264,7 +264,7 @@ public sealed class AuditEndpointTests
     {
         var entry = new ConfigAuditEntry(
             Id: Guid.NewGuid(),
-            AppName: appName,
+            Scope: scope,
             Environment: environment,
             TenantId: string.Empty,
             Key: key,

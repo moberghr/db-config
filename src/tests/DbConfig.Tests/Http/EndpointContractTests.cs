@@ -117,7 +117,7 @@ public sealed class EndpointContractTests
         await store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "OtherKey", "other", false, now, null), TestContext.Current.CancellationToken);
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/?appName={App}&environment={Env}",
+            $"/api/dbconfig/?scope={App}&environment={Env}",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -183,7 +183,7 @@ public sealed class EndpointContractTests
         var root = doc.RootElement;
 
         // Verify ASP.NET Core default camelCase serialization.
-        root.TryGetProperty("appName", out _).ShouldBeTrue();
+        root.TryGetProperty("scope", out _).ShouldBeTrue();
         root.TryGetProperty("environment", out _).ShouldBeTrue();
         root.TryGetProperty("key", out _).ShouldBeTrue();
         root.TryGetProperty("value", out _).ShouldBeTrue();

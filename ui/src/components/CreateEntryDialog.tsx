@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { ConfigEntry } from '@/api/entries'
 import { useEntriesStore } from '@/store/entriesStore'
 import { useScopeStore } from '@/store/scopeStore'
+import { useKnownValues } from '@/hooks/useKnownValues'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -16,32 +18,56 @@ import {
 interface CreateEntryDialogProps {
   open: boolean
   onClose: () => void
+  /**
+   * When provided, the dialog opens in "Duplicate" mode: identity fields and value/IsSecret
+   * are pre-filled from this entry, the title changes to "Duplicate: {key}", and all four
+   * identity fields stay editable so the user can write to a different (Scope, Environment,
+   * TenantId, Key) slot. The original entry is untouched — submission is a plain PUT.
+   */
+  sourceEntry?: ConfigEntry | null
 }
 
-export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
+export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDialogProps) {
   const upsert = useEntriesStore((s) => s.upsert)
-  const appName = useScopeStore((s) => s.appName)
+  const scope = useScopeStore((s) => s.scope)
   const environment = useScopeStore((s) => s.environment)
   const includeScopes = useScopeStore((s) => s.includeScopes)
   const scopeTenantId = useScopeStore((s) => s.tenantId)
+  const { scopes: knownScopes, environments: knownEnvironments, tenants: knownTenants } = useKnownValues()
 
-  // When the user has set an AppName filter, expose include-scope options too.
-  // When the filter is empty (multi-scope "show all" mode), the user must type
-  // the target AppName + Environment explicitly.
-  const filteredScopeOptions = appName
-    ? [appName, ...includeScopes.filter((s) => s !== appName)]
+  // In create mode (no source), show the include-scope dropdown when the user has filtered
+  // by Scope. In duplicate mode, identity fields are free-text so the user can edit them.
+  const filteredScopeOptions = sourceEntry == null && scope
+    ? [scope, ...includeScopes.filter((s) => s !== scope)]
     : []
 
-  const [selectedApp, setSelectedApp] = useState(appName)
-  const [selectedEnv, setSelectedEnv] = useState(environment)
-  const [tenantId, setTenantId] = useState(scopeTenantId)
-  const [key, setKey] = useState('')
-  const [value, setValue] = useState('')
-  const [isSecret, setIsSecret] = useState(false)
+  const [selectedApp, setSelectedApp] = useState(sourceEntry?.scope ?? scope)
+  const [selectedEnv, setSelectedEnv] = useState(sourceEntry?.environment ?? environment)
+  const [tenantId, setTenantId] = useState(sourceEntry?.tenantId ?? scopeTenantId)
+  const [key, setKey] = useState(sourceEntry?.key ?? '')
+  const [value, setValue] = useState(sourceEntry?.value ?? '')
+  const [isSecret, setIsSecret] = useState(sourceEntry?.isSecret ?? false)
   const [saving, setSaving] = useState(false)
   const [keyError, setKeyError] = useState<string | null>(null)
   const [scopeError, setScopeError] = useState<string | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
+
+  // Re-seed the form whenever the dialog is opened with a different source entry.
+  // (React keeps the same component instance across multiple open/close cycles, so
+  // useState initial values only run on first mount.)
+  useEffect(() => {
+    if (open) {
+      setSelectedApp(sourceEntry?.scope ?? scope)
+      setSelectedEnv(sourceEntry?.environment ?? environment)
+      setTenantId(sourceEntry?.tenantId ?? scopeTenantId)
+      setKey(sourceEntry?.key ?? '')
+      setValue(sourceEntry?.value ?? '')
+      setIsSecret(sourceEntry?.isSecret ?? false)
+      setKeyError(null)
+      setScopeError(null)
+      setApiError(null)
+    }
+  }, [open, sourceEntry, scope, environment, scopeTenantId])
 
   function validateKey(k: string): string | null {
     if (!k.trim()) return 'Key is required'
@@ -50,7 +76,7 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
   }
 
   function validateScope(app: string, env: string): string | null {
-    if (!app.trim()) return 'AppName is required'
+    if (!app.trim()) return 'Scope is required'
     if (!env.trim()) return 'Environment is required'
     return null
   }
@@ -62,7 +88,7 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
     setKeyError(null)
     setScopeError(null)
     setApiError(null)
-    setSelectedApp(appName)
+    setSelectedApp(scope)
     setSelectedEnv(environment)
     setTenantId(scopeTenantId)
     onClose()
@@ -79,11 +105,23 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
       setScopeError(scopeErr)
       return
     }
+    // Duplicate mode: at least one identity field must differ from the source.
+    // Otherwise the PUT would silently overwrite the source row (PUT is upsert) —
+    // not what the user intended when they clicked Duplicate.
+    if (sourceEntry != null
+      && selectedApp.trim() === sourceEntry.scope
+      && selectedEnv.trim() === sourceEntry.environment
+      && tenantId.trim() === sourceEntry.tenantId
+      && key.trim() === sourceEntry.key)
+    {
+      setScopeError('Change at least one of Scope, Environment, Tenant, or Key to create a new entry. The current values match the source.')
+      return
+    }
     setSaving(true)
     setApiError(null)
     try {
       await upsert({
-        appName: selectedApp.trim(),
+        scope: selectedApp.trim(),
         environment: selectedEnv.trim(),
         tenantId: tenantId.trim(),
         key: key.trim(),
@@ -106,17 +144,25 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
     }
   }
 
+  const isDuplicate = sourceEntry != null
+  const dialogTitle = isDuplicate ? `Duplicate: ${sourceEntry!.key}` : 'New Entry'
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
       <DialogContent size="xl">
         <DialogHeader>
-          <DialogTitle>New Entry</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {isDuplicate ? (
+            <p className="text-xs text-muted-foreground">
+              Pre-filled from the source entry. Change at least one of Scope, Environment, Tenant, or Key — otherwise the source row will be overwritten.
+            </p>
+          ) : null}
           {filteredScopeOptions.length > 1 ? (
             <div>
               <label className="block text-sm font-medium mb-1" htmlFor="create-scope">
-                Scope (AppName)
+                Scope
               </label>
               <select
                 id="create-scope"
@@ -124,9 +170,9 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
                 onChange={(e) => { setSelectedApp(e.target.value); setScopeError(null) }}
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                {filteredScopeOptions.map((scope) => (
-                  <option key={scope} value={scope}>
-                    {scope}{scope === appName ? ' (own)' : ' (shared)'}
+                {filteredScopeOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}{s === scope ? ' (own)' : ' (shared)'}
                   </option>
                 ))}
               </select>
@@ -134,13 +180,14 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
           ) : (
             <div>
               <label className="block text-sm font-medium mb-1" htmlFor="create-app">
-                AppName
+                Scope
               </label>
               <Input
                 id="create-app"
                 value={selectedApp}
                 onChange={(e) => { setSelectedApp(e.target.value); setScopeError(null) }}
                 placeholder="e.g. PaymentsApi"
+                list="create-known-scopes"
               />
             </div>
           )}
@@ -153,6 +200,7 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
               value={selectedEnv}
               onChange={(e) => { setSelectedEnv(e.target.value); setScopeError(null) }}
               placeholder="e.g. Production"
+              list="create-known-environments"
             />
           </div>
           {scopeError && <p className="text-xs text-destructive">{scopeError}</p>}
@@ -165,8 +213,19 @@ export function CreateEntryDialog({ open, onClose }: CreateEntryDialogProps) {
               value={tenantId}
               onChange={(e) => setTenantId(e.target.value)}
               placeholder="e.g. Acme"
+              list="create-known-tenants"
             />
           </div>
+
+          <datalist id="create-known-scopes">
+            {knownScopes.map((s) => <option key={s} value={s} />)}
+          </datalist>
+          <datalist id="create-known-environments">
+            {knownEnvironments.map((s) => <option key={s} value={s} />)}
+          </datalist>
+          <datalist id="create-known-tenants">
+            {knownTenants.map((s) => <option key={s} value={s} />)}
+          </datalist>
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="create-key">
               Key

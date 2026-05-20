@@ -3,7 +3,7 @@ import type { ConfigAuditAction, ConfigAuditEntry } from './entries'
 import type { DemoClient } from '@/demo/adapter'
 
 export interface AuditQuery {
-  appName?: string
+  scope?: string
   environment?: string
   tenantId?: string
   keyPrefix?: string
@@ -36,7 +36,7 @@ export async function queryAuditEntries(q: AuditQuery = {}): Promise<ConfigAudit
     return client.queryAuditEntries(q)
   }
   const params = new URLSearchParams()
-  if (q.appName) params.set('appName', q.appName)
+  if (q.scope) params.set('scope', q.scope)
   if (q.environment) params.set('environment', q.environment)
   if (q.tenantId) params.set('tenantId', q.tenantId)
   if (q.keyPrefix) params.set('keyPrefix', q.keyPrefix)

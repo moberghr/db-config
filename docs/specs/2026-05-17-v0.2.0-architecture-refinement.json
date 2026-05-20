@@ -185,7 +185,7 @@
         ],
         "acceptance": [
           "architecture.md is db-config-specific: IConfiguration extensibility, two-call DI, IConfigStore abstraction, polling/IChangeToken, host-owned auth, embedded UI, EF Core split",
-          "project-specific.md covers: AppName+Environment scoping, IsSecret as UI-only flag (NOT encryption), hand-written migrations, dual-DB testing, MTP runner quirk",
+          "project-specific.md covers: Scope+Environment scoping, IsSecret as UI-only flag (NOT encryption), hand-written migrations, dual-DB testing, MTP runner quirk",
           "CLAUDE.md's Standards Reference table marks both files as 'db-config-specific (rewritten 2026-05-17)'",
           "README.md Known Limitations section is updated to remove the items v0.2.0 closed (single-scope, dual-DI bridging, provider exception sniffing)"
         ],

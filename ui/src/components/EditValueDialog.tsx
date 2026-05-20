@@ -33,7 +33,7 @@ export function EditValueDialog({ entry, onClose }: EditValueDialogProps) {
     setError(null)
     try {
       await upsert({
-        appName: entry.appName,
+        scope: entry.scope,
         environment: entry.environment,
         tenantId: entry.tenantId,
         key: entry.key,

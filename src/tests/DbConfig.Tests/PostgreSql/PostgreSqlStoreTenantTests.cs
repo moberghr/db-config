@@ -156,7 +156,7 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
         await using var context = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var auditRow = await context.AuditEntries
             .AsNoTracking()
-            .Where(x => x.AppName == App && x.Environment == Env && x.Key == "AuditKey")
+            .Where(x => x.Scope == App && x.Environment == Env && x.Key == "AuditKey")
             .FirstOrDefaultAsync(CancellationToken.None);
 
         auditRow.ShouldNotBeNull();

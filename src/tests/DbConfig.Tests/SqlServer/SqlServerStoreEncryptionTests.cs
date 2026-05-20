@@ -50,7 +50,7 @@ public sealed class SqlServerStoreEncryptionTests : IAsyncLifetime
         await using var context = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var raw = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == App && x.Environment == Env && x.Key == "SecretKey")
+            .Where(x => x.Scope == App && x.Environment == Env && x.Key == "SecretKey")
             .FirstOrDefaultAsync(CancellationToken.None);
 
         raw.ShouldNotBeNull();
@@ -69,7 +69,7 @@ public sealed class SqlServerStoreEncryptionTests : IAsyncLifetime
         await using var context = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var raw = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == App && x.Environment == Env && x.Key == "PlainKey")
+            .Where(x => x.Scope == App && x.Environment == Env && x.Key == "PlainKey")
             .FirstOrDefaultAsync(CancellationToken.None);
 
         raw.ShouldNotBeNull();
@@ -125,7 +125,7 @@ public sealed class SqlServerStoreEncryptionTests : IAsyncLifetime
         // manually flip the IsSecret column in the DB while keeping the encrypted value.
         await using var context = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var entity = await context.ConfigEntries
-            .Where(x => x.AppName == App && x.Environment == Env && x.Key == "FlippedKey")
+            .Where(x => x.Scope == App && x.Environment == Env && x.Key == "FlippedKey")
             .FirstOrDefaultAsync(CancellationToken.None);
 
         entity.ShouldNotBeNull();

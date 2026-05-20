@@ -1,13 +1,13 @@
 # Project-Specific Patterns
 
-## §8.1 — `AppName` + `Environment` Scoping
+## §8.1 — `Scope` + `Environment` Scoping
 
-Every `ConfigEntry` is uniquely identified by the composite key `(AppName, Environment, Key)`.
+Every `ConfigEntry` is uniquely identified by the composite key `(Scope, Environment, Key)`.
 This triple forms the unique constraint on `DbConfig_Entries`. There is no row-level tenant
-isolation beyond this triple — all entries for the same `(AppName, Environment)` are returned
+isolation beyond this triple — all entries for the same `(Scope, Environment)` are returned
 together by `GetAllAsync`.
 
-- `AppName` — logical application name (e.g. `"MyApp"`). Set once in `DbConfigOptions`.
+- `Scope` — logical application name (e.g. `"MyApp"`). Set once in `DbConfigOptions`.
 - `Environment` — deployment environment (e.g. `"Production"`, `"Staging"`). Typically bound
   to `builder.Environment.EnvironmentName`.
 - `Key` — hierarchical key using `:` as the separator (matches `IConfiguration` convention).
@@ -116,7 +116,7 @@ change if some row's `ModifiedUtc` has advanced since the last poll.
 HTTP `DELETE` endpoint), the watermark does not advance. The polling provider will not
 reflect the deletion until another row's `ModifiedUtc` advances for an unrelated reason.
 
-The HTTP `DELETE /{appName}/{env}/{*key}` endpoint:
+The HTTP `DELETE /{scope}/{env}/{*key}` endpoint:
 1. Calls `IConfigStore.DeleteAsync`.
 2. Calls `IDbConfigReloadSignal.TriggerReload()`.
 
@@ -159,13 +159,13 @@ flow.
 Pick names that are obviously not real app names. Avoid `Default`, `Common`, `Base` — too easy to collide with a real app.
 
 **Precedence convention:** list shared scopes lowest-precedence-first. The configured
-`AppName` is always highest. Standard pattern:
+`Scope` is always highest. Standard pattern:
 ```csharp
 IncludeScopes = ["OrgGlobals", "PlatformDefaults", "Shared"];
 ```
 
 **Auth pattern (NOT FOR PROD without adaptation):**
-- App teams: `scopeFilter: <AppName>` + AppTeamAdmin policy
+- App teams: `scopeFilter: <Scope>` + AppTeamAdmin policy
 - Platform team: `scopeFilter: "Shared"` (or a dedicated platform scope) + PlatformAdmin policy
 - Separate route prefixes for each group (e.g. `/api/dbconfig` and `/api/dbconfig-shared`)
 
@@ -334,7 +334,7 @@ the fast-path global entries. Tenant-specific entries live in `_tenantData` and 
 accessed via `TryGet` when `ITenantResolver.Resolve()` returns a non-empty id.
 
 **Tenants are case-sensitive.**
-Per the v0.5.0 collation fix, all four scope columns (`AppName`, `Environment`,
+Per the v0.5.0 collation fix, all four scope columns (`Scope`, `Environment`,
 `TenantId`, `Key`) use case-sensitive collation. `"Acme"` and `"acme"` are distinct
 tenant identifiers. Use consistent casing across all writes and reads. The resolver
 implementation is responsible for normalizing casing — the package does not normalize.

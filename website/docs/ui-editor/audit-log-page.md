@@ -50,7 +50,7 @@ The toolbar across the top supports:
 
 | Filter | Behaviour |
 |---|---|
-| App | Equality match on `AppName` |
+| App | Equality match on `Scope` |
 | Environment | Equality match on `Environment` |
 | Tenant | Case-sensitive equality on `TenantId` (empty = global default) |
 | Key prefix | Case-insensitive `StartsWith` match on `Key` |
@@ -65,7 +65,7 @@ re-runs the query against the live database.
 The Audit Log page calls the flat audit endpoint:
 
 ```
-GET {apiPrefix}/audit?appName=&environment=&tenantId=&keyPrefix=&action=&take=
+GET {apiPrefix}/audit?scope=&environment=&tenantId=&keyPrefix=&action=&take=
 ```
 
 Where `{apiPrefix}` is `/admin/dbconfig/api` for the unified `MapDbConfigAdmin` mount.

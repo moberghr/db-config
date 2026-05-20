@@ -59,7 +59,7 @@ const ENV = 'Production'
 export const DEMO_ENTRIES: ConfigEntry[] = [
   // --- PaymentService (own scope, global tenant) ---
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'ConnectionStrings:Default',
@@ -69,7 +69,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'automation-bot@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Stripe:ApiKey',
@@ -79,7 +79,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'automation-bot@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Stripe:WebhookSecret',
@@ -89,7 +89,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'payments-lead@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Features:NewCheckout',
@@ -99,7 +99,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'payments-lead@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Timeouts:HttpSeconds',
@@ -109,7 +109,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'platform-admin@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'EmailNotifications:ReplyTo',
@@ -120,7 +120,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
   },
   // Multi-level Stripe entries (3 levels deep) — for tree view demo (B48)
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Stripe:Payment:ApiKey',
@@ -130,7 +130,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'payments-lead@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Stripe:Payment:WebhookSecret',
@@ -140,7 +140,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'payments-lead@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Stripe:Auth:OauthClientId',
@@ -150,7 +150,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'payments-lead@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Stripe:Auth:OauthClientSecret',
@@ -161,7 +161,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
   },
   // Multi-level Twilio entries (3 levels deep) — for tree view demo (B48)
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Twilio:Sms:AccountSid',
@@ -171,7 +171,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'automation-bot@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Twilio:Sms:AuthToken',
@@ -181,7 +181,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'automation-bot@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: '',
     key: 'Twilio:Voice:WebhookUrl',
@@ -192,7 +192,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
   },
   // --- Shared (cross-team scope, global tenant) ---
   {
-    appName: 'Shared',
+    scope: 'Shared',
     environment: ENV,
     tenantId: '',
     key: 'Logging:LogLevel',
@@ -202,7 +202,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'platform-admin@example.com',
   },
   {
-    appName: 'Shared',
+    scope: 'Shared',
     environment: ENV,
     tenantId: '',
     key: 'MetricsEndpoint:Url',
@@ -212,7 +212,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'platform-admin@example.com',
   },
   {
-    appName: 'Shared',
+    scope: 'Shared',
     environment: ENV,
     tenantId: '',
     key: 'RateLimits:RequestsPerSecond',
@@ -222,7 +222,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'dev-self@example.com',
   },
   {
-    appName: 'Shared',
+    scope: 'Shared',
     environment: ENV,
     tenantId: '',
     key: 'EmailNotifications:SmtpHost',
@@ -232,7 +232,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'platform-admin@example.com',
   },
   {
-    appName: 'Shared',
+    scope: 'Shared',
     environment: ENV,
     tenantId: '',
     key: 'EmailNotifications:SmtpPassword',
@@ -242,7 +242,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'automation-bot@example.com',
   },
   {
-    appName: 'Shared',
+    scope: 'Shared',
     environment: ENV,
     tenantId: '',
     key: 'EmailNotifications:FromAddress',
@@ -253,7 +253,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
   },
   // --- PlatformDefaults (org-wide baseline, global tenant) ---
   {
-    appName: 'PlatformDefaults',
+    scope: 'PlatformDefaults',
     environment: ENV,
     tenantId: '',
     key: 'Cache:DefaultTtlSeconds',
@@ -263,7 +263,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'platform-admin@example.com',
   },
   {
-    appName: 'PlatformDefaults',
+    scope: 'PlatformDefaults',
     environment: ENV,
     tenantId: '',
     key: 'Cache:MaxItems',
@@ -273,7 +273,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'platform-admin@example.com',
   },
   {
-    appName: 'PlatformDefaults',
+    scope: 'PlatformDefaults',
     environment: ENV,
     tenantId: '',
     key: 'Logging:MinLevel',
@@ -283,7 +283,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'platform-admin@example.com',
   },
   {
-    appName: 'PlatformDefaults',
+    scope: 'PlatformDefaults',
     environment: ENV,
     tenantId: '',
     key: 'DiagnosticsEndpoint:Url',
@@ -293,7 +293,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'platform-admin@example.com',
   },
   {
-    appName: 'PlatformDefaults',
+    scope: 'PlatformDefaults',
     environment: ENV,
     tenantId: '',
     key: 'Compliance:DataRetentionDays',
@@ -304,7 +304,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
   },
   // --- Acme tenant overrides on PaymentService ---
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Acme',
     key: 'Stripe:ApiKey',
@@ -314,7 +314,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'acme-admin@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Acme',
     key: 'Stripe:WebhookSecret',
@@ -324,7 +324,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'acme-admin@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Acme',
     key: 'Features:NewCheckout',
@@ -334,7 +334,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'acme-admin@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Acme',
     key: 'Timeouts:HttpSeconds',
@@ -345,7 +345,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
   },
   // --- Globex tenant overrides on PaymentService ---
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Globex',
     key: 'Stripe:ApiKey',
@@ -355,7 +355,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'globex-admin@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Globex',
     key: 'Stripe:WebhookSecret',
@@ -365,7 +365,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'globex-admin@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Globex',
     key: 'EmailNotifications:ReplyTo',
@@ -375,7 +375,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'globex-admin@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Globex',
     key: 'Features:NewCheckout',
@@ -385,7 +385,7 @@ export const DEMO_ENTRIES: ConfigEntry[] = [
     modifiedBy: 'globex-admin@example.com',
   },
   {
-    appName: 'PaymentService',
+    scope: 'PaymentService',
     environment: ENV,
     tenantId: 'Globex',
     key: 'Timeouts:HttpSeconds',
@@ -406,7 +406,7 @@ function auditId(): string {
 }
 
 function auditRow(
-  appName: string,
+  scope: string,
   environment: string,
   key: string,
   action: ConfigAuditAction,
@@ -419,7 +419,7 @@ function auditRow(
 ): ConfigAuditEntry {
   return {
     id: auditId(),
-    appName,
+    scope,
     environment,
     tenantId,
     key,

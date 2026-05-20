@@ -45,7 +45,7 @@ public sealed class SqlServerStoreGetAsyncTests : IAsyncLifetime
         var result = await _store.GetAsync(App, Env, "Section:Key", CancellationToken.None);
 
         result.ShouldNotBeNull();
-        result!.AppName.ShouldBe(App);
+        result!.Scope.ShouldBe(App);
         result.Environment.ShouldBe(Env);
         result.Key.ShouldBe("Section:Key");
         result.Value.ShouldBe("value1");

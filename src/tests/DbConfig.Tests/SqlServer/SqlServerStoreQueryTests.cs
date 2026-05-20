@@ -56,7 +56,7 @@ public sealed class SqlServerStoreQueryTests : IAsyncLifetime
     }
 
     [TimedFact(30_000)]
-    public async Task QueryAsync_FilterByAppNameAndKeyPrefix_ReturnsMatchingRows()
+    public async Task QueryAsync_FilterByScopeAndKeyPrefix_ReturnsMatchingRows()
     {
         var t = DateTimeOffset.UtcNow;
         await _store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Stripe:ApiKey", "v1", false, t, null), CancellationToken.None);
@@ -67,7 +67,7 @@ public sealed class SqlServerStoreQueryTests : IAsyncLifetime
         var result = await _store.QueryAsync("AppA", null, null, "Stripe:", 1000, CancellationToken.None);
 
         result.Count.ShouldBe(2);
-        result.ShouldAllBe(e => e.AppName == "AppA");
+        result.ShouldAllBe(e => e.Scope == "AppA");
         result.ShouldAllBe(e => e.Key.StartsWith("Stripe:", StringComparison.Ordinal));
     }
 

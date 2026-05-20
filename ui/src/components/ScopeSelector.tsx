@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useScopeStore } from '@/store/scopeStore'
 import { useEntriesStore } from '@/store/entriesStore'
+import { useKnownValues } from '@/hooks/useKnownValues'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -9,10 +10,11 @@ function parseIncludeScopes(raw: string): string[] {
 }
 
 export function ScopeSelector() {
-  const { appName, environment, tenantId, includeScopes, setScope, setIncludeScopes, setTenantId } = useScopeStore()
+  const { scope, environment, tenantId, includeScopes, setScope, setIncludeScopes, setTenantId } = useScopeStore()
   const refresh = useEntriesStore((s) => s.refresh)
+  const { scopes: knownScopes, environments: knownEnvironments, tenants: knownTenants } = useKnownValues()
 
-  const [localApp, setLocalApp] = useState(appName)
+  const [localApp, setLocalApp] = useState(scope)
   const [localEnv, setLocalEnv] = useState(environment)
   const [localTenant, setLocalTenant] = useState(tenantId)
   const [localIncludeScopes, setLocalIncludeScopes] = useState(includeScopes.join(', '))
@@ -25,7 +27,7 @@ export function ScopeSelector() {
     setScope(trimmedApp, trimmedEnv)
     setIncludeScopes(parsedScopes)
     setTenantId(trimmedTenant)
-    void refresh({ appName: trimmedApp, environment: trimmedEnv, tenantId: trimmedTenant })
+    void refresh({ scope: trimmedApp, environment: trimmedEnv, tenantId: trimmedTenant })
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -46,7 +48,8 @@ export function ScopeSelector() {
         onKeyDown={handleKeyDown}
         placeholder="(all)"
         className="w-40"
-        title="Filter by AppName — leave empty to show entries from every app"
+        title="Filter by Scope — leave empty to show entries from every app"
+        list="known-scopes"
       />
       <label className="text-sm font-medium text-muted-foreground" htmlFor="scope-env">
         Env:
@@ -59,6 +62,7 @@ export function ScopeSelector() {
         placeholder="(all)"
         className="w-40"
         title="Filter by Environment — leave empty to show entries from every environment"
+        list="known-environments"
       />
       <label className="text-sm font-medium text-muted-foreground" htmlFor="scope-tenant">
         Tenant:
@@ -71,6 +75,7 @@ export function ScopeSelector() {
         placeholder="(global defaults)"
         className="w-40"
         title="Tenant identifier — leave empty for global defaults"
+        list="known-tenants"
       />
       <label className="text-sm font-medium text-muted-foreground" htmlFor="scope-include">
         Include scopes:
@@ -90,6 +95,16 @@ export function ScopeSelector() {
       {isFilteringAll ? (
         <span className="text-xs text-muted-foreground italic">showing all entries</span>
       ) : null}
+
+      <datalist id="known-scopes">
+        {knownScopes.map((s) => <option key={s} value={s} />)}
+      </datalist>
+      <datalist id="known-environments">
+        {knownEnvironments.map((s) => <option key={s} value={s} />)}
+      </datalist>
+      <datalist id="known-tenants">
+        {knownTenants.map((s) => <option key={s} value={s} />)}
+      </datalist>
     </div>
   )
 }

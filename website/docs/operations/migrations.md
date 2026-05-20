@@ -31,8 +31,8 @@ helpers wrap that magic string when you need a standalone `DbContextOptions<DbCo
 |----------------|-------------|
 | `InitialCreate` | Creates `DbConfig_Entries` with composite unique constraint and polling index |
 | `AddAuditEntries` | Creates `DbConfig_AuditEntries` table for the audit log |
-| `CaseSensitiveScopeColumns` | Binary collation on `AppName`, `Environment`, and `Key` columns on both tables |
-| `AddTenantIdColumn` | Adds `TenantId` column (case-sensitive) to both tables; widens the unique constraint to `(AppName, Environment, TenantId, Key)` |
+| `CaseSensitiveScopeColumns` | Binary collation on `Scope`, `Environment`, and `Key` columns on both tables |
+| `AddTenantIdColumn` | Adds `TenantId` column (case-sensitive) to both tables; widens the unique constraint to `(Scope, Environment, TenantId, Key)` |
 | (UTC value converters) | `ModifiedUtc` columns are read as UTC `DateTime` / `DateTimeOffset` regardless of how the underlying engine stores them (defense-in-depth; no schema change) |
 
 See [Releases](../releases.md) for which library version introduced each migration.
@@ -45,7 +45,7 @@ provider's first `Load()`. This matches Hangfire / Marten / Wolverine convention
 ```csharp
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
     // b.Options.SchemaMode = SchemaMode.CreateIfMissing; // already the default
@@ -77,7 +77,7 @@ CI/CD pipeline owns the schema and applies it out of band:
 builder.AddDbConfig(b =>
 {
     b.Options.SchemaMode = SchemaMode.None;
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
 });

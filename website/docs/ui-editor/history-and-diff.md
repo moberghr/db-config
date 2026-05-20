@@ -77,7 +77,7 @@ The audit store decrypts `OldValue` and `NewValue` server-side before returning 
 The history dialog calls:
 
 ```
-GET {apiPrefix}/{appName}/{environment}/audit/{*key}?take=50
+GET {apiPrefix}/{scope}/{environment}/audit/{*key}?take=50
 ```
 
 Where `{apiPrefix}` is `/admin/dbconfig/api` for unified `MapDbConfigAdmin` mounts, or

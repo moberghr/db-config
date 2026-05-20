@@ -93,10 +93,10 @@ public sealed class InstrumentedConfigStore(IConfigStore inner, IMeterFactory me
 {
     private readonly Counter<long> _reloads = meterFactory.Create("dbconfig").CreateCounter<long>("dbconfig.reloads");
 
-    public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
+    public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
     {
         _reloads.Add(1);
-        return await inner.GetAllAsync(appName, environment, ct);
+        return await inner.GetAllAsync(scope, environment, ct);
     }
 
     // delegate remaining methods to inner ...

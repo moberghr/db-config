@@ -25,7 +25,7 @@ Two lines of setup in `Program.cs`:
 //    auto-migrates the DbConfig schema (SchemaMode.CreateIfMissing is the default).
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.ReloadInterval = TimeSpan.FromSeconds(30);
     b.UseSqlServer(connectionString); // or b.UsePostgreSql(connectionString)

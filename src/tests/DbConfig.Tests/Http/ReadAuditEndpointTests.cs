@@ -58,7 +58,7 @@ public sealed class ReadAuditEndpointTests
         var client = app.GetTestClient();
 
         await client.GetAsync($"/api/dbconfig/{App}/{Env}/SomeKey", TestContext.Current.CancellationToken);
-        await client.GetAsync($"/api/dbconfig/?appName={App}&environment={Env}", TestContext.Current.CancellationToken);
+        await client.GetAsync($"/api/dbconfig/?scope={App}&environment={Env}", TestContext.Current.CancellationToken);
 
         await Task.Delay(100, TestContext.Current.CancellationToken);
 
@@ -91,7 +91,7 @@ public sealed class ReadAuditEndpointTests
         readRows.Count.ShouldBe(1);
 
         var row = readRows[0];
-        row.AppName.ShouldBe(App);
+        row.Scope.ShouldBe(App);
         row.Environment.ShouldBe(Env);
         row.Key.ShouldBe("MyKey");
         row.OldValue.ShouldBeNull();
@@ -135,7 +135,7 @@ public sealed class ReadAuditEndpointTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/?appName={App}&environment={Env}",
+            $"/api/dbconfig/?scope={App}&environment={Env}",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -149,7 +149,7 @@ public sealed class ReadAuditEndpointTests
 
         var row = readRows[0];
         row.Key.ShouldBe("*");
-        row.AppName.ShouldBe(App);
+        row.Scope.ShouldBe(App);
         row.Environment.ShouldBe(Env);
         row.OldValue.ShouldBeNull();
         row.NewValue.ShouldBeNull();
@@ -391,13 +391,13 @@ public sealed class ReadAuditEndpointTests
     private sealed class ThrowingAuditStore : IConfigAuditStore
     {
         public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
-            string appName, string environment, string key, int take, CancellationToken ct)
+            string scope, string environment, string key, int take, CancellationToken ct)
         {
             return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
         }
 
         public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
-            string appName, string environment, string tenantId, string key, int take, CancellationToken ct)
+            string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
         {
             return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
         }
@@ -408,7 +408,7 @@ public sealed class ReadAuditEndpointTests
         }
 
         public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
-            string? appName,
+            string? scope,
             string? environment,
             string? tenantId,
             string? keyPrefix,
@@ -427,13 +427,13 @@ public sealed class ReadAuditEndpointTests
     private sealed class AsyncThrowingAuditStore : IConfigAuditStore
     {
         public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
-            string appName, string environment, string key, int take, CancellationToken ct)
+            string scope, string environment, string key, int take, CancellationToken ct)
         {
             return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
         }
 
         public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
-            string appName, string environment, string tenantId, string key, int take, CancellationToken ct)
+            string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
         {
             return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
         }
@@ -444,7 +444,7 @@ public sealed class ReadAuditEndpointTests
         }
 
         public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
-            string? appName,
+            string? scope,
             string? environment,
             string? tenantId,
             string? keyPrefix,

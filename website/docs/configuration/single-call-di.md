@@ -13,7 +13,7 @@ provider, and the reload signal. No second call, no bridge dance.
 ```csharp
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.ReloadInterval = TimeSpan.FromSeconds(30);
     b.Options.IncludeScopes = ["PlatformDefaults", "Shared"]; // optional
@@ -80,7 +80,7 @@ DbConfig is already registered on this host. AddDbConfig can only be called once
 
 This constraint exists because `IDbConfigReloadSignal` resolution walks the single
 `DbConfigRegistrationMarker` to locate the polling provider. Supporting multiple
-`(AppName, Environment)` pairs from different connection strings in a single host is
+`(Scope, Environment)` pairs from different connection strings in a single host is
 tracked for a future release.
 
 ## All `DbConfigOptions` fields
@@ -88,8 +88,8 @@ tracked for a future release.
 ```csharp
 public sealed class DbConfigOptions
 {
-    /// <summary>Application name — first component of the (AppName, Environment, Key) triple.</summary>
-    public string AppName { get; set; } = string.Empty;
+    /// <summary>Application name — first component of the (Scope, Environment, Key) triple.</summary>
+    public string Scope { get; set; } = string.Empty;
 
     /// <summary>Environment name — second component of the triple.</summary>
     public string Environment { get; set; } = string.Empty;
@@ -98,8 +98,8 @@ public sealed class DbConfigOptions
     public TimeSpan ReloadInterval { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Additional AppName scopes to include, ordered lowest-precedence-first.
-    /// Own AppName always wins. Empty by default.
+    /// Additional Scope scopes to include, ordered lowest-precedence-first.
+    /// Own Scope always wins. Empty by default.
     /// </summary>
     public IReadOnlyList<string> IncludeScopes { get; set; } = [];
 

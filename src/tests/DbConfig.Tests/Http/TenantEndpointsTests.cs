@@ -190,7 +190,7 @@ public sealed class TenantEndpointsTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/?appName={App}&environment={Env}&tenantId={TenantAcme}",
+            $"/api/dbconfig/?scope={App}&environment={Env}&tenantId={TenantAcme}",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -228,7 +228,7 @@ public sealed class TenantEndpointsTests
         // Flat endpoint with no tenantId filter → all tenants (replacement for the old
         // path-based ?allTenants=true behavior).
         var response = await client.GetAsync(
-            $"/api/dbconfig/?appName={App}&environment={Env}",
+            $"/api/dbconfig/?scope={App}&environment={Env}",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -266,7 +266,7 @@ public sealed class TenantEndpointsTests
         // endpoint's "no filter" default returns all tenants, so the explicit empty-string
         // filter is required to reproduce the global-only semantic.
         var response = await client.GetAsync(
-            $"/api/dbconfig/?appName={App}&environment={Env}&tenantId=",
+            $"/api/dbconfig/?scope={App}&environment={Env}&tenantId=",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 

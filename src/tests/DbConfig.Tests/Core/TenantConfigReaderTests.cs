@@ -54,7 +54,7 @@ public sealed class TenantConfigReaderTests
 
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
         };

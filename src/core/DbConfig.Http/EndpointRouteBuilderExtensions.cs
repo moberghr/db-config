@@ -21,9 +21,9 @@ public static class EndpointRouteBuilderExtensions
     /// <param name="endpoints">The endpoint route builder.</param>
     /// <param name="prefix">The route prefix for the group.</param>
     /// <param name="scopeFilter">
-    /// When non-null, all endpoints in the group enforce that the <c>{appName}</c> route value
-    /// matches this value (ordinal comparison). Requests with a mismatched <c>{appName}</c>
-    /// receive HTTP 403. Endpoints that have no <c>{appName}</c> route value (e.g.
+    /// When non-null, all endpoints in the group enforce that the <c>{scope}</c> route value
+    /// matches this value (ordinal comparison). Requests with a mismatched <c>{scope}</c>
+    /// receive HTTP 403. Endpoints that have no <c>{scope}</c> route value (e.g.
     /// <c>POST /reload</c>) are always allowed.
     /// </param>
     public static RouteGroupBuilder MapDbConfigHttp(
@@ -80,16 +80,16 @@ public static class EndpointRouteBuilderExtensions
             var capturedFilter = options.ScopeFilter;
             group.AddEndpointFilter(async (context, next) =>
             {
-                var routeAppName = context.HttpContext.Request.RouteValues["appName"] as string;
+                var routeScope = context.HttpContext.Request.RouteValues["scope"] as string;
 
-                // No appName in route (e.g. POST /reload) — always allowed.
-                if (routeAppName is null)
+                // No scope in route (e.g. POST /reload) — always allowed.
+                if (routeScope is null)
                 {
                     return await next(context);
                 }
 
-                // appName must match the configured scope filter (ordinal comparison).
-                if (!string.Equals(routeAppName, capturedFilter, StringComparison.Ordinal))
+                // scope must match the configured scope filter (ordinal comparison).
+                if (!string.Equals(routeScope, capturedFilter, StringComparison.Ordinal))
                 {
                     return Results.StatusCode(StatusCodes.Status403Forbidden);
                 }
@@ -99,14 +99,14 @@ public static class EndpointRouteBuilderExtensions
         }
 
         // Flat-query endpoint at the group root. This is the canonical list endpoint —
-        // there is no path-based `/{appName}/{environment}` list. Closure-captures the
+        // there is no path-based `/{scope}/{environment}` list. Closure-captures the
         // scopeFilter so the endpoint can enforce it without depending on the route-level
-        // filter (which runs off the {appName} route value — absent here because we use
+        // filter (which runs off the {scope} route value — absent here because we use
         // query strings).
         var capturedScopeFilter = options.ScopeFilter;
         group.MapGet("/", (
             HttpContext httpContext,
-            [FromQuery] string? appName,
+            [FromQuery] string? scope,
             [FromQuery] string? environment,
             [FromQuery] string? tenantId,
             [FromQuery] string? keyPrefix,
@@ -118,7 +118,7 @@ public static class EndpointRouteBuilderExtensions
             [FromServices] TimeProvider? timeProvider,
             CancellationToken ct) => QueryEntriesEndpoint.HandleAsync(
                 httpContext,
-                appName,
+                scope,
                 environment,
                 tenantId,
                 keyPrefix,
@@ -133,7 +133,7 @@ public static class EndpointRouteBuilderExtensions
 
         group.MapGet("/audit", (
             HttpContext httpContext,
-            [FromQuery] string? appName,
+            [FromQuery] string? scope,
             [FromQuery] string? environment,
             [FromQuery] string? tenantId,
             [FromQuery] string? keyPrefix,
@@ -142,7 +142,7 @@ public static class EndpointRouteBuilderExtensions
             [FromServices] IConfigAuditStore? auditStore,
             CancellationToken ct) => QueryAuditEndpoint.HandleAsync(
                 httpContext,
-                appName,
+                scope,
                 environment,
                 tenantId,
                 keyPrefix,
@@ -152,10 +152,10 @@ public static class EndpointRouteBuilderExtensions
                 capturedScopeFilter,
                 ct));
 
-        group.MapGet("/{appName}/{environment}/audit/{**key}", GetAuditHistoryEndpoint.HandleAsync);
-        group.MapGet("/{appName}/{environment}/{*key}", GetEntryEndpoint.HandleAsync);
-        group.MapPut("/{appName}/{environment}/{*key}", UpsertEntryEndpoint.HandleAsync);
-        group.MapDelete("/{appName}/{environment}/{*key}", DeleteEntryEndpoint.HandleAsync);
+        group.MapGet("/{scope}/{environment}/audit/{**key}", GetAuditHistoryEndpoint.HandleAsync);
+        group.MapGet("/{scope}/{environment}/{*key}", GetEntryEndpoint.HandleAsync);
+        group.MapPut("/{scope}/{environment}/{*key}", UpsertEntryEndpoint.HandleAsync);
+        group.MapDelete("/{scope}/{environment}/{*key}", DeleteEntryEndpoint.HandleAsync);
         group.MapPost("/reload", ReloadEndpoint.Handle);
 
         return group;

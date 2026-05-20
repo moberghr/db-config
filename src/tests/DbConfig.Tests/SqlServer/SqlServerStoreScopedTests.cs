@@ -55,10 +55,10 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
         // Only rows matching the queried scopes + env should be returned
         results.Count.ShouldBe(3);
         results.ShouldAllBe(e => e.Environment == Env);
-        results.ShouldContain(e => e.AppName == AppOwn && e.Key == "OwnKey");
-        results.ShouldContain(e => e.AppName == AppShared && e.Key == "SharedKey");
-        results.ShouldContain(e => e.AppName == AppPlatform && e.Key == "PlatformKey");
-        results.ShouldNotContain(e => e.AppName == "OtherApp");
+        results.ShouldContain(e => e.Scope == AppOwn && e.Key == "OwnKey");
+        results.ShouldContain(e => e.Scope == AppShared && e.Key == "SharedKey");
+        results.ShouldContain(e => e.Scope == AppPlatform && e.Key == "PlatformKey");
+        results.ShouldNotContain(e => e.Scope == "OtherApp");
         results.ShouldNotContain(e => e.Environment == "OtherEnv");
     }
 
@@ -78,12 +78,12 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
         // All three rows present
         results.Count.ShouldBe(3);
 
-        // Entries must be grouped by AppName in the same order as the input list
+        // Entries must be grouped by Scope in the same order as the input list
         // PlatformDefaults entries first, Shared next, PaymentService last
-        var appNamesInOrder = results.Select(e => e.AppName).ToList();
-        var platformIdx = appNamesInOrder.IndexOf(AppPlatform);
-        var sharedIdx = appNamesInOrder.IndexOf(AppShared);
-        var ownIdx = appNamesInOrder.IndexOf(AppOwn);
+        var scopesInOrder = results.Select(e => e.Scope).ToList();
+        var platformIdx = scopesInOrder.IndexOf(AppPlatform);
+        var sharedIdx = scopesInOrder.IndexOf(AppShared);
+        var ownIdx = scopesInOrder.IndexOf(AppOwn);
 
         platformIdx.ShouldBeLessThan(sharedIdx);
         sharedIdx.ShouldBeLessThan(ownIdx);

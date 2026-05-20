@@ -17,7 +17,7 @@ public sealed class MapDbConfigHttpScopeFilterTests
 
     // Regression: without scopeFilter, all app names are accessible on single-key GETs.
     [TimedFact]
-    public async Task ScopeFilter_Null_AllAppNamesAllowed()
+    public async Task ScopeFilter_Null_AllScopesAllowed()
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
@@ -39,9 +39,9 @@ public sealed class MapDbConfigHttpScopeFilterTests
         responseB.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    // scopeFilter="MyApp" — matching path appName is allowed on single-key GETs.
+    // scopeFilter="MyApp" — matching path scope is allowed on single-key GETs.
     [TimedFact]
-    public async Task ScopeFilter_MatchingAppName_GetEntry_Allowed()
+    public async Task ScopeFilter_MatchingScope_GetEntry_Allowed()
     {
         const string myApp = "MyApp";
         var store = new InMemoryConfigStore();
@@ -59,9 +59,9 @@ public sealed class MapDbConfigHttpScopeFilterTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    // scopeFilter="MyApp" — non-matching appName on single-key GET returns 403.
+    // scopeFilter="MyApp" — non-matching scope on single-key GET returns 403.
     [TimedFact]
-    public async Task ScopeFilter_NonMatchingAppName_GetEntry_Returns403()
+    public async Task ScopeFilter_NonMatchingScope_GetEntry_Returns403()
     {
         var store = new InMemoryConfigStore();
 
@@ -76,9 +76,9 @@ public sealed class MapDbConfigHttpScopeFilterTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // scopeFilter="MyApp" — non-matching appName on PUT returns 403.
+    // scopeFilter="MyApp" — non-matching scope on PUT returns 403.
     [TimedFact]
-    public async Task ScopeFilter_NonMatchingAppName_PutEntry_Returns403()
+    public async Task ScopeFilter_NonMatchingScope_PutEntry_Returns403()
     {
         var store = new InMemoryConfigStore();
 
@@ -95,9 +95,9 @@ public sealed class MapDbConfigHttpScopeFilterTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // scopeFilter="MyApp" — non-matching appName on DELETE returns 403.
+    // scopeFilter="MyApp" — non-matching scope on DELETE returns 403.
     [TimedFact]
-    public async Task ScopeFilter_NonMatchingAppName_DeleteEntry_Returns403()
+    public async Task ScopeFilter_NonMatchingScope_DeleteEntry_Returns403()
     {
         var store = new InMemoryConfigStore();
 
@@ -112,7 +112,7 @@ public sealed class MapDbConfigHttpScopeFilterTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // scopeFilter="MyApp" — POST /reload has no appName route value and is always allowed.
+    // scopeFilter="MyApp" — POST /reload has no scope route value and is always allowed.
     [TimedFact]
     public async Task ScopeFilter_ReloadEndpoint_AlwaysAllowed()
     {

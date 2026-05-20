@@ -9,7 +9,7 @@ namespace DbConfig.Tests.SqlServer;
 /// <summary>
 /// Verifies that the B53 TenantId migration applied correctly on SQL Server:
 /// column exists with the expected type and collation, unique constraint covers
-/// (AppName, Environment, TenantId, Key), and watermark / history indexes include TenantId.
+/// (Scope, Environment, TenantId, Key), and watermark / history indexes include TenantId.
 ///
 /// Tests insert rows via EF directly (not the store layer) so they remain valid before B54.
 /// </summary>
@@ -62,13 +62,13 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
     public async Task UniqueConstraint_AllowsSameKeyAcrossDifferentTenants()
     {
         // Insert two rows with the same (App, Env, Key) but different TenantId directly via EF.
-        // Both inserts must succeed because the unique constraint is on (AppName, Environment, TenantId, Key).
+        // Both inserts must succeed because the unique constraint is on (Scope, Environment, TenantId, Key).
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
 
         ctx.ConfigEntries.Add(new ConfigEntryEntity
         {
             Id = Guid.NewGuid(),
-            AppName = App,
+            Scope = App,
             Environment = Env,
             TenantId = string.Empty,
             Key = "SharedKey",
@@ -80,7 +80,7 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
         ctx.ConfigEntries.Add(new ConfigEntryEntity
         {
             Id = Guid.NewGuid(),
-            AppName = App,
+            Scope = App,
             Environment = Env,
             TenantId = "Acme",
             Key = "SharedKey",
@@ -95,7 +95,7 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
         await using var verifyCtx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await verifyCtx.ConfigEntries
             .AsNoTracking()
-            .Where(e => e.AppName == App && e.Environment == Env && e.Key == "SharedKey")
+            .Where(e => e.Scope == App && e.Environment == Env && e.Key == "SharedKey")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(2);
@@ -109,7 +109,7 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
         await connection.OpenAsync(CancellationToken.None);
 
         const string insert = """
-            INSERT INTO DbConfig_Entries (Id, AppName, Environment, TenantId, [Key], IsSecret, ModifiedUtc)
+            INSERT INTO DbConfig_Entries (Id, Scope, Environment, TenantId, [Key], IsSecret, ModifiedUtc)
             VALUES (@id, @app, @env, @tenant, @key, 0, GETUTCDATE())
             """;
 
@@ -140,17 +140,17 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
         await connection.OpenAsync(CancellationToken.None);
 
         var uniqueIndexExists = await IndexExistsAsync(
-            connection, "DbConfig_Entries", "UX_DbConfig_Entries_AppName_Environment_TenantId_Key");
+            connection, "DbConfig_Entries", "UX_DbConfig_Entries_Scope_Environment_TenantId_Key");
 
         uniqueIndexExists.ShouldBeTrue("unique index on Entries should include TenantId");
 
         var watermarkIndexExists = await IndexExistsAsync(
-            connection, "DbConfig_Entries", "IX_DbConfig_Entries_AppName_Environment_TenantId_ModifiedUtc");
+            connection, "DbConfig_Entries", "IX_DbConfig_Entries_Scope_Environment_TenantId_ModifiedUtc");
 
         watermarkIndexExists.ShouldBeTrue("watermark index on Entries should include TenantId");
 
         var historyIndexExists = await IndexExistsAsync(
-            connection, "DbConfig_AuditEntries", "IX_DbConfig_Audit_AppName_Environment_TenantId_Key_ModifiedUtc");
+            connection, "DbConfig_AuditEntries", "IX_DbConfig_Audit_Scope_Environment_TenantId_Key_ModifiedUtc");
 
         historyIndexExists.ShouldBeTrue("history index on AuditEntries should include TenantId");
     }

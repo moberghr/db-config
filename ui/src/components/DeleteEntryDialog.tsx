@@ -29,7 +29,7 @@ export function DeleteEntryDialog({ entry, onClose }: DeleteEntryDialogProps) {
     setError(null)
     try {
       await remove({
-        appName: entry.appName,
+        scope: entry.scope,
         environment: entry.environment,
         tenantId: entry.tenantId,
         key: entry.key,
@@ -45,8 +45,8 @@ export function DeleteEntryDialog({ entry, onClose }: DeleteEntryDialogProps) {
 
   const description = entry
     ? entry.tenantId
-      ? `Are you sure you want to delete "${entry.key}" in ${entry.appName} / ${entry.environment} (tenant: ${entry.tenantId})? This action cannot be undone.`
-      : `Are you sure you want to delete "${entry.key}" in ${entry.appName} / ${entry.environment}? This action cannot be undone.`
+      ? `Are you sure you want to delete "${entry.key}" in ${entry.scope} / ${entry.environment} (tenant: ${entry.tenantId})? This action cannot be undone.`
+      : `Are you sure you want to delete "${entry.key}" in ${entry.scope} / ${entry.environment}? This action cannot be undone.`
     : ''
 
   return (

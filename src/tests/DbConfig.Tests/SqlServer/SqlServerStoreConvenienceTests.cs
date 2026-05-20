@@ -32,7 +32,7 @@ public sealed class SqlServerStoreConvenienceTests : IAsyncLifetime
         await _fixture.ResetAsync();
         _options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
         };
         _resolver = new MutableTenantResolver();

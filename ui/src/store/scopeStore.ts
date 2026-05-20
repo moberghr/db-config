@@ -5,13 +5,13 @@ type ViewMode = 'mine' | 'shared' | 'all'
 type ListMode = 'flat' | 'tree'
 
 interface ScopeState {
-  appName: string
+  scope: string
   environment: string
   tenantId: string
   includeScopes: string[]
   viewMode: ViewMode
   listMode: ListMode
-  setScope: (appName: string, environment: string) => void
+  setScope: (scope: string, environment: string) => void
   setIncludeScopes: (scopes: string[]) => void
   setTenantId: (tenantId: string) => void
   setViewMode: (mode: ViewMode) => void
@@ -21,13 +21,13 @@ interface ScopeState {
 export const useScopeStore = create<ScopeState>()(
   persist(
     (set) => ({
-      appName: '',
+      scope: '',
       environment: '',
       tenantId: '',
       includeScopes: [],
       viewMode: 'all',
       listMode: 'flat',
-      setScope: (appName, environment) => set({ appName, environment }),
+      setScope: (scope, environment) => set({ scope, environment }),
       setIncludeScopes: (scopes) => set({ includeScopes: scopes }),
       setTenantId: (tenantId) => set({ tenantId }),
       setViewMode: (mode) => set({ viewMode: mode }),

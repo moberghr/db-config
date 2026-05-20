@@ -53,7 +53,7 @@ public sealed class PostgreSqlSchemaModeTests : IAsyncLifetime
         var builder = Host.CreateApplicationBuilder();
         builder.AddDbConfig(b =>
         {
-            b.Options.AppName = App;
+            b.Options.Scope = App;
             b.Options.Environment = Env;
             b.UsePostgreSql(_fixture.ConnectionString);
         });
@@ -81,7 +81,7 @@ public sealed class PostgreSqlSchemaModeTests : IAsyncLifetime
         var builder = Host.CreateApplicationBuilder();
         var exception = Record.Exception(() => builder.AddDbConfig(b =>
         {
-            b.Options.AppName = App;
+            b.Options.Scope = App;
             b.Options.Environment = Env;
             b.Options.SchemaMode = SchemaMode.None;
             b.UsePostgreSql(_fixture.ConnectionString);

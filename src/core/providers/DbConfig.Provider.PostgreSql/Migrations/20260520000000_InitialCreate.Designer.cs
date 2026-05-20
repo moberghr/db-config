@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DbConfig.Provider.PostgreSql.Migrations;
 
 [DbContext(typeof(DbConfigDbContext))]
-[Migration("20260518000000_AddTenantId")]
-partial class AddTenantId
+[Migration("20260520000000_InitialCreate")]
+partial class InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -28,7 +28,7 @@ partial class AddTenantId
             b.Property<Guid>("Id")
                 .HasColumnType("uuid");
 
-            b.Property<string>("AppName")
+            b.Property<string>("Scope")
                 .IsRequired()
                 .HasMaxLength(128)
                 .HasColumnType("text")
@@ -75,8 +75,8 @@ partial class AddTenantId
 
             b.HasKey("Id");
 
-            b.HasIndex("AppName", "Environment", "TenantId", "Key", "ModifiedUtc")
-                .HasDatabaseName("IX_DbConfig_Audit_AppName_Environment_TenantId_Key_ModifiedUtc");
+            b.HasIndex("Scope", "Environment", "TenantId", "Key", "ModifiedUtc")
+                .HasDatabaseName("IX_DbConfig_Audit_Scope_Environment_TenantId_Key_ModifiedUtc");
 
             b.ToTable("DbConfig_AuditEntries");
         });
@@ -86,7 +86,7 @@ partial class AddTenantId
             b.Property<Guid>("Id")
                 .HasColumnType("uuid");
 
-            b.Property<string>("AppName")
+            b.Property<string>("Scope")
                 .IsRequired()
                 .HasMaxLength(128)
                 .HasColumnType("text")
@@ -117,7 +117,7 @@ partial class AddTenantId
                 .HasDefaultValue(false)
                 .HasColumnType("boolean");
 
-            b.Property<DateTime>("ModifiedUtc")
+            b.Property<DateTimeOffset>("ModifiedUtc")
                 .HasColumnType("timestamp with time zone");
 
             b.Property<string>("ModifiedBy")
@@ -126,12 +126,12 @@ partial class AddTenantId
 
             b.HasKey("Id");
 
-            b.HasIndex("AppName", "Environment", "TenantId", "ModifiedUtc")
-                .HasDatabaseName("IX_DbConfig_Entries_AppName_Environment_TenantId_ModifiedUtc");
+            b.HasIndex("Scope", "Environment", "TenantId", "ModifiedUtc")
+                .HasDatabaseName("IX_DbConfig_Entries_Scope_Environment_TenantId_ModifiedUtc");
 
-            b.HasIndex("AppName", "Environment", "TenantId", "Key")
+            b.HasIndex("Scope", "Environment", "TenantId", "Key")
                 .IsUnique()
-                .HasDatabaseName("UX_DbConfig_Entries_AppName_Environment_TenantId_Key");
+                .HasDatabaseName("UX_DbConfig_Entries_Scope_Environment_TenantId_Key");
 
             b.ToTable("DbConfig_Entries");
         });

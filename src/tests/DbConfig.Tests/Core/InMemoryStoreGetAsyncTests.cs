@@ -20,7 +20,7 @@ public sealed class InMemoryStoreGetAsyncTests
         var result = await store.GetAsync(App, Env, "Section:Key", CancellationToken.None);
 
         result.ShouldNotBeNull();
-        result!.AppName.ShouldBe(App);
+        result!.Scope.ShouldBe(App);
         result.Environment.ShouldBe(Env);
         result.Key.ShouldBe("Section:Key");
         result.Value.ShouldBe("hello");

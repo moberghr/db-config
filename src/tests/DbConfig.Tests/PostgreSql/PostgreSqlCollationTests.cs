@@ -8,7 +8,7 @@ using Shouldly;
 namespace DbConfig.Tests.PostgreSql;
 
 /// <summary>
-/// Verifies that AppName, Environment, and Key columns use case-sensitive "C" collation
+/// Verifies that Scope, Environment, and Key columns use case-sensitive "C" collation
 /// on PostgreSQL after the B25 migration.
 /// A query using a wrong casing must return zero rows; an exact-case query must match.
 /// </summary>
@@ -38,7 +38,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [TimedFact(30_000)]
-    public async Task Entries_AppName_CaseSensitive_DifferentCaseReturnsNoRows()
+    public async Task Entries_Scope_CaseSensitive_DifferentCaseReturnsNoRows()
     {
         await _store.UpsertAsync(
             new ConfigEntry("MyApp", "Production", string.Empty, "Key1", "value", false, DateTimeOffset.UtcNow, null),
@@ -47,14 +47,14 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await ctx.ConfigEntries
             .AsNoTracking()
-            .Where(e => e.AppName == "myapp" && e.Environment == "Production")
+            .Where(e => e.Scope == "myapp" && e.Environment == "Production")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(0);
     }
 
     [TimedFact(30_000)]
-    public async Task Entries_AppName_CaseSensitive_ExactCaseReturnsRow()
+    public async Task Entries_Scope_CaseSensitive_ExactCaseReturnsRow()
     {
         await _store.UpsertAsync(
             new ConfigEntry("MyApp", "Production", string.Empty, "Key2", "value", false, DateTimeOffset.UtcNow, null),
@@ -63,7 +63,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await ctx.ConfigEntries
             .AsNoTracking()
-            .Where(e => e.AppName == "MyApp" && e.Environment == "Production")
+            .Where(e => e.Scope == "MyApp" && e.Environment == "Production")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(1);
@@ -79,7 +79,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await ctx.ConfigEntries
             .AsNoTracking()
-            .Where(e => e.AppName == "EnvApp" && e.Environment == "production")
+            .Where(e => e.Scope == "EnvApp" && e.Environment == "production")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(0);
@@ -95,7 +95,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await ctx.ConfigEntries
             .AsNoTracking()
-            .Where(e => e.AppName == "EnvApp" && e.Environment == "Production")
+            .Where(e => e.Scope == "EnvApp" && e.Environment == "Production")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(1);
@@ -111,7 +111,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await ctx.ConfigEntries
             .AsNoTracking()
-            .Where(e => e.AppName == "KeyApp" && e.Environment == "Production" && e.Key == "mysection:mykey")
+            .Where(e => e.Scope == "KeyApp" && e.Environment == "Production" && e.Key == "mysection:mykey")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(0);
@@ -127,14 +127,14 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await ctx.ConfigEntries
             .AsNoTracking()
-            .Where(e => e.AppName == "KeyApp" && e.Environment == "Production" && e.Key == "MySection:MyKey")
+            .Where(e => e.Scope == "KeyApp" && e.Environment == "Production" && e.Key == "MySection:MyKey")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(1);
     }
 
     [TimedFact(30_000)]
-    public async Task AuditEntries_AppName_CaseSensitive_DifferentCaseReturnsNoRows()
+    public async Task AuditEntries_Scope_CaseSensitive_DifferentCaseReturnsNoRows()
     {
         var storeWithAudit = new EfCoreConfigStore(
             _fixture.DbContextFactory,
@@ -150,14 +150,14 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await ctx.AuditEntries
             .AsNoTracking()
-            .Where(e => e.AppName == "auditmyapp")
+            .Where(e => e.Scope == "auditmyapp")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(0);
     }
 
     [TimedFact(30_000)]
-    public async Task AuditEntries_AppName_CaseSensitive_ExactCaseReturnsRow()
+    public async Task AuditEntries_Scope_CaseSensitive_ExactCaseReturnsRow()
     {
         var storeWithAudit = new EfCoreConfigStore(
             _fixture.DbContextFactory,
@@ -173,7 +173,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var count = await ctx.AuditEntries
             .AsNoTracking()
-            .Where(e => e.AppName == "AuditMyApp")
+            .Where(e => e.Scope == "AuditMyApp")
             .CountAsync(CancellationToken.None);
 
         count.ShouldBe(1);

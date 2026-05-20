@@ -12,7 +12,7 @@ internal static class GetEntryEndpoint
     private static int _warnedAboutMissingStore;
 
     internal static async Task HandleAsync(
-        string appName,
+        string scope,
         string environment,
         string key,
         IConfigStore store,
@@ -33,22 +33,22 @@ internal static class GetEntryEndpoint
 
         if (string.IsNullOrEmpty(tenantId))
         {
-            entry = await store.GetAsync(appName, environment, normalizedKey, ct);
+            entry = await store.GetAsync(scope, environment, normalizedKey, ct);
         }
         else
         {
-            entry = await store.GetForTenantAsync(appName, environment, tenantId, normalizedKey, ct);
+            entry = await store.GetForTenantAsync(scope, environment, tenantId, normalizedKey, ct);
 
             if (entry is null && fallback)
             {
-                entry = await store.GetAsync(appName, environment, normalizedKey, ct);
+                entry = await store.GetAsync(scope, environment, normalizedKey, ct);
             }
         }
 
         if (entry is null)
         {
             // Still write a read audit row for 404 — access attempt is worth recording.
-            WriteReadAudit(appName, environment, normalizedKey, httpContext, auditStore, options, logger, timeProvider);
+            WriteReadAudit(scope, environment, normalizedKey, httpContext, auditStore, options, logger, timeProvider);
 
             httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
@@ -57,11 +57,11 @@ internal static class GetEntryEndpoint
         httpContext.Response.ContentType = "application/json; charset=utf-8";
         await JsonSerializer.SerializeAsync(httpContext.Response.Body, entry, JsonOptions.Default, ct);
 
-        WriteReadAudit(appName, environment, normalizedKey, httpContext, auditStore, options, logger, timeProvider);
+        WriteReadAudit(scope, environment, normalizedKey, httpContext, auditStore, options, logger, timeProvider);
     }
 
     private static void WriteReadAudit(
-        string appName,
+        string scope,
         string environment,
         string normalizedKey,
         HttpContext httpContext,
@@ -92,7 +92,7 @@ internal static class GetEntryEndpoint
 
         var auditEntry = new ConfigAuditEntry(
             Id: Guid.NewGuid(),
-            AppName: appName,
+            Scope: scope,
             Environment: environment,
             TenantId: string.Empty,
             Key: normalizedKey,

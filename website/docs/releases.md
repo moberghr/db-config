@@ -4,6 +4,43 @@ sidebar_position: 99
 
 # Releases
 
+## v0.12.0 (2026-05-20)
+
+Minor release. The primary scope column (logical app identifier) is now consistently
+called `Scope` across the entire stack: database, C# entities, `IConfigStore` interface,
+HTTP routes / query strings / request bodies, TypeScript types, the UI, and the sample
+app. The UI label, badges, and `IncludeScopes` option already used this terminology;
+everything else now matches.
+
+Also unifies `ModifiedUtc` as `DateTimeOffset` across both tables — `DbConfig_Entries`
+used to map to `datetime2` (DateTime), `DbConfig_AuditEntries` already mapped to
+`datetimeoffset` (DateTimeOffset). Both now use `datetimeoffset` on SQL Server and
+`timestamp with time zone` on PostgreSQL, eliminating the manual conversions in the
+store layer.
+
+- **`DbConfigOptions.Scope`** — primary scope for the host (was previously a separate
+  property name)
+- **`IConfigStore` parameters** — `string scope` and `IReadOnlyList<string> scopes`
+  everywhere
+- **HTTP API** — routes `/{scope}/{environment}/{*key}` (and audit variants); query string
+  `?scope=` on `GET /` and `GET /audit`; request body field `scope` on `ConfigEntry` JSON
+- **Database schema** — column `Scope` on both `DbConfig_Entries` and `DbConfig_AuditEntries`;
+  indexes `UX_DbConfig_Entries_Scope_Environment_TenantId_Key` and
+  `IX_DbConfig_Audit_Scope_Environment_TenantId_Key_ModifiedUtc`
+- **TypeScript** — `ConfigEntry.scope`, axios client, demo data, Playwright fixtures
+- **Sample `appsettings.json`** — `DbConfig:Scope`
+
+Schema migrations were squashed into a fresh `InitialCreate` since the library isn't yet
+running in production. Existing dev databases must be recreated (`docker compose down -v
+&& docker compose up -d` for the sample).
+
+**UI improvement:** scope / environment / tenant inputs in the scope selector and create
+dialog now offer autocomplete suggestions based on the values currently in the entries
+table (via a native HTML `<datalist>`).
+
+**Breaking changes:** all C# / TypeScript / HTTP / DB consumers must update to the new
+names. There is no back-compat shim; rename in your own code or pin to v0.11.x.
+
 ## v0.11.2 (2026-05-20)
 
 Patch release. Adds `ITenantConfigReader` so application code can read another tenant's
@@ -28,12 +65,12 @@ typed settings without changing how sections are named — reuses the consumer's
 ## v0.11.1 (2026-05-20)
 
 Patch release. Adds ergonomic convenience overloads to `IConfigStore` so consumer code
-reading another tenant's settings doesn't have to pass `appName` / `environment` on every
+reading another tenant's settings doesn't have to pass `scope` / `environment` on every
 call.
 
 - **Six default-interface overloads on `IConfigStore`:** `GetAsync(key, ct)`,
   `GetAllAsync(ct)`, `GetForTenantAsync(tenantId, key, ct)`, `GetAllForTenantAsync(tenantId,
-  ct)`, `GetAsync<T>(ct)`, and `GetForTenantAsync<T>(tenantId, ct)`. `AppName` and
+  ct)`, `GetAsync<T>(ct)`, and `GetForTenantAsync<T>(tenantId, ct)`. `Scope` and
   `Environment` come from `DbConfigOptions`; current-tenant overloads consult the registered
   `ITenantResolver`.
 - **Typed-bind section name is `typeof(T).Name` verbatim** — `StripeOptions` reads from
@@ -108,7 +145,7 @@ migrations applied are exactly what `MigrateAsync` would have applied, and
 Patch release with several UI fixes and one notable feature.
 
 - **Global Audit Log page** — `GET /api/dbconfig/audit` returns the flat audit timeline
-  with optional `?appName=&environment=&tenantId=&keyPrefix=&action=&take=` filters. The
+  with optional `?scope=&environment=&tenantId=&keyPrefix=&action=&take=` filters. The
   admin UI gets a new **Audit Log** tab next to **Entries** so Delete events (whose
   entries no longer exist in the grid) are visible. See
   [Audit Log page](./ui-editor/audit-log-page.md).
@@ -152,10 +189,10 @@ previous "host owns all auth" rule.
 - **`UnauthorizedRedirectUrl`** — alternative path for hosts with their own existing
   login page.
 - **Flat `GET /` entries endpoint** with optional query-string filters
-  (`?appName=&environment=&tenantId=&keyPrefix=&take=`). Replaces the old path-based
-  list endpoint. UI now loads all entries on mount — no AppName/Environment input
+  (`?scope=&environment=&tenantId=&keyPrefix=&take=`). Replaces the old path-based
+  list endpoint. UI now loads all entries on mount — no Scope/Environment input
   required.
-- **UI multi-scope display** — entries table shows AppName + Environment + Tenant
+- **UI multi-scope display** — entries table shows Scope + Environment + Tenant
   columns. Edit / delete / history actions use the entry's own coordinates, so
   cross-scope operations work correctly.
 - **Softer dark mode palette** — off-black background and slightly compressed contrast
@@ -165,7 +202,7 @@ previous "host owns all auth" rule.
   second `Notifications` app to showcase the flat endpoint.
 
 **Breaking changes:**
-- `GET /{appName}/{environment}` (path-based list) removed. Use `GET /` with optional
+- `GET /{scope}/{environment}` (path-based list) removed. Use `GET /` with optional
   query-string filters.
 - `IDbConfigAuthorizationFilter` and `IDbConfigCredentialValidator` live in
   `Moberg.DbConfig.Http` (not `Moberg.DbConfig.Ui`).
@@ -194,7 +231,7 @@ internal stack.
   startup with no request scope → always global values. Tenant-aware types MUST use
   `IOptionsSnapshot<T>`. See [Multi-tenant config](./configuration/multi-tenant.md).
 - **Schema migration** `AddTenantIdColumn` widens the unique constraint to
-  `(AppName, Environment, TenantId, Key)` and applies case-sensitive collation to the
+  `(Scope, Environment, TenantId, Key)` and applies case-sensitive collation to the
   new column.
 - **UI** — Tenant column in the Entries grid (Default badge for global entries; colored
   chip for tenant-specific); Tenant input in the ScopeSelector; CreateEntryDialog
@@ -234,7 +271,7 @@ Production hardening: at-rest encryption, full audit log, and collation fix.
   history ordered most-recent-first, capped at 500 rows.
 - **UI history dialog:** per-row "History" button opens the audit history dialog with
   secret masking and reveal toggle.
-- **Case-sensitive scope columns:** binary collation on `AppName`, `Environment`, and `Key`
+- **Case-sensitive scope columns:** binary collation on `Scope`, `Environment`, and `Key`
   closes the mismatch between HTTP `scopeFilter` (ordinal comparison) and the DB query.
   `CaseSensitiveScopeColumns` migration requires a maintenance window for live tables.
 - **`DbConfigOptions.EnableAuditLog`:** set to `false` to opt out of audit writes entirely.
@@ -243,14 +280,14 @@ Production hardening: at-rest encryption, full audit log, and collation fix.
 
 Multi-scope configuration and per-scope authorization.
 
-- **`DbConfigOptions.IncludeScopes`:** list of additional AppName scopes to include in
-  polling reads. Precedence: listed scopes lowest-first, own `AppName` always wins.
-- **Multi-scope polling:** one `SELECT ... WHERE AppName IN (...)` query covers all scopes.
+- **`DbConfigOptions.IncludeScopes`:** list of additional Scope scopes to include in
+  polling reads. Precedence: listed scopes lowest-first, own `Scope` always wins.
+- **Multi-scope polling:** one `SELECT ... WHERE Scope IN (...)` query covers all scopes.
   A change in any included scope triggers reload in every consumer within one poll interval.
 - **`MapDbConfigHttp(scopeFilter: "X")`:** optional parameter restricts all routes in the
-  group to a single AppName. Writes to other scopes return `403`. Use multiple groups with
+  group to a single Scope. Writes to other scopes return `403`. Use multiple groups with
   different filters for app-team vs platform-team auth separation.
-- **UI scope badge:** each row shows the source `AppName` as a colored badge.
+- **UI scope badge:** each row shows the source `Scope` as a colored badge.
 - **UI view mode toggle:** Mine / Shared / All view modes.
 - **Scope selector persists to `localStorage`.**
 

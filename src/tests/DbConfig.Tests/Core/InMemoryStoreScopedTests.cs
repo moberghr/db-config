@@ -22,8 +22,8 @@ public sealed class InMemoryStoreScopedTests
         var result = await store.GetAllScopedAsync(["Shared", "MyApp"], Env, CancellationToken.None);
 
         result.Count.ShouldBe(2);
-        result.ShouldContain(e => e.AppName == "Shared" && e.Key == "Key1");
-        result.ShouldContain(e => e.AppName == "MyApp" && e.Key == "Key2");
+        result.ShouldContain(e => e.Scope == "Shared" && e.Key == "Key1");
+        result.ShouldContain(e => e.Scope == "MyApp" && e.Key == "Key2");
     }
 
     [TimedFact]
@@ -39,8 +39,8 @@ public sealed class InMemoryStoreScopedTests
         var result = await store.GetAllScopedAsync(["Shared", "MyApp"], Env, CancellationToken.None);
 
         result.Count.ShouldBe(2);
-        result[0].AppName.ShouldBe("Shared");
-        result[1].AppName.ShouldBe("MyApp");
+        result[0].Scope.ShouldBe("Shared");
+        result[1].Scope.ShouldBe("MyApp");
     }
 
     [TimedFact]

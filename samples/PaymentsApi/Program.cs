@@ -16,7 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("PaymentsApi")
     ?? throw new InvalidOperationException("ConnectionStrings:PaymentsApi is required.");
 
-var appName = builder.Configuration["DbConfig:AppName"] ?? "PaymentsApi";
+var dbConfigScope = builder.Configuration["DbConfig:Scope"] ?? "PaymentsApi";
 var reloadSeconds = int.TryParse(builder.Configuration["DbConfig:ReloadIntervalSeconds"], out var r) ? r : 5;
 
 builder.Services.AddHttpContextAccessor();
@@ -27,7 +27,7 @@ builder.Services.AddHttpContextAccessor();
 // DbConfigMigrator.MigrateAsync(...) or GenerateMigrationScript(...).
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = appName;
+    b.Options.Scope = dbConfigScope;
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.ReloadInterval = TimeSpan.FromSeconds(reloadSeconds);
     b.UsePostgreSql(connectionString);
@@ -50,11 +50,11 @@ builder.Services.AddScoped<IDbConfigCredentialValidator, AppSettingsCredentialVa
 var app = builder.Build();
 
 // Idempotent seed — runs once if the store is empty.
-using (var scope = app.Services.CreateScope())
+using (var diScope = app.Services.CreateScope())
 {
-    var store = scope.ServiceProvider.GetRequiredService<IConfigStore>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    await SeedDemoDataAsync(store, app.Environment.EnvironmentName, appName, logger);
+    var store = diScope.ServiceProvider.GetRequiredService<IConfigStore>();
+    var logger = diScope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await SeedDemoDataAsync(store, app.Environment.EnvironmentName, dbConfigScope, logger);
 }
 
 // --- DbConfig admin surface (one call, unified) ---
@@ -73,7 +73,7 @@ app.MapDbConfigAdmin("/admin/dbconfig", opts =>
 // optional filter fields in the toolbar — useful for production hosts with many apps.
 app.MapGet("/", () =>
     "PaymentsApi sample for db-config. Admin UI at /admin/dbconfig (loads all entries "
-    + "immediately after sign-in — no AppName/Environment input required). Browser flow "
+    + "immediately after sign-in — no Scope/Environment input required). Browser flow "
     + "uses the built-in cookie login; sign in with any username and the value of "
     + "Auth:Password from appsettings.json. HTTP API at /admin/dbconfig/api (same cookie). "
     + "Try /api/diag/who.");
@@ -310,9 +310,9 @@ await app.RunAsync();
 // Local helpers (top-level methods are emitted as static on Program).
 // ====================================================================
 
-static async Task SeedDemoDataAsync(IConfigStore store, string env, string appName, ILogger logger)
+static async Task SeedDemoDataAsync(IConfigStore store, string env, string scope, ILogger logger)
 {
-    var existing = await store.GetAllForAllTenantsAsync(appName, env, CancellationToken.None);
+    var existing = await store.GetAllForAllTenantsAsync(scope, env, CancellationToken.None);
     if (existing.Count > 0)
     {
         logger.LogInformation("Skipping demo seed — {Count} entries already present", existing.Count);
@@ -325,66 +325,66 @@ static async Task SeedDemoDataAsync(IConfigStore store, string env, string appNa
     {
         // Global config (TenantId = "")
         // Depth-0 secret — top-level encryption key.
-        new(appName, env, "", "MasterEncryptionKey", "DEMO_master_key_NOT_REAL", true, now, "seed"),
+        new(scope, env, "", "MasterEncryptionKey", "DEMO_master_key_NOT_REAL", true, now, "seed"),
         // Depth-0 plaintext — top-level non-secret.
-        new(appName, env, "", "DefaultLocale", "en-US", false, now, "seed"),
+        new(scope, env, "", "DefaultLocale", "en-US", false, now, "seed"),
 
         // Depth-1 entries (Stripe:*, Limits:*, Features:*) — both secret and plaintext.
-        new(appName, env, "", "Stripe:WebhookSecret", "whsec_DEMO_global_webhook", true, now, "seed"),
-        new(appName, env, "", "Stripe:DefaultCurrency", "USD", false, now, "seed"),
-        new(appName, env, "", "Stripe:IdempotencyWindowSeconds", "60", false, now, "seed"),
-        new(appName, env, "", "Limits:DailyChargeCap", "1000000", false, now, "seed"),
-        new(appName, env, "", "Limits:MaxChargeAmount", "50000", false, now, "seed"),
-        new(appName, env, "", "Features:BetaSplitPayments", "false", false, now, "seed"),
+        new(scope, env, "", "Stripe:WebhookSecret", "whsec_DEMO_global_webhook", true, now, "seed"),
+        new(scope, env, "", "Stripe:DefaultCurrency", "USD", false, now, "seed"),
+        new(scope, env, "", "Stripe:IdempotencyWindowSeconds", "60", false, now, "seed"),
+        new(scope, env, "", "Limits:DailyChargeCap", "1000000", false, now, "seed"),
+        new(scope, env, "", "Limits:MaxChargeAmount", "50000", false, now, "seed"),
+        new(scope, env, "", "Features:BetaSplitPayments", "false", false, now, "seed"),
 
         // Depth-2 secrets — 3-segment keys with IsSecret=true.
-        new(appName, env, "", "Stripe:OAuth:ClientSecret", "ca_DEMO_oauth_client_secret", true, now, "seed"),
-        new(appName, env, "", "Stripe:OAuth:ClientId", "ca_demo_client_id", false, now, "seed"),
-        new(appName, env, "", "Database:Primary:Password", "DEMO_db_password_NOT_REAL", true, now, "seed"),
-        new(appName, env, "", "Database:Primary:Host", "db.internal.example", false, now, "seed"),
-        new(appName, env, "", "Database:Primary:Port", "5432", false, now, "seed"),
-        new(appName, env, "", "Database:Replica:Password", "DEMO_replica_password_NOT_REAL", true, now, "seed"),
-        new(appName, env, "", "Database:Replica:Host", "db-replica.internal.example", false, now, "seed"),
+        new(scope, env, "", "Stripe:OAuth:ClientSecret", "ca_DEMO_oauth_client_secret", true, now, "seed"),
+        new(scope, env, "", "Stripe:OAuth:ClientId", "ca_demo_client_id", false, now, "seed"),
+        new(scope, env, "", "Database:Primary:Password", "DEMO_db_password_NOT_REAL", true, now, "seed"),
+        new(scope, env, "", "Database:Primary:Host", "db.internal.example", false, now, "seed"),
+        new(scope, env, "", "Database:Primary:Port", "5432", false, now, "seed"),
+        new(scope, env, "", "Database:Replica:Password", "DEMO_replica_password_NOT_REAL", true, now, "seed"),
+        new(scope, env, "", "Database:Replica:Host", "db-replica.internal.example", false, now, "seed"),
 
         // 3-level nested: Notifications:Email:* — gives the tree view real hierarchy
-        new(appName, env, "", "Notifications:Email:Templates:Welcome", "Hi {name}, welcome to PaymentsApi.", false, now, "seed"),
-        new(appName, env, "", "Notifications:Email:Templates:PaymentFailed", "Your payment of {amount} failed.", false, now, "seed"),
-        new(appName, env, "", "Notifications:Email:Smtp:Host", "smtp.sendgrid.net", false, now, "seed"),
-        new(appName, env, "", "Notifications:Email:Smtp:Port", "587", false, now, "seed"),
-        new(appName, env, "", "Notifications:Email:Smtp:UseTls", "true", false, now, "seed"),
-        new(appName, env, "", "Notifications:Email:Smtp:Username", "apikey", false, now, "seed"),
-        new(appName, env, "", "Notifications:Email:Smtp:Password", "SG.DEMO-PASSWORD-NOT-REAL", true, now, "seed"),
+        new(scope, env, "", "Notifications:Email:Templates:Welcome", "Hi {name}, welcome to PaymentsApi.", false, now, "seed"),
+        new(scope, env, "", "Notifications:Email:Templates:PaymentFailed", "Your payment of {amount} failed.", false, now, "seed"),
+        new(scope, env, "", "Notifications:Email:Smtp:Host", "smtp.sendgrid.net", false, now, "seed"),
+        new(scope, env, "", "Notifications:Email:Smtp:Port", "587", false, now, "seed"),
+        new(scope, env, "", "Notifications:Email:Smtp:UseTls", "true", false, now, "seed"),
+        new(scope, env, "", "Notifications:Email:Smtp:Username", "apikey", false, now, "seed"),
+        new(scope, env, "", "Notifications:Email:Smtp:Password", "SG.DEMO-PASSWORD-NOT-REAL", true, now, "seed"),
 
         // 4-level nested experiment tree
-        new(appName, env, "", "Features:Experiments:Checkout:V2:Enabled", "false", false, now, "seed"),
-        new(appName, env, "", "Features:Experiments:Checkout:V2:RolloutPct", "0", false, now, "seed"),
+        new(scope, env, "", "Features:Experiments:Checkout:V2:Enabled", "false", false, now, "seed"),
+        new(scope, env, "", "Features:Experiments:Checkout:V2:RolloutPct", "0", false, now, "seed"),
 
         // v0.11.1 parallel "StripeOptions:" namespace — the convenience API
         // GetForTenantAsync<StripeOptions>(...) binds from verbatim type name. We seed both
         // namespaces so the existing per-request IOptionsSnapshot path (Stripe:) keeps working
         // alongside the new typed-binder demo (StripeOptions:).
-        new(appName, env, "", "StripeOptions:WebhookSecret", "whsec_DEMO_global_webhook", true, now, "seed"),
-        new(appName, env, "", "StripeOptions:DefaultCurrency", "USD", false, now, "seed"),
-        new(appName, env, "", "StripeOptions:IdempotencyWindowSeconds", "60", false, now, "seed"),
-        new(appName, env, "Acme", "StripeOptions:ApiKey", "sk_test_DEMO_acme_key", true, now, "seed"),
-        new(appName, env, "Acme", "StripeOptions:DefaultCurrency", "EUR", false, now, "seed"),
-        new(appName, env, "Globex", "StripeOptions:ApiKey", "sk_test_DEMO_globex_key", true, now, "seed"),
+        new(scope, env, "", "StripeOptions:WebhookSecret", "whsec_DEMO_global_webhook", true, now, "seed"),
+        new(scope, env, "", "StripeOptions:DefaultCurrency", "USD", false, now, "seed"),
+        new(scope, env, "", "StripeOptions:IdempotencyWindowSeconds", "60", false, now, "seed"),
+        new(scope, env, "Acme", "StripeOptions:ApiKey", "sk_test_DEMO_acme_key", true, now, "seed"),
+        new(scope, env, "Acme", "StripeOptions:DefaultCurrency", "EUR", false, now, "seed"),
+        new(scope, env, "Globex", "StripeOptions:ApiKey", "sk_test_DEMO_globex_key", true, now, "seed"),
 
         // Tenant Acme overrides
-        new(appName, env, "Acme", "Stripe:ApiKey", "sk_test_DEMO_acme_key", true, now, "seed"),
-        new(appName, env, "Acme", "Stripe:DefaultCurrency", "EUR", false, now, "seed"),
-        new(appName, env, "Acme", "Features:NewCheckout", "true", false, now, "seed"),
-        new(appName, env, "Acme", "Notifications:SlackWebhook", "https://hooks.slack.com/acme/DEMO", true, now, "seed"),
-        new(appName, env, "Acme", "Notifications:OnFailureEmail", "ops@acme.example", false, now, "seed"),
-        new(appName, env, "Acme", "Notifications:Email:Templates:Welcome", "Welcome to Acme via PaymentsApi.", false, now, "seed"),
+        new(scope, env, "Acme", "Stripe:ApiKey", "sk_test_DEMO_acme_key", true, now, "seed"),
+        new(scope, env, "Acme", "Stripe:DefaultCurrency", "EUR", false, now, "seed"),
+        new(scope, env, "Acme", "Features:NewCheckout", "true", false, now, "seed"),
+        new(scope, env, "Acme", "Notifications:SlackWebhook", "https://hooks.slack.com/acme/DEMO", true, now, "seed"),
+        new(scope, env, "Acme", "Notifications:OnFailureEmail", "ops@acme.example", false, now, "seed"),
+        new(scope, env, "Acme", "Notifications:Email:Templates:Welcome", "Welcome to Acme via PaymentsApi.", false, now, "seed"),
 
         // Tenant Globex overrides
-        new(appName, env, "Globex", "Stripe:ApiKey", "sk_test_DEMO_globex_key", true, now, "seed"),
-        new(appName, env, "Globex", "Limits:MaxChargeAmount", "100000", false, now, "seed"),
-        new(appName, env, "Globex", "Features:Require3DS", "true", false, now, "seed"),
+        new(scope, env, "Globex", "Stripe:ApiKey", "sk_test_DEMO_globex_key", true, now, "seed"),
+        new(scope, env, "Globex", "Limits:MaxChargeAmount", "100000", false, now, "seed"),
+        new(scope, env, "Globex", "Features:Require3DS", "true", false, now, "seed"),
 
         // A second app's entries — exercises the flat /entries endpoint's
-        // cross-AppName view in the admin UI.
+        // cross-Scope view in the admin UI.
         new("Notifications", env, "", "Email:Smtp:Host", "smtp.gmail.com", false, now, "seed"),
         new("Notifications", env, "", "Slack:DefaultChannel", "#alerts", false, now, "seed"),
         new("Notifications", env, "Acme", "Slack:DefaultChannel", "#acme-alerts", false, now, "seed"),
@@ -403,18 +403,18 @@ static async Task SeedDemoDataAsync(IConfigStore store, string env, string appNa
     //    audit trail (Insert + Delete) remains reachable only via the new global
     //    Audit Log page.
     await store.UpsertAsync(
-        new ConfigEntry(appName, env, "", "Stripe:DefaultCurrency", "EUR", false, now.AddMinutes(5), "platform-admin"),
+        new ConfigEntry(scope, env, "", "Stripe:DefaultCurrency", "EUR", false, now.AddMinutes(5), "platform-admin"),
         CancellationToken.None);
     await store.UpsertAsync(
-        new ConfigEntry(appName, env, "", "Stripe:DefaultCurrency", "GBP", false, now.AddMinutes(10), "platform-admin"),
+        new ConfigEntry(scope, env, "", "Stripe:DefaultCurrency", "GBP", false, now.AddMinutes(10), "platform-admin"),
         CancellationToken.None);
 
     await store.UpsertAsync(
-        new ConfigEntry(appName, env, "", "Legacy:OldSetting", "deprecated", false, now.AddMinutes(15), "platform-admin"),
+        new ConfigEntry(scope, env, "", "Legacy:OldSetting", "deprecated", false, now.AddMinutes(15), "platform-admin"),
         CancellationToken.None);
-    await store.DeleteAsync(appName, env, "Legacy:OldSetting", CancellationToken.None);
+    await store.DeleteAsync(scope, env, "Legacy:OldSetting", CancellationToken.None);
 
-    logger.LogInformation("Seeded {Count} demo config entries for {App}/{Env}", entries.Count, appName, env);
+    logger.LogInformation("Seeded {Count} demo config entries for {App}/{Env}", entries.Count, scope, env);
 }
 
 static string MaskSecret(string? value)

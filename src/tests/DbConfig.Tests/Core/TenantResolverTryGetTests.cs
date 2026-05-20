@@ -50,7 +50,7 @@ public sealed class TenantResolverTryGetTests
     {
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
         };
@@ -233,7 +233,7 @@ public sealed class TenantResolverTryGetTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = App;
+                b.Options.Scope = App;
                 b.Options.Environment = Env;
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);

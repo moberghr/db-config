@@ -19,7 +19,7 @@ public sealed class AddDbConfigContractTests
         var exception = Should.Throw<InvalidOperationException>(
             () => builder.AddDbConfig(b =>
             {
-                b.Options.AppName = "App";
+                b.Options.Scope = "App";
                 b.Options.Environment = "Test";
             }));
 
@@ -39,7 +39,7 @@ public sealed class AddDbConfigContractTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = "App";
+                b.Options.Scope = "App";
                 b.Options.Environment = "Test";
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(connectionString);
@@ -54,7 +54,7 @@ public sealed class AddDbConfigContractTests
         var exception = Should.Throw<InvalidOperationException>(
             () => builder.AddDbConfig(b =>
             {
-                b.Options.AppName = "App2";
+                b.Options.Scope = "App2";
                 b.Options.Environment = "Test";
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(connectionString);
@@ -75,7 +75,7 @@ public sealed class AddDbConfigContractTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = "App";
+                b.Options.Scope = "App";
                 b.Options.Environment = "Test";
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(connectionString);

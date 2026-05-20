@@ -45,7 +45,7 @@ going through the API.
 -- SQL Server
 CREATE TABLE DbConfig_AuditEntries (
     Id            uniqueidentifier  NOT NULL PRIMARY KEY,
-    AppName       nvarchar(128)     NOT NULL COLLATE Latin1_General_100_BIN2,
+    Scope       nvarchar(128)     NOT NULL COLLATE Latin1_General_100_BIN2,
     Environment   nvarchar(64)      NOT NULL COLLATE Latin1_General_100_BIN2,
     Key           nvarchar(512)     NOT NULL COLLATE Latin1_General_100_BIN2,
     OldValue      nvarchar(max)     NULL,
@@ -54,13 +54,13 @@ CREATE TABLE DbConfig_AuditEntries (
     Action        nvarchar(16)      NOT NULL, -- 'Insert' | 'Update' | 'Delete' | 'Read'
     ModifiedUtc   datetime2         NOT NULL,
     ModifiedBy    nvarchar(256)     NULL,
-    INDEX IX_AuditEntries_Key (AppName, Environment, Key, ModifiedUtc DESC)
+    INDEX IX_AuditEntries_Key (Scope, Environment, Key, ModifiedUtc DESC)
 );
 ```
 
 PostgreSQL uses `text` instead of `nvarchar`, `uuid` instead of `uniqueidentifier`,
 `timestamptz` instead of `datetime2`, and `boolean` instead of `bit`. Collation is `"C"`
-on `AppName`, `Environment`, and `Key`.
+on `Scope`, `Environment`, and `Key`.
 
 There is no foreign key from `DbConfig_AuditEntries` to `DbConfig_Entries`. Entries can be
 deleted; audit rows must survive.
@@ -77,7 +77,7 @@ which secret?" trails, enable read auditing:
 builder.AddDbConfig(b =>
 {
     b.UseSqlServer(connectionString);
-    b.Options.AppName = "PaymentService";
+    b.Options.Scope = "PaymentService";
     b.Options.AuditReads = true; // opt-in
 });
 ```
@@ -122,7 +122,7 @@ The audit record type used by `IConfigAuditStore.GetHistoryAsync`:
 ```csharp
 public sealed record ConfigAuditEntry(
     Guid Id,
-    string AppName,
+    string Scope,
     string Environment,
     string Key,
     string? OldValue,    // plaintext after decryption; null on Insert and Read

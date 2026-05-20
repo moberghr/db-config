@@ -48,7 +48,7 @@ public sealed class PostgreSqlReloadIntegrationTests : IAsyncLifetime
         var reloadInterval = TimeSpan.FromSeconds(5);
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = reloadInterval,
         };
@@ -94,7 +94,7 @@ public sealed class PostgreSqlReloadIntegrationTests : IAsyncLifetime
         var reloadInterval = TimeSpan.FromSeconds(5);
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = reloadInterval,
         };

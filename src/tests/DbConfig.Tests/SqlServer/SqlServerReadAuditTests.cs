@@ -43,7 +43,7 @@ public sealed class SqlServerReadAuditTests : IAsyncLifetime
     {
         var entry = new ConfigAuditEntry(
             Id: Guid.NewGuid(),
-            AppName: App,
+            Scope: App,
             Environment: Env,
             TenantId: string.Empty,
             Key: "ReadKey",
@@ -70,7 +70,7 @@ public sealed class SqlServerReadAuditTests : IAsyncLifetime
     {
         var entry = new ConfigAuditEntry(
             Id: Guid.NewGuid(),
-            AppName: App,
+            Scope: App,
             Environment: Env,
             TenantId: string.Empty,
             Key: "IndependentKey",
@@ -86,7 +86,7 @@ public sealed class SqlServerReadAuditTests : IAsyncLifetime
         await using var context = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
         var raw = await context.AuditEntries
             .AsNoTracking()
-            .Where(x => x.AppName == App && x.Environment == Env && x.Key == "IndependentKey")
+            .Where(x => x.Scope == App && x.Environment == Env && x.Key == "IndependentKey")
             .FirstOrDefaultAsync(CancellationToken.None);
 
         raw.ShouldNotBeNull();
@@ -131,7 +131,7 @@ public sealed class SqlServerReadAuditTests : IAsyncLifetime
             found = await context.AuditEntries
                 .AsNoTracking()
                 .AnyAsync(
-                    x => x.AppName == App && x.Environment == Env && x.Key == "E2EKey" && x.Action == "Read",
+                    x => x.Scope == App && x.Environment == Env && x.Key == "E2EKey" && x.Action == "Read",
                     TestContext.Current.CancellationToken);
 
             if (found)

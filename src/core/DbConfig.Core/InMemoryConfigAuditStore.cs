@@ -49,13 +49,13 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
-        string appName, string environment, string key, int take, CancellationToken ct)
+        string scope, string environment, string key, int take, CancellationToken ct)
     {
         lock (_lock)
         {
             // Legacy method: returns only global (TenantId = "") audit entries.
             var result = _entries
-                .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase)
+                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase)
                     && x.TenantId == string.Empty
                     && string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase))
@@ -69,12 +69,12 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
-        string appName, string environment, string tenantId, string key, int take, CancellationToken ct)
+        string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
     {
         lock (_lock)
         {
             var result = _entries
-                .Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase)
+                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(x.TenantId, tenantId, StringComparison.Ordinal)
                     && string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase))
@@ -88,7 +88,7 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
-        string? appName,
+        string? scope,
         string? environment,
         string? tenantId,
         string? keyPrefix,
@@ -100,9 +100,9 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
         {
             var query = _entries.AsEnumerable();
 
-            if (appName is not null)
+            if (scope is not null)
             {
-                query = query.Where(x => string.Equals(x.AppName, appName, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase));
             }
 
             if (environment is not null)

@@ -29,7 +29,7 @@ public sealed class ReloadEndpointShortcutPostgreSqlTests
 
         var body = new { value = "immediate", isSecret = false };
         var putResponse = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndPostgreSqlFixture.AppName}/{EndToEndPostgreSqlFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndPostgreSqlFixture.Scope}/{EndToEndPostgreSqlFixture.EnvName}/{key}",
             body,
             TestContext.Current.CancellationToken);
         putResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);

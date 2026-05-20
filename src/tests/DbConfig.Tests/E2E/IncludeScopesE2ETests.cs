@@ -22,14 +22,14 @@ public sealed class E2EIncludeScopesCollection : ICollectionFixture<IncludeScope
 /// <summary>
 /// Dedicated fixture for IncludeScopes E2E tests.
 /// Starts its own SQL Server container and builds a host configured with
-/// AppName = "PaymentService", Environment = "Test", IncludeScopes = ["Shared"].
+/// Scope = "PaymentService", Environment = "Test", IncludeScopes = ["Shared"].
 /// </summary>
 [Trait("Category", "E2E")]
 [Trait("Category", "SqlServer")]
 public sealed class IncludeScopesE2EFixture : IAsyncLifetime
 {
     public const string CollectionName = "E2E_IncludeScopes";
-    public const string AppName = "PaymentService";
+    public const string Scope = "PaymentService";
     public const string SharedScope = "Shared";
     public const string EnvName = "Test";
 
@@ -69,7 +69,7 @@ public sealed class IncludeScopesE2EFixture : IAsyncLifetime
 
         builder.AddDbConfig(b =>
         {
-            b.Options.AppName = AppName;
+            b.Options.Scope = Scope;
             b.Options.Environment = EnvName;
             b.Options.IncludeScopes = [SharedScope];
             b.Options.ReloadInterval = TimeSpan.FromMilliseconds(200);
@@ -160,7 +160,7 @@ public sealed class IncludeScopesE2ETests
 
         // PUT to own scope (PaymentService) — done slightly later so watermark advances.
         var putOwn = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{IncludeScopesE2EFixture.AppName}/{IncludeScopesE2EFixture.EnvName}/{key}",
+            $"/api/dbconfig/{IncludeScopesE2EFixture.Scope}/{IncludeScopesE2EFixture.EnvName}/{key}",
             ownBody,
             TestContext.Current.CancellationToken);
         putOwn.StatusCode.ShouldBe(HttpStatusCode.NoContent);

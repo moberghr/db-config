@@ -40,7 +40,7 @@ interface ImportDialogProps {
 }
 
 export function ImportDialog({ open, onClose }: ImportDialogProps) {
-  const appName = useScopeStore((s) => s.appName)
+  const scope = useScopeStore((s) => s.scope)
   const environment = useScopeStore((s) => s.environment)
   const refresh = useEntriesStore((s) => s.refresh)
 
@@ -98,12 +98,12 @@ export function ImportDialog({ open, onClose }: ImportDialogProps) {
   }
 
   async function handleImport() {
-    if (!appName || !environment) return
+    if (!scope || !environment) return
 
     // Dry-run: fetch current keys for collision detection
     let existingKeys = new Set<string>()
     if (collisionPolicy === 'skip' || collisionPolicy === 'error') {
-      const existing = await queryEntries({ appName, environment, tenantId: '' })
+      const existing = await queryEntries({ scope, environment, tenantId: '' })
       existingKeys = new Set(existing.map((e) => e.key))
     }
 
@@ -141,7 +141,7 @@ export function ImportDialog({ open, onClose }: ImportDialogProps) {
       states[i] = { ...states[i], status: 'running' }
       setItemStates([...states, ...skippedItems])
       try {
-        await upsertEntry(appName, environment, entry.key, entry.value, entry.isSecret)
+        await upsertEntry(scope, environment, entry.key, entry.value, entry.isSecret)
         states[i] = { ...states[i], status: 'done' }
       } catch (err: unknown) {
         let errorMsg = err instanceof Error ? err.message : 'Failed'
@@ -174,7 +174,7 @@ export function ImportDialog({ open, onClose }: ImportDialogProps) {
           {phase === 'pick' && (
             <DialogDescription>
               Select an appsettings-shaped JSON file (e.g. exported from DbConfig) to import
-              into <strong>{appName || '(no app selected)'}</strong> / <strong>{environment || '(no env)'}</strong>.
+              into <strong>{scope || '(no app selected)'}</strong> / <strong>{environment || '(no env)'}</strong>.
             </DialogDescription>
           )}
           {phase === 'preview' && (

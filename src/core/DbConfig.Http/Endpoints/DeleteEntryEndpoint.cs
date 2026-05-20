@@ -6,7 +6,7 @@ namespace DbConfig.Http.Endpoints;
 internal static class DeleteEntryEndpoint
 {
     internal static async Task<IResult> HandleAsync(
-        string appName,
+        string scope,
         string environment,
         string key,
         IConfigStore store,
@@ -20,11 +20,11 @@ internal static class DeleteEntryEndpoint
 
         if (string.IsNullOrEmpty(tenantId))
         {
-            await store.DeleteAsync(appName, environment, normalizedKey, ct);
+            await store.DeleteAsync(scope, environment, normalizedKey, ct);
         }
         else
         {
-            await store.DeleteForTenantAsync(appName, environment, tenantId, normalizedKey, ct);
+            await store.DeleteForTenantAsync(scope, environment, tenantId, normalizedKey, ct);
         }
 
         reloadSignal.Trigger();

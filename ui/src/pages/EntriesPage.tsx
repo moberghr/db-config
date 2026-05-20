@@ -14,6 +14,7 @@ import { CreateEntryDialog } from '@/components/CreateEntryDialog'
 import { DeleteEntryDialog } from '@/components/DeleteEntryDialog'
 import { EntryHistoryDialog } from '@/components/EntryHistoryDialog'
 import { BulkActionsToolbar } from '@/components/BulkActionsToolbar'
+import { TruncationBanner } from '@/components/TruncationBanner'
 import { ExportButton } from '@/components/ExportButton'
 import { ImportDialog } from '@/components/ImportDialog'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -28,31 +29,42 @@ interface EntriesPageProps {
 export function EntriesPage({ header, headerExtras }: EntriesPageProps = {}) {
   const refresh = useEntriesStore((s) => s.refresh)
   const entries = useEntriesStore((s) => s.entries)
-  const appName = useScopeStore((s) => s.appName)
+  const scope = useScopeStore((s) => s.scope)
   const viewMode = useScopeStore((s) => s.viewMode)
   const listMode = useScopeStore((s) => s.listMode)
 
   const [editingEntry, setEditingEntry] = useState<ConfigEntry | null>(null)
   const [deletingEntry, setDeletingEntry] = useState<ConfigEntry | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [duplicateSource, setDuplicateSource] = useState<ConfigEntry | null>(null)
   const [historyEntry, setHistoryEntry] = useState<ConfigEntry | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+
+  function handleDuplicate(entry: ConfigEntry) {
+    setDuplicateSource(entry)
+    setCreateOpen(true)
+  }
+
+  function closeCreate() {
+    setCreateOpen(false)
+    setDuplicateSource(null)
+  }
 
   useEffect(() => {
     void refresh()
   }, [refresh])
 
   const visibleEntries: ConfigEntry[] = entries.filter((entry) => {
-    // When the user hasn't filtered by AppName, "mine" and "shared" are
+    // When the user hasn't filtered by Scope, "mine" and "shared" are
     // meaningless — show everything regardless of viewMode.
-    if (!appName) {
+    if (!scope) {
       return true
     }
     if (viewMode === 'mine') {
-      return entry.appName === appName
+      return entry.scope === scope
     }
     if (viewMode === 'shared') {
-      return entry.appName !== appName
+      return entry.scope !== scope
     }
     return true // 'all'
   })
@@ -88,12 +100,14 @@ export function EntriesPage({ header, headerExtras }: EntriesPageProps = {}) {
             </Button>
           </div>
         </div>
+        <TruncationBanner />
         <BulkActionsToolbar visibleEntries={visibleEntries} />
         {listMode === 'tree' ? (
           <EntriesTreeView
             onEdit={setEditingEntry}
             onDelete={setDeletingEntry}
             onHistory={setHistoryEntry}
+            onDuplicate={handleDuplicate}
             visibleEntries={visibleEntries}
           />
         ) : (
@@ -101,6 +115,7 @@ export function EntriesPage({ header, headerExtras }: EntriesPageProps = {}) {
             onEdit={setEditingEntry}
             onDelete={setDeletingEntry}
             onHistory={setHistoryEntry}
+            onDuplicate={handleDuplicate}
             visibleEntries={visibleEntries}
           />
         )}
@@ -111,7 +126,8 @@ export function EntriesPage({ header, headerExtras }: EntriesPageProps = {}) {
       />
       <CreateEntryDialog
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={closeCreate}
+        sourceEntry={duplicateSource}
       />
       <DeleteEntryDialog
         entry={deletingEntry}
@@ -120,7 +136,7 @@ export function EntriesPage({ header, headerExtras }: EntriesPageProps = {}) {
       <EntryHistoryDialog
         open={!!historyEntry}
         onClose={() => setHistoryEntry(null)}
-        appName={historyEntry?.appName ?? ''}
+        scope={historyEntry?.scope ?? ''}
         environment={historyEntry?.environment ?? ''}
         tenantId={historyEntry?.tenantId ?? ''}
         entryKey={historyEntry?.key ?? ''}

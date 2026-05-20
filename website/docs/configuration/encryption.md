@@ -64,7 +64,7 @@ builder.Services.AddDataProtection()
 // Always register AddDbConfig AFTER configuring Data Protection
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
 });

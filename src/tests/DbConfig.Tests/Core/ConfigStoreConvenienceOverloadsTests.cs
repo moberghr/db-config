@@ -6,7 +6,7 @@ namespace DbConfig.Tests.Core;
 
 /// <summary>
 /// Tests for the v0.11.1 convenience overloads on <see cref="IConfigStore"/> — implicit
-/// AppName/Environment via <see cref="DbConfigOptions"/>, current-tenant lookup via
+/// Scope/Environment via <see cref="DbConfigOptions"/>, current-tenant lookup via
 /// <see cref="ITenantResolver"/>, and typed POCO binders with verbatim type-name section.
 /// </summary>
 [Trait("Category", "Unit")]
@@ -30,7 +30,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         result.ShouldNotBeNull();
         result!.Value.ShouldBe("Info");
         result.TenantId.ShouldBe(string.Empty);
-        options.AppName.ShouldBe(App);
+        options.Scope.ShouldBe(App);
     }
 
     [TimedFact]
@@ -351,50 +351,50 @@ public sealed class ConfigStoreConvenienceOverloadsTests
 
     private sealed class StubExplicitOnlyStore : IConfigStore
     {
-        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
 
-        public Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
+        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
             => Task.FromResult<ConfigEntry?>(null);
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
+        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
         public Task UpsertAsync(ConfigEntry entry, CancellationToken ct) => Task.CompletedTask;
 
-        public Task DeleteAsync(string appName, string environment, string key, CancellationToken ct) => Task.CompletedTask;
+        public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct) => Task.CompletedTask;
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string appName, string environment, string tenantId, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string scope, string environment, string tenantId, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
 
-        public Task<ConfigEntry?> GetForTenantAsync(string appName, string environment, string tenantId, string key, CancellationToken ct)
+        public Task<ConfigEntry?> GetForTenantAsync(string scope, string environment, string tenantId, string key, CancellationToken ct)
             => Task.FromResult<ConfigEntry?>(null);
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(string appName, string environment, string tenantId, CancellationToken ct)
+        public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(string scope, string environment, string tenantId, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
-        public Task DeleteForTenantAsync(string appName, string environment, string tenantId, string key, CancellationToken ct)
+        public Task DeleteForTenantAsync(string scope, string environment, string tenantId, string key, CancellationToken ct)
             => Task.CompletedTask;
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(string appName, string environment, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(string scope, string environment, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(string appName, string environment, CancellationToken ct)
+        public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(string scope, string environment, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
-        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
     }
 
@@ -404,7 +404,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
     {
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
         };
 

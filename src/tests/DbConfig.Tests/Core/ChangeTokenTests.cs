@@ -21,7 +21,7 @@ public sealed class ChangeTokenTests
         var store = new InMemoryConfigStore();
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
         };
@@ -42,7 +42,7 @@ public sealed class ChangeTokenTests
         var fakeTime = new FakeTimeProvider();
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
         };
@@ -74,7 +74,7 @@ public sealed class ChangeTokenTests
 
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = reloadInterval,
         };

@@ -60,7 +60,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     /// <see cref="DbConfigOptions"/> and an optional <see cref="ITenantResolver"/>.
     /// The HTTP-side store registration uses this overload so the convenience overloads
     /// (<c>GetAsync(key)</c>, <c>GetAsync&lt;T&gt;()</c>, etc.) can resolve ambient
-    /// AppName/Environment and the current tenant id without callers passing them on
+    /// Scope/Environment and the current tenant id without callers passing them on
     /// every call.
     /// </summary>
     /// <param name="factory">EF Core context factory.</param>
@@ -114,24 +114,24 @@ public sealed class EfCoreConfigStore : IConfigStore
         _tenantResolver = tenantResolver;
     }
 
-    public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
+    public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var entities = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == string.Empty)
             .Select(x =>
                 new ConfigEntry(
-                    x.AppName,
+                    x.Scope,
                     x.Environment,
                     x.TenantId,
                     x.Key,
                     x.Value,
                     x.IsSecret,
-                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedUtc,
                     x.ModifiedBy))
             .ToListAsync(ct);
 
@@ -146,31 +146,31 @@ public sealed class EfCoreConfigStore : IConfigStore
 
         if (string.IsNullOrWhiteSpace(tenantId))
         {
-            return GetAllAsync(options.AppName, options.Environment, ct);
+            return GetAllAsync(options.Scope, options.Environment, ct);
         }
 
-        return GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct);
+        return GetAllForTenantAsync(options.Scope, options.Environment, tenantId, ct);
     }
 
-    public async Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
+    public async Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var entity = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == string.Empty)
             .Where(x => x.Key == key)
             .Select(x =>
                 new ConfigEntry(
-                    x.AppName,
+                    x.Scope,
                     x.Environment,
                     x.TenantId,
                     x.Key,
                     x.Value,
                     x.IsSecret,
-                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedUtc,
                     x.ModifiedBy))
             .FirstOrDefaultAsync(ct);
 
@@ -185,10 +185,10 @@ public sealed class EfCoreConfigStore : IConfigStore
 
         if (string.IsNullOrWhiteSpace(tenantId))
         {
-            return GetAsync(options.AppName, options.Environment, key, ct);
+            return GetAsync(options.Scope, options.Environment, key, ct);
         }
 
-        return GetForTenantAsync(options.AppName, options.Environment, tenantId, key, ct);
+        return GetForTenantAsync(options.Scope, options.Environment, tenantId, key, ct);
     }
 
     /// <inheritdoc/>
@@ -205,16 +205,16 @@ public sealed class EfCoreConfigStore : IConfigStore
         return await BindTypedAsync<T>(tenantId, ct).ConfigureAwait(false);
     }
 
-    public async Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
+    public async Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var latestModifiedUtc = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == string.Empty)
-            .Select(x => (DateTime?)x.ModifiedUtc)
+            .Select(x => (DateTimeOffset?)x.ModifiedUtc)
             .MaxAsync(ct);
 
         if (latestModifiedUtc is null)
@@ -222,14 +222,14 @@ public sealed class EfCoreConfigStore : IConfigStore
             return null;
         }
 
-        return new DateTimeOffset(latestModifiedUtc.Value, TimeSpan.Zero);
+        return latestModifiedUtc.Value;
     }
 
     public async Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
     {
         var modifiedUtc = entry.ModifiedUtc == default
-            ? _timeProvider.GetUtcNow().UtcDateTime
-            : entry.ModifiedUtc.UtcDateTime;
+            ? _timeProvider.GetUtcNow()
+            : entry.ModifiedUtc.ToUniversalTime();
 
         // Encrypt the value before persisting when the entry is marked as a secret.
         var storedValue = entry.IsSecret && entry.Value is not null
@@ -247,7 +247,7 @@ public sealed class EfCoreConfigStore : IConfigStore
 
             // Capture the old stored value BEFORE applying the mutation (for audit).
             var existing = await context.ConfigEntries
-                .Where(x => x.AppName == entry.AppName)
+                .Where(x => x.Scope == entry.Scope)
                 .Where(x => x.Environment == entry.Environment)
                 .Where(x => x.TenantId == entry.TenantId)
                 .Where(x => x.Key == entry.Key)
@@ -258,7 +258,7 @@ public sealed class EfCoreConfigStore : IConfigStore
                 var newEntity = new ConfigEntryEntity
                 {
                     Id = Guid.NewGuid(),
-                    AppName = entry.AppName,
+                    Scope = entry.Scope,
                     Environment = entry.Environment,
                     TenantId = entry.TenantId,
                     Key = entry.Key,
@@ -316,12 +316,12 @@ public sealed class EfCoreConfigStore : IConfigStore
         }
     }
 
-    public async Task DeleteAsync(string appName, string environment, string key, CancellationToken ct)
+    public async Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var existing = await context.ConfigEntries
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == string.Empty)
             .Where(x => x.Key == key)
@@ -338,13 +338,13 @@ public sealed class EfCoreConfigStore : IConfigStore
 
         if (_enableAuditLog)
         {
-            var modifiedUtc = _timeProvider.GetUtcNow().UtcDateTime;
+            var modifiedUtc = _timeProvider.GetUtcNow();
 
             await context.AuditEntries.AddAsync(
                 new ConfigAuditEntryEntity
                 {
                     Id = Guid.NewGuid(),
-                    AppName = appName,
+                    Scope = scope,
                     Environment = environment,
                     TenantId = string.Empty,
                     Key = key,
@@ -352,7 +352,7 @@ public sealed class EfCoreConfigStore : IConfigStore
                     NewValue = null,
                     IsSecret = existing.IsSecret,
                     Action = ConfigAuditAction.Delete.ToString(),
-                    ModifiedUtc = new DateTimeOffset(modifiedUtc, TimeSpan.Zero),
+                    ModifiedUtc = modifiedUtc,
                     ModifiedBy = null,
                 },
                 ct);
@@ -363,45 +363,45 @@ public sealed class EfCoreConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
-        IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var entities = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => appNames.Contains(x.AppName))
+            .Where(x => scopes.Contains(x.Scope))
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == string.Empty)
             .Select(x =>
                 new ConfigEntry(
-                    x.AppName,
+                    x.Scope,
                     x.Environment,
                     x.TenantId,
                     x.Key,
                     x.Value,
                     x.IsSecret,
-                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedUtc,
                     x.ModifiedBy))
             .ToListAsync(ct);
 
         var decrypted = entities.ConvertAll(DecryptEntry);
 
-        // Re-order to match the input appNames list so precedence iteration is stable.
-        return [.. appNames.SelectMany(appName => decrypted.Where(e => string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase)))];
+        // Re-order to match the input scopes list so precedence iteration is stable.
+        return [.. scopes.SelectMany(scope => decrypted.Where(e => string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase)))];
     }
 
     /// <inheritdoc/>
     public async Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(
-        IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var latestModifiedUtc = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => appNames.Contains(x.AppName))
+            .Where(x => scopes.Contains(x.Scope))
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == string.Empty)
-            .Select(x => (DateTime?)x.ModifiedUtc)
+            .Select(x => (DateTimeOffset?)x.ModifiedUtc)
             .MaxAsync(ct);
 
         if (latestModifiedUtc is null)
@@ -409,7 +409,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             return null;
         }
 
-        return new DateTimeOffset(latestModifiedUtc.Value, TimeSpan.Zero);
+        return latestModifiedUtc.Value;
     }
 
     // -------------------------------------------------------------------------
@@ -418,24 +418,24 @@ public sealed class EfCoreConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
-        string appName, string environment, string tenantId, CancellationToken ct)
+        string scope, string environment, string tenantId, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var entities = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == tenantId)
             .Select(x =>
                 new ConfigEntry(
-                    x.AppName,
+                    x.Scope,
                     x.Environment,
                     x.TenantId,
                     x.Key,
                     x.Value,
                     x.IsSecret,
-                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedUtc,
                     x.ModifiedBy))
             .ToListAsync(ct);
 
@@ -449,30 +449,30 @@ public sealed class EfCoreConfigStore : IConfigStore
 
         var options = RequireOptions();
 
-        return GetAllForTenantAsync(options.AppName, options.Environment, tenantId, ct);
+        return GetAllForTenantAsync(options.Scope, options.Environment, tenantId, ct);
     }
 
     /// <inheritdoc/>
     public async Task<ConfigEntry?> GetForTenantAsync(
-        string appName, string environment, string tenantId, string key, CancellationToken ct)
+        string scope, string environment, string tenantId, string key, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var entity = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == tenantId)
             .Where(x => x.Key == key)
             .Select(x =>
                 new ConfigEntry(
-                    x.AppName,
+                    x.Scope,
                     x.Environment,
                     x.TenantId,
                     x.Key,
                     x.Value,
                     x.IsSecret,
-                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedUtc,
                     x.ModifiedBy))
             .FirstOrDefaultAsync(ct);
 
@@ -486,7 +486,7 @@ public sealed class EfCoreConfigStore : IConfigStore
 
         var options = RequireOptions();
 
-        return GetForTenantAsync(options.AppName, options.Environment, tenantId, key, ct);
+        return GetForTenantAsync(options.Scope, options.Environment, tenantId, key, ct);
     }
 
     /// <inheritdoc/>
@@ -500,16 +500,16 @@ public sealed class EfCoreConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public async Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
-        string appName, string environment, string tenantId, CancellationToken ct)
+        string scope, string environment, string tenantId, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var latestModifiedUtc = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == tenantId)
-            .Select(x => (DateTime?)x.ModifiedUtc)
+            .Select(x => (DateTimeOffset?)x.ModifiedUtc)
             .MaxAsync(ct);
 
         if (latestModifiedUtc is null)
@@ -517,17 +517,17 @@ public sealed class EfCoreConfigStore : IConfigStore
             return null;
         }
 
-        return new DateTimeOffset(latestModifiedUtc.Value, TimeSpan.Zero);
+        return latestModifiedUtc.Value;
     }
 
     /// <inheritdoc/>
     public async Task DeleteForTenantAsync(
-        string appName, string environment, string tenantId, string key, CancellationToken ct)
+        string scope, string environment, string tenantId, string key, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var existing = await context.ConfigEntries
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == tenantId)
             .Where(x => x.Key == key)
@@ -544,13 +544,13 @@ public sealed class EfCoreConfigStore : IConfigStore
 
         if (_enableAuditLog)
         {
-            var modifiedUtc = _timeProvider.GetUtcNow().UtcDateTime;
+            var modifiedUtc = _timeProvider.GetUtcNow();
 
             await context.AuditEntries.AddAsync(
                 new ConfigAuditEntryEntity
                 {
                     Id = Guid.NewGuid(),
-                    AppName = appName,
+                    Scope = scope,
                     Environment = environment,
                     TenantId = tenantId,
                     Key = key,
@@ -558,7 +558,7 @@ public sealed class EfCoreConfigStore : IConfigStore
                     NewValue = null,
                     IsSecret = existing.IsSecret,
                     Action = ConfigAuditAction.Delete.ToString(),
-                    ModifiedUtc = new DateTimeOffset(modifiedUtc, TimeSpan.Zero),
+                    ModifiedUtc = modifiedUtc,
                     ModifiedBy = null,
                 },
                 ct);
@@ -569,23 +569,23 @@ public sealed class EfCoreConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
-        string appName, string environment, CancellationToken ct)
+        string scope, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var entities = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Select(x =>
                 new ConfigEntry(
-                    x.AppName,
+                    x.Scope,
                     x.Environment,
                     x.TenantId,
                     x.Key,
                     x.Value,
                     x.IsSecret,
-                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedUtc,
                     x.ModifiedBy))
             .ToListAsync(ct);
 
@@ -594,15 +594,15 @@ public sealed class EfCoreConfigStore : IConfigStore
 
     /// <inheritdoc/>
     public async Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(
-        string appName, string environment, CancellationToken ct)
+        string scope, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var latestModifiedUtc = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => x.AppName == appName)
+            .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
-            .Select(x => (DateTime?)x.ModifiedUtc)
+            .Select(x => (DateTimeOffset?)x.ModifiedUtc)
             .MaxAsync(ct);
 
         if (latestModifiedUtc is null)
@@ -610,48 +610,48 @@ public sealed class EfCoreConfigStore : IConfigStore
             return null;
         }
 
-        return new DateTimeOffset(latestModifiedUtc.Value, TimeSpan.Zero);
+        return latestModifiedUtc.Value;
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
-        IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var entities = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => appNames.Contains(x.AppName))
+            .Where(x => scopes.Contains(x.Scope))
             .Where(x => x.Environment == environment)
             .Select(x =>
                 new ConfigEntry(
-                    x.AppName,
+                    x.Scope,
                     x.Environment,
                     x.TenantId,
                     x.Key,
                     x.Value,
                     x.IsSecret,
-                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedUtc,
                     x.ModifiedBy))
             .ToListAsync(ct);
 
         var decrypted = entities.ConvertAll(DecryptEntry);
 
-        // Re-order to match the input appNames list so precedence iteration is stable.
-        return [.. appNames.SelectMany(appName => decrypted.Where(e => string.Equals(e.AppName, appName, StringComparison.OrdinalIgnoreCase)))];
+        // Re-order to match the input scopes list so precedence iteration is stable.
+        return [.. scopes.SelectMany(scope => decrypted.Where(e => string.Equals(e.Scope, scope, StringComparison.OrdinalIgnoreCase)))];
     }
 
     /// <inheritdoc/>
     public async Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
-        IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+        IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var latestModifiedUtc = await context.ConfigEntries
             .AsNoTracking()
-            .Where(x => appNames.Contains(x.AppName))
+            .Where(x => scopes.Contains(x.Scope))
             .Where(x => x.Environment == environment)
-            .Select(x => (DateTime?)x.ModifiedUtc)
+            .Select(x => (DateTimeOffset?)x.ModifiedUtc)
             .MaxAsync(ct);
 
         if (latestModifiedUtc is null)
@@ -659,12 +659,12 @@ public sealed class EfCoreConfigStore : IConfigStore
             return null;
         }
 
-        return new DateTimeOffset(latestModifiedUtc.Value, TimeSpan.Zero);
+        return latestModifiedUtc.Value;
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ConfigEntry>> QueryAsync(
-        string? appName,
+        string? scope,
         string? environment,
         string? tenantId,
         string? keyPrefix,
@@ -677,7 +677,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .AsNoTracking()
             .AsQueryable();
 
-        if (appName is not null)
+        if (scope is not null)
         {
             // Server-side equality. Matches the existing EF Core convention in this store
             // (GetAllAsync, GetAsync, etc.) — the columns carry case-sensitive collation
@@ -685,7 +685,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             // uses OrdinalIgnoreCase for parity with the legacy app-name convention; the
             // discrepancy is documented in §8.14 and aligns with how real production
             // databases would resolve the lookup.
-            query = query.Where(x => x.AppName == appName);
+            query = query.Where(x => x.Scope == scope);
         }
 
         if (environment is not null)
@@ -710,20 +710,20 @@ public sealed class EfCoreConfigStore : IConfigStore
         }
 
         var entities = await query
-            .OrderBy(x => x.AppName)
+            .OrderBy(x => x.Scope)
             .ThenBy(x => x.Environment)
             .ThenBy(x => x.TenantId)
             .ThenBy(x => x.Key)
             .Take(take)
             .Select(x =>
                 new ConfigEntry(
-                    x.AppName,
+                    x.Scope,
                     x.Environment,
                     x.TenantId,
                     x.Key,
                     x.Value,
                     x.IsSecret,
-                    new DateTimeOffset(x.ModifiedUtc, TimeSpan.Zero),
+                    x.ModifiedUtc,
                     x.ModifiedBy))
             .ToListAsync(ct);
 
@@ -757,10 +757,10 @@ public sealed class EfCoreConfigStore : IConfigStore
 
         // Use QueryAsync with the section prefix so SQL filters server-side via LIKE.
         // Previously this method called GetAllAsync + GetAllForTenantAsync which scanned
-        // the entire (AppName, Environment) scope on every typed bind. Pass int.MaxValue —
+        // the entire (Scope, Environment) scope on every typed bind. Pass int.MaxValue —
         // clamping is the HTTP endpoint's job, not the store layer's.
         var globals = await QueryAsync(
-            appName: options.AppName,
+            scope: options.Scope,
             environment: options.Environment,
             tenantId: string.Empty,
             keyPrefix: prefix,
@@ -777,7 +777,7 @@ public sealed class EfCoreConfigStore : IConfigStore
         if (!string.IsNullOrWhiteSpace(tenantId))
         {
             var tenantEntries = await QueryAsync(
-                appName: options.AppName,
+                scope: options.Scope,
                 environment: options.Environment,
                 tenantId: tenantId,
                 keyPrefix: prefix,
@@ -830,12 +830,12 @@ public sealed class EfCoreConfigStore : IConfigStore
         ConfigAuditAction action,
         string? oldValue,
         string? newValue,
-        DateTime modifiedUtc)
+        DateTimeOffset modifiedUtc)
     {
         return new ConfigAuditEntryEntity
         {
             Id = Guid.NewGuid(),
-            AppName = entry.AppName,
+            Scope = entry.Scope,
             Environment = entry.Environment,
             TenantId = entry.TenantId,
             Key = entry.Key,
@@ -843,7 +843,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             NewValue = newValue,
             IsSecret = entry.IsSecret,
             Action = action.ToString(),
-            ModifiedUtc = new DateTimeOffset(modifiedUtc, TimeSpan.Zero),
+            ModifiedUtc = modifiedUtc,
             ModifiedBy = entry.ModifiedBy,
         };
     }

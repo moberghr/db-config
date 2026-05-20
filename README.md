@@ -37,7 +37,7 @@ dotnet run
 
 Then open `http://localhost:5000/admin/dbconfig` — the UI loads all your
 entries immediately and the filter fields in the toolbar narrow by
-AppName, Environment, or Tenant.
+Scope, Environment, or Tenant.
 
 ## Security
 
@@ -83,7 +83,7 @@ Per-entry encryption via `IsSecret` flag:
 // 1. Single call — wires services, configuration source, and reload signal
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.ReloadInterval = TimeSpan.FromSeconds(30);
     b.UseSqlServer(connectionString); // or b.UsePostgreSql(connectionString)
@@ -189,7 +189,7 @@ The library applies pending migrations during `AddDbConfig`. No extra code neede
 builder.AddDbConfig(b =>
 {
     b.UseSqlServer(connStr);
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     // b.Options.SchemaMode = SchemaMode.CreateIfMissing;  // default
 });
 ```
@@ -206,7 +206,7 @@ review by DBA, CI/CD step) can disable auto-create:
 builder.AddDbConfig(b =>
 {
     b.UseSqlServer(connStr);
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.SchemaMode = SchemaMode.None;  // host assumes schema is ready
 });
 ```
@@ -239,11 +239,11 @@ To pull configuration from one or more shared scopes in addition to your app's o
 builder.AddDbConfig(b =>
 {
     b.UseSqlServer(connectionString);
-    b.Options.AppName = "PaymentService";
+    b.Options.Scope = "PaymentService";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.IncludeScopes = ["PlatformDefaults", "Shared"];
     // Precedence (lowest → highest): PlatformDefaults < Shared < PaymentService
-    // Own scope (AppName) always wins ties.
+    // Own scope (Scope) always wins ties.
 });
 ```
 
@@ -263,14 +263,14 @@ app.MapDbConfigHttp("/api/dbconfig-shared", scopeFilter: "Shared")
    .RequireAuthorization("PlatformAdmin");
 ```
 
-When `scopeFilter` is set, the group rejects writes (and reads) to other AppNames with 403.
+When `scopeFilter` is set, the group rejects writes (and reads) to other Scopes with 403.
 The `/reload` endpoint is always allowed.
 
 ### Audit log
 
 Every mutation (Upsert/Delete) writes a row to `DbConfig_AuditEntries` in the same
 transaction. The UI's per-row "History" button surfaces this; programmatic access via
-`GET /{appName}/{environment}/audit/{*key}?take=50` returns `ConfigAuditEntry[]`.
+`GET /{scope}/{environment}/audit/{*key}?take=50` returns `ConfigAuditEntry[]`.
 
 Audit log values are encrypted-at-rest using the same `IConfigEncryptor` as the main
 store. The history endpoint decrypts for the response, so callers see plaintext.
@@ -288,7 +288,7 @@ that require "who read this secret?" trails, enable read auditing:
 builder.AddDbConfig(b =>
 {
     b.UseSqlServer(connStr);
-    b.Options.AppName = "PaymentService";
+    b.Options.Scope = "PaymentService";
     b.Options.AuditReads = true;
 });
 ```
@@ -357,7 +357,7 @@ operations, import/export, scope selector, and the access warning banner.
 ## Feature scope
 
 - SQL Server and PostgreSQL via EF Core
-- Hierarchical keys; AppName + Environment + TenantId + Key scoping
+- Hierarchical keys; Scope + Environment + TenantId + Key scoping
 - Polling-based reload with immediate-reload signal on HTTP mutations
 - Embedded React editor UI with CRUD, secret masking, scope badges, view-mode toggle,
   per-row audit history, and a global Audit Log timeline

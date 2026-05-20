@@ -55,7 +55,7 @@ public sealed class SqlServerSchemaModeTests : IAsyncLifetime
         var builder = Host.CreateApplicationBuilder();
         builder.AddDbConfig(b =>
         {
-            b.Options.AppName = App;
+            b.Options.Scope = App;
             b.Options.Environment = Env;
             b.UseSqlServer(_fixture.ConnectionString);
         });
@@ -89,7 +89,7 @@ public sealed class SqlServerSchemaModeTests : IAsyncLifetime
         var builder = Host.CreateApplicationBuilder();
         var exception = Record.Exception(() => builder.AddDbConfig(b =>
         {
-            b.Options.AppName = App;
+            b.Options.Scope = App;
             b.Options.Environment = Env;
             b.Options.SchemaMode = SchemaMode.None;
             b.UseSqlServer(_fixture.ConnectionString);

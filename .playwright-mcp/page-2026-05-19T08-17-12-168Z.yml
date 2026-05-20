@@ -49,12 +49,12 @@
           - text: New Entry
     - table [ref=e113]:
       - rowgroup [ref=e114]:
-        - row "Select all Key Value AppName Environment Tenant Modified Modified By Actions" [ref=e115]:
+        - row "Select all Key Value Scope Environment Tenant Modified Modified By Actions" [ref=e115]:
           - columnheader "Select all" [ref=e116]:
             - checkbox "Select all" [ref=e117]
           - columnheader "Key" [ref=e118]
           - columnheader "Value" [ref=e119]
-          - columnheader "AppName" [ref=e120]
+          - columnheader "Scope" [ref=e120]
           - columnheader "Environment" [ref=e121]
           - columnheader "Tenant" [ref=e122]
           - columnheader "Modified" [ref=e123]

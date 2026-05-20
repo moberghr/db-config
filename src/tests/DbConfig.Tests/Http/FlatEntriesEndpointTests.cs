@@ -39,7 +39,7 @@ public sealed class FlatEntriesEndpointTests
     }
 
     [TimedFact]
-    public async Task FilterByAppName_ReturnsOnlyMatching()
+    public async Task FilterByScope_ReturnsOnlyMatching()
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
@@ -51,13 +51,13 @@ public sealed class FlatEntriesEndpointTests
         await app.StartAsync(TestContext.Current.CancellationToken);
         var client = app.GetTestClient();
 
-        var response = await client.GetAsync("/api/dbconfig/?appName=AppA", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync("/api/dbconfig/?scope=AppA", TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var entries = await response.Content.ReadFromJsonAsync<JsonElement[]>(TestContext.Current.CancellationToken);
         entries.ShouldNotBeNull();
         entries.Length.ShouldBe(2);
-        entries.ShouldAllBe(e => e.GetProperty("appName").GetString() == "AppA");
+        entries.ShouldAllBe(e => e.GetProperty("scope").GetString() == "AppA");
     }
 
     [TimedFact]
@@ -75,7 +75,7 @@ public sealed class FlatEntriesEndpointTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            "/api/dbconfig/?appName=AppA&tenantId=Acme",
+            "/api/dbconfig/?scope=AppA&tenantId=Acme",
             TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -148,14 +148,14 @@ public sealed class FlatEntriesEndpointTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            "/api/dbconfig/?appName=AppB",
+            "/api/dbconfig/?scope=AppB",
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [TimedFact]
-    public async Task ScopeFilter_AppliedWhenAppNameOmitted()
+    public async Task ScopeFilter_AppliedWhenScopeOmitted()
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
@@ -172,7 +172,7 @@ public sealed class FlatEntriesEndpointTests
         var entries = await response.Content.ReadFromJsonAsync<JsonElement[]>(TestContext.Current.CancellationToken);
         entries.ShouldNotBeNull();
         entries.Length.ShouldBe(1);
-        entries[0].GetProperty("appName").GetString().ShouldBe("AppA");
+        entries[0].GetProperty("scope").GetString().ShouldBe("AppA");
     }
 
     [TimedFact]
@@ -182,7 +182,7 @@ public sealed class FlatEntriesEndpointTests
         var now = DateTimeOffset.UtcNow;
 
         // Insert in a non-sorted order so any incidental DB ordering would NOT match the
-        // expected output. We assert by (AppName, Environment, TenantId, Key) ascending.
+        // expected output. We assert by (Scope, Environment, TenantId, Key) ascending.
         await store.UpsertAsync(new ConfigEntry("AppB", Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
         await store.UpsertAsync(new ConfigEntry("AppA", "Staging", "Acme", "Key1", "v2", false, now, null), CancellationToken.None);
         await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Key2", "v3", false, now, null), CancellationToken.None);
@@ -206,7 +206,7 @@ public sealed class FlatEntriesEndpointTests
         // AppA / Production / Acme   / Key1
         // AppA / Staging    / Acme   / Key1
         // AppB / Production / ""     / Key1
-        entries[0].GetProperty("appName").GetString().ShouldBe("AppA");
+        entries[0].GetProperty("scope").GetString().ShouldBe("AppA");
         entries[0].GetProperty("environment").GetString().ShouldBe(Env);
         entries[0].GetProperty("tenantId").GetString().ShouldBe(string.Empty);
         entries[0].GetProperty("key").GetString().ShouldBe("Key1");
@@ -219,7 +219,7 @@ public sealed class FlatEntriesEndpointTests
 
         entries[3].GetProperty("environment").GetString().ShouldBe("Staging");
 
-        entries[4].GetProperty("appName").GetString().ShouldBe("AppB");
+        entries[4].GetProperty("scope").GetString().ShouldBe("AppB");
     }
 
     [TimedFact]

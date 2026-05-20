@@ -35,7 +35,7 @@ Click the "New entry" button in the toolbar to open the create dialog.
 <Screenshot light="/img/screenshots/03-create-entry.png" dark="/img/screenshots/03-create-entry-dark.png" alt="Create entry dialog with scope picker, key field, value field, and IsSecret toggle" />
 
 The create dialog includes:
-- **Scope picker** — select the target `AppName` (defaults to the current scope; only
+- **Scope picker** — select the target `Scope` (defaults to the current scope; only
   available if `scopeFilter` is not set on the API group, which would restrict writes to
   a specific scope)
 - **Key** — the configuration key; use `:` as the hierarchy separator
@@ -56,7 +56,7 @@ of sensitive values, not a security boundary.
 ## Cross-scope rows
 
 When `IncludeScopes` is configured, the entries list shows rows from multiple scopes. Rows
-whose `AppName` does not match the current scope have their edit and delete buttons
+whose `Scope` does not match the current scope have their edit and delete buttons
 **disabled** with a tooltip explaining why:
 
 > This entry belongs to scope "Shared". Switch to that scope to edit it.

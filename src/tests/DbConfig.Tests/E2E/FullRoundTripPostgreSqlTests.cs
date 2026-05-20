@@ -31,7 +31,7 @@ public sealed class FullRoundTripPostgreSqlTests
         var body = new { value = "42", isSecret = false };
 
         var putResponse = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndPostgreSqlFixture.AppName}/{EndToEndPostgreSqlFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndPostgreSqlFixture.Scope}/{EndToEndPostgreSqlFixture.EnvName}/{key}",
             body,
             TestContext.Current.CancellationToken);
 
@@ -53,13 +53,13 @@ public sealed class FullRoundTripPostgreSqlTests
 
         var body = new { value = "getvalue", isSecret = false };
         var putResponse = await _client.PutAsJsonAsync(
-            $"/api/dbconfig/{EndToEndPostgreSqlFixture.AppName}/{EndToEndPostgreSqlFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndPostgreSqlFixture.Scope}/{EndToEndPostgreSqlFixture.EnvName}/{key}",
             body,
             TestContext.Current.CancellationToken);
         putResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
         var getResponse = await _client.GetAsync(
-            $"/api/dbconfig/{EndToEndPostgreSqlFixture.AppName}/{EndToEndPostgreSqlFixture.EnvName}/{key}",
+            $"/api/dbconfig/{EndToEndPostgreSqlFixture.Scope}/{EndToEndPostgreSqlFixture.EnvName}/{key}",
             TestContext.Current.CancellationToken);
         getResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
 

@@ -29,7 +29,7 @@ public sealed class EndpointAuthCompositionTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/?appName={App}&environment={Env}",
+            $"/api/dbconfig/?scope={App}&environment={Env}",
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -51,7 +51,7 @@ public sealed class EndpointAuthCompositionTests
         client.DefaultRequestHeaders.Add("X-Test-Auth", "true");
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/?appName={App}&environment={Env}",
+            $"/api/dbconfig/?scope={App}&environment={Env}",
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -65,7 +65,7 @@ public sealed class EndpointAuthCompositionTests
         var client = app.GetTestClient();
 
         var response = await client.GetAsync(
-            $"/api/dbconfig/?appName={App}&environment={Env}",
+            $"/api/dbconfig/?scope={App}&environment={Env}",
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);

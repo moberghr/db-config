@@ -23,14 +23,14 @@ public sealed class CompositionGapsTests
 
     private static DbConfigConfigurationProvider CreateProvider(
         IConfigStore store,
-        string appName = OwnApp,
+        string scope = OwnApp,
         string env = Env,
         string[]? includeScopes = null,
         TimeProvider? timeProvider = null)
     {
         var options = new DbConfigOptions
         {
-            AppName = appName,
+            Scope = scope,
             Environment = env,
             ReloadInterval = TimeSpan.FromSeconds(30),
             IncludeScopes = includeScopes ?? [],

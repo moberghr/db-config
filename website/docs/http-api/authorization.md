@@ -81,12 +81,12 @@ app.MapDbConfigHttp("/api/dbconfig-shared", scopeFilter: "Shared")
    .RequireAuthorization("PlatformAdmin");
 ```
 
-`scopeFilter` adds an endpoint filter to the group. Requests whose route `{appName}` does
+`scopeFilter` adds an endpoint filter to the group. Requests whose route `{scope}` does
 not match the filter value receive `403 Forbidden`. The two route prefixes
 (`/api/dbconfig` and `/api/dbconfig-shared`) keep the groups' URL spaces separate.
 
 **The `/reload` endpoint** within each group is always allowed, regardless of the
-`scopeFilter`. It fires the in-process reload signal and has no `{appName}` route
+`scopeFilter`. It fires the in-process reload signal and has no `{scope}` route
 value to match against.
 
 ### Important: do not bypass `scopeFilter` by sharing policies

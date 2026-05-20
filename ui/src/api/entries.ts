@@ -3,7 +3,7 @@ import api, { isDemoMode } from './client'
 import type { DemoClient } from '@/demo/adapter'
 
 export interface ConfigEntry {
-  appName: string
+  scope: string
   environment: string
   tenantId: string
   key: string
@@ -17,7 +17,7 @@ export type ConfigAuditAction = 'Insert' | 'Update' | 'Delete' | 'Read'
 
 export interface ConfigAuditEntry {
   id: string
-  appName: string
+  scope: string
   environment: string
   tenantId: string
   key: string
@@ -36,7 +36,7 @@ export interface UpsertEntryRequest {
 }
 
 export interface EntriesQuery {
-  appName?: string
+  scope?: string
   environment?: string
   tenantId?: string
   keyPrefix?: string
@@ -73,7 +73,7 @@ function encodeKey(key: string): string {
  * Flat-query the entries API root with optional filters.
  *
  * Used by the admin UI on first paint to show "all entries" without requiring
- * AppName + Environment input. Each non-empty field of `q` narrows the result
+ * Scope + Environment input. Each non-empty field of `q` narrows the result
  * server-side (AND semantics). Empty `q` returns everything (capped by the
  * server's default take of 1000).
  */
@@ -83,7 +83,7 @@ export async function queryEntries(q: EntriesQuery = {}): Promise<ConfigEntry[]>
     return client.queryEntries(q)
   }
   const params = new URLSearchParams()
-  if (q.appName) params.set('appName', q.appName)
+  if (q.scope) params.set('scope', q.scope)
   if (q.environment) params.set('environment', q.environment)
   if (q.tenantId) params.set('tenantId', q.tenantId)
   if (q.keyPrefix) params.set('keyPrefix', q.keyPrefix)
@@ -156,7 +156,7 @@ export async function triggerReload(): Promise<void> {
 }
 
 export async function getAuditHistory(
-  appName: string,
+  scope: string,
   environment: string,
   key: string,
   take: number = 50,
@@ -164,14 +164,14 @@ export async function getAuditHistory(
 ): Promise<ConfigAuditEntry[]> {
   if (isDemoMode) {
     const client = await getDemoClient()
-    return client.getAuditHistory(appName, environment, key, take, tenantId)
+    return client.getAuditHistory(scope, environment, key, take, tenantId)
   }
   const params: Record<string, string | number> = { take }
   if (tenantId) {
     params.tenantId = tenantId
   }
   const response = await api.get<ConfigAuditEntry[]>(
-    `/${encodeURIComponent(appName)}/${encodeURIComponent(environment)}/audit/${encodeKey(key)}`,
+    `/${encodeURIComponent(scope)}/${encodeURIComponent(environment)}/audit/${encodeKey(key)}`,
     { params }
   )
   return response.data

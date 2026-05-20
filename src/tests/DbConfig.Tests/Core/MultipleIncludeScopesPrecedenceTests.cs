@@ -8,8 +8,8 @@ namespace DbConfig.Tests.Core;
 
 /// <summary>
 /// Verifies that with 3+ IncludeScopes the precedence chain
-/// <c>[Lower, Mid, Higher] + AppName</c> is stable: the lowest is overridden by the middle,
-/// the middle is overridden by the higher, and all are overridden by AppName.
+/// <c>[Lower, Mid, Higher] + Scope</c> is stable: the lowest is overridden by the middle,
+/// the middle is overridden by the higher, and all are overridden by Scope.
 /// Also verifies the same precedence applies within a tenant bag.
 /// </summary>
 [Trait("Category", "Unit")]
@@ -26,7 +26,7 @@ public sealed class MultipleIncludeScopesPrecedenceTests
     {
         var options = new DbConfigOptions
         {
-            AppName = OwnApp,
+            Scope = OwnApp,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
             IncludeScopes = [Lower, Mid, Higher],

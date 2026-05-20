@@ -31,7 +31,7 @@ public enum ConfigAuditAction
 /// </summary>
 public sealed record ConfigAuditEntry(
     Guid Id,
-    string AppName,
+    string Scope,
     string Environment,
     string TenantId,    // "" for global default
     string Key,

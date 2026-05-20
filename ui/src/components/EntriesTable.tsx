@@ -11,31 +11,32 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table'
-import { History, Pencil, Trash2 } from 'lucide-react'
+import { Copy, History, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const CROSS_SCOPE_TITLE =
   'Cross-scope edits are not allowed in this UI. Switch to that scope or use a host with platform-admin access.'
 
 function compositeKey(entry: ConfigEntry): string {
-  return `${entry.appName}|${entry.environment}|${entry.tenantId}|${entry.key}`
+  return `${entry.scope}|${entry.environment}|${entry.tenantId}|${entry.key}`
 }
 
 interface EntriesTableProps {
   onEdit: (entry: ConfigEntry) => void
   onDelete: (entry: ConfigEntry) => void
   onHistory: (entry: ConfigEntry) => void
+  onDuplicate: (entry: ConfigEntry) => void
   visibleEntries: ConfigEntry[]
 }
 
-export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: EntriesTableProps) {
+export function EntriesTable({ onEdit, onDelete, onHistory, onDuplicate, visibleEntries }: EntriesTableProps) {
   const loading = useEntriesStore((s) => s.loading)
   const error = useEntriesStore((s) => s.error)
   const selectedKeys = useEntriesStore((s) => s.selectedKeys)
   const toggleSelection = useEntriesStore((s) => s.toggleSelection)
   const selectAll = useEntriesStore((s) => s.selectAll)
   const clearSelection = useEntriesStore((s) => s.clearSelection)
-  const currentAppName = useScopeStore((s) => s.appName)
+  const currentScope = useScopeStore((s) => s.scope)
 
   const allCompositeKeys = visibleEntries.map(compositeKey)
   const allSelected = allCompositeKeys.length > 0 && allCompositeKeys.every((k) => selectedKeys.has(k))
@@ -89,7 +90,7 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
           </TableHead>
           <TableHead>Key</TableHead>
           <TableHead>Value</TableHead>
-          <TableHead>AppName</TableHead>
+          <TableHead>Scope</TableHead>
           <TableHead>Environment</TableHead>
           <TableHead>Tenant</TableHead>
           <TableHead>Modified</TableHead>
@@ -99,9 +100,9 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
       </TableHeader>
       <TableBody>
         {visibleEntries.map((entry) => {
-          // "Own" means the entry's AppName matches the currently-filtered scope.
+          // "Own" means the entry's Scope matches the currently-filtered scope.
           // When no scope filter is set (multi-scope mode), every entry is editable.
-          const isOwn = !currentAppName || entry.appName === currentAppName
+          const isOwn = !currentScope || entry.scope === currentScope
           const ck = compositeKey(entry)
           const isSelected = selectedKeys.has(ck)
           return (
@@ -124,7 +125,7 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
                 <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
               </TableCell>
               <TableCell>
-                <span className="text-xs text-foreground">{entry.appName}</span>
+                <span className="text-xs text-foreground">{entry.scope}</span>
               </TableCell>
               <TableCell>
                 <span className="text-xs text-foreground">{entry.environment}</span>
@@ -152,6 +153,15 @@ export function EntriesTable({ onEdit, onDelete, onHistory, visibleEntries }: En
                     onClick={() => onHistory(entry)}
                   >
                     <History className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Duplicate — opens a Create dialog pre-filled from this entry"
+                    onClick={() => onDuplicate(entry)}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="ghost"

@@ -19,7 +19,7 @@ public sealed class E2EPostgreSqlCollection : ICollectionFixture<EndToEndPostgre
 public sealed class EndToEndPostgreSqlFixture : IAsyncLifetime
 {
     public const string CollectionName = "E2E_PostgreSql";
-    public const string AppName = "E2E_PG";
+    public const string Scope = "E2E_PG";
     public const string EnvName = "Test";
 
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
@@ -58,7 +58,7 @@ public sealed class EndToEndPostgreSqlFixture : IAsyncLifetime
 
         builder.AddDbConfig(b =>
         {
-            b.Options.AppName = AppName;
+            b.Options.Scope = Scope;
             b.Options.Environment = EnvName;
             b.Options.ReloadInterval = TimeSpan.FromMilliseconds(200);
             b.UsePostgreSql(connectionString);

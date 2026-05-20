@@ -160,7 +160,7 @@
         ],
         "build": { "ok": true, "evidence": "196/196 tests pass; build analyzer-clean" },
         "tests": { "ok": true, "evidence": "196 total (+16 from B23 baseline)" },
-        "behavioral_diff": "AppName, Environment, and Key columns on both DbConfig_Entries and DbConfig_AuditEntries now use case-sensitive binary collations (SQL Server: Latin1_General_100_BIN2; PostgreSQL: C); closes the ordinal-vs-DB-collation mismatch on scopeFilter queries.",
+        "behavioral_diff": "Scope, Environment, and Key columns on both DbConfig_Entries and DbConfig_AuditEntries now use case-sensitive binary collations (SQL Server: Latin1_General_100_BIN2; PostgreSQL: C); closes the ordinal-vs-DB-collation mismatch on scopeFilter queries.",
         "deviations": []
       },
       {
@@ -192,6 +192,6 @@
         "deviations": []
       }
     ],
-    "behavioral_diff": "v0.5.0 adds three production-hardening capabilities: (1) per-entry encryption — entries with IsSecret=true are encrypted at rest via IConfigEncryptor (default: ASP.NET Core Data Protection); consumers can plug in custom encryptors by registering IConfigEncryptor before AddDbConfig; (2) audit log — every Upsert/Delete on EfCoreConfigStore writes a DbConfig_AuditEntries row atomically in the same transaction; the HTTP endpoint GET /{app}/{env}/audit/{*key} and UI History dialog surface this log; (3) scope column collation hardening — AppName/Environment/Key columns on both tables now use case-sensitive binary collations on both SQL Server and PostgreSQL, closing the mismatch between C# ordinal scopeFilter comparisons and DB query semantics. Additionally, two cleanup items landed: ScopeSelector setTimeout hack removed, and SpinWait test patterns replaced with deterministic synchronization."
+    "behavioral_diff": "v0.5.0 adds three production-hardening capabilities: (1) per-entry encryption — entries with IsSecret=true are encrypted at rest via IConfigEncryptor (default: ASP.NET Core Data Protection); consumers can plug in custom encryptors by registering IConfigEncryptor before AddDbConfig; (2) audit log — every Upsert/Delete on EfCoreConfigStore writes a DbConfig_AuditEntries row atomically in the same transaction; the HTTP endpoint GET /{app}/{env}/audit/{*key} and UI History dialog surface this log; (3) scope column collation hardening — Scope/Environment/Key columns on both tables now use case-sensitive binary collations on both SQL Server and PostgreSQL, closing the mismatch between C# ordinal scopeFilter comparisons and DB query semantics. Additionally, two cleanup items landed: ScopeSelector setTimeout hack removed, and SpinWait test patterns replaced with deterministic synchronization."
   }
 }

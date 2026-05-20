@@ -10,7 +10,7 @@ namespace DbConfig.Http.Endpoints;
 /// <summary>
 /// Flat-query endpoint mounted at the root of the entries group.
 /// Returns all entries with optional query-string filters so the admin UI can show
-/// data on first paint without requiring AppName + Environment input.
+/// data on first paint without requiring Scope + Environment input.
 /// </summary>
 internal static class QueryEntriesEndpoint
 {
@@ -22,7 +22,7 @@ internal static class QueryEntriesEndpoint
 
     internal static async Task HandleAsync(
         HttpContext httpContext,
-        [FromQuery] string? appName,
+        [FromQuery] string? scope,
         [FromQuery] string? environment,
         [FromQuery] string? tenantId,
         [FromQuery] string? keyPrefix,
@@ -35,18 +35,18 @@ internal static class QueryEntriesEndpoint
         [FromServices] TimeProvider? timeProvider,
         CancellationToken ct)
     {
-        // Scope filter enforcement: when configured, the caller MUST scope to that AppName.
-        // Any non-matching appName query (including null/absent) is normalized so cross-scope
+        // Scope filter enforcement: when configured, the caller MUST scope to that Scope.
+        // Any non-matching scope query (including null/absent) is normalized so cross-scope
         // reads cannot leak via this endpoint.
-        var effectiveAppName = appName;
+        var effectiveScope = scope;
         if (scopeFilter is not null)
         {
-            if (string.IsNullOrEmpty(effectiveAppName))
+            if (string.IsNullOrEmpty(effectiveScope))
             {
-                // No appName supplied — force the scope filter.
-                effectiveAppName = scopeFilter;
+                // No scope supplied — force the scope filter.
+                effectiveScope = scopeFilter;
             }
-            else if (!string.Equals(effectiveAppName, scopeFilter, StringComparison.Ordinal))
+            else if (!string.Equals(effectiveScope, scopeFilter, StringComparison.Ordinal))
             {
                 // Mismatch — deny rather than silently substitute. Mirrors the path-based
                 // endpoints' 403 behavior in EndpointRouteBuilderExtensions.
@@ -68,13 +68,13 @@ internal static class QueryEntriesEndpoint
 
         // Empty strings on the query string are treated as "no filter" — matches the
         // UI's behavior where blank input fields mean "show everything".
-        var normalizedAppName = string.IsNullOrEmpty(effectiveAppName) ? null : effectiveAppName;
+        var normalizedScope = string.IsNullOrEmpty(effectiveScope) ? null : effectiveScope;
         var normalizedEnvironment = string.IsNullOrEmpty(environment) ? null : environment;
         var normalizedTenantId = tenantId; // empty string is valid (global-default sentinel)
         var normalizedKeyPrefix = string.IsNullOrEmpty(keyPrefix) ? null : keyPrefix;
 
         var entries = await store.QueryAsync(
-            normalizedAppName,
+            normalizedScope,
             normalizedEnvironment,
             normalizedTenantId,
             normalizedKeyPrefix,
@@ -84,11 +84,11 @@ internal static class QueryEntriesEndpoint
         httpContext.Response.ContentType = "application/json; charset=utf-8";
         await JsonSerializer.SerializeAsync(httpContext.Response.Body, entries, JsonOptions.Default, ct);
 
-        WriteReadAudit(normalizedAppName, normalizedEnvironment, httpContext, auditStore, dbOptions, logger, timeProvider);
+        WriteReadAudit(normalizedScope, normalizedEnvironment, httpContext, auditStore, dbOptions, logger, timeProvider);
     }
 
     private static void WriteReadAudit(
-        string? appName,
+        string? scope,
         string? environment,
         HttpContext httpContext,
         IConfigAuditStore? auditStore,
@@ -120,7 +120,7 @@ internal static class QueryEntriesEndpoint
         // so no real config key can collide.
         var auditEntry = new ConfigAuditEntry(
             Id: Guid.NewGuid(),
-            AppName: appName ?? string.Empty,
+            Scope: scope ?? string.Empty,
             Environment: environment ?? string.Empty,
             TenantId: string.Empty,
             Key: "*",

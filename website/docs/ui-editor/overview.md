@@ -63,13 +63,13 @@ The top of the UI has a two-tab header — **Entries** (the primary CRUD surface
 
 <Screenshot light="/img/screenshots/01-entries-list.png" dark="/img/screenshots/01-entries-list-dark.png" alt="DbConfig entries list showing keys, values, scope badges, and action buttons" />
 
-The main view shows all configuration entries on first paint — no `AppName` /
+The main view shows all configuration entries on first paint — no `Scope` /
 `Environment` input required. The toolbar filter fields (App, Environment, Tenant, key
 prefix) narrow the table client-side via the flat `GET /` endpoint. Each row displays:
 
 - **Key** — the configuration key, using `:` as the hierarchy separator
 - **Value** — the stored value; secret entries show `••••••••` (masked) with a reveal toggle
-- **Scope badge** — colored badge showing the source `AppName` (important when multiple
+- **Scope badge** — colored badge showing the source `Scope` (important when multiple
   apps share the same database)
 - **Tenant badge** — `Default` for global entries (`TenantId = ""`); a colored chip for
   tenant-specific overrides

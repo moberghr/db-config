@@ -17,7 +17,7 @@ Most application code reads configuration through `IOptionsSnapshot<T>` or `ICon
 | Application code reading a specific tenant's typed settings | `ITenantConfigReader.GetForTenant<T>(tenantId)` |
 | Quick lookup of a single value in a request handler | `IConfigStore.GetAsync(key, ct)` |
 | Admin tool reading raw entries with metadata (IsSecret, ModifiedUtc) | `IConfigStore.GetForTenantAsync(tenantId, key, ct)` |
-| Background job reading every entry across all apps | the explicit `(appName, env, ...)` overloads or `QueryAsync(...)` |
+| Background job reading every entry across all apps | the explicit `(scope, env, ...)` overloads or `QueryAsync(...)` |
 
 The two services are complementary: `ITenantConfigReader` is high-level and respects all `services.Configure<T>(...)` registrations including `PostConfigure` and custom section paths. `IConfigStore` is low-level and bypasses `IConfiguration` entirely — useful when you need raw metadata or when no `IConfigureOptions<T>` is registered for the type you want to read.
 
@@ -115,7 +115,7 @@ Task<T> GetAsync<T>(CancellationToken ct) where T : class, new();
 Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct) where T : class, new();
 ```
 
-`AppName` and `Environment` come from the `DbConfigOptions` registered when you called `builder.AddDbConfig(...)`. The current-tenant overloads consult the `ITenantResolver` you registered (or fall back to "global only" when no resolver is registered). The typed overloads merge tenant entries on top of global defaults (tenant wins on keys present in both layers).
+`Scope` and `Environment` come from the `DbConfigOptions` registered when you called `builder.AddDbConfig(...)`. The current-tenant overloads consult the `ITenantResolver` you registered (or fall back to "global only" when no resolver is registered). The typed overloads merge tenant entries on top of global defaults (tenant wins on keys present in both layers).
 
 ## Example 1 — single-key lookup
 

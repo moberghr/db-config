@@ -23,7 +23,7 @@ import { ValueDiff } from '@/components/ValueDiff'
 interface EntryHistoryDialogProps {
   open: boolean
   onClose: () => void
-  appName: string
+  scope: string
   environment: string
   tenantId: string
   entryKey: string
@@ -79,7 +79,7 @@ function AuditValueCell({ value, isSecret }: { value: string | null; isSecret: b
 export function EntryHistoryDialog({
   open,
   onClose,
-  appName,
+  scope,
   environment,
   tenantId,
   entryKey,
@@ -95,14 +95,14 @@ export function EntryHistoryDialog({
     setLoading(true)
     setError(null)
     setHistory([])
-    getAuditHistory(appName, environment, entryKey, 50, tenantId || undefined)
+    getAuditHistory(scope, environment, entryKey, 50, tenantId || undefined)
       .then((data) => setHistory(data))
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Failed to load history'
         setError(message)
       })
       .finally(() => setLoading(false))
-  }, [open, appName, environment, tenantId, entryKey])
+  }, [open, scope, environment, tenantId, entryKey])
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>

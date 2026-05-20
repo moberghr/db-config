@@ -31,7 +31,7 @@ public sealed class DbConfigDbContext : DbContext
             entity.Property(x => x.Id)
                 .ValueGeneratedNever();
 
-            entity.Property(x => x.AppName)
+            entity.Property(x => x.Scope)
                 .HasMaxLength(128)
                 .IsRequired();
 
@@ -55,19 +55,19 @@ public sealed class DbConfigDbContext : DbContext
                 .IsRequired();
 
             entity.Property(x => x.ModifiedUtc)
-                .HasConversion(new UtcDateTimeConverter())
+                .HasConversion(new UtcDateTimeOffsetConverter())
                 .IsRequired();
 
             entity.Property(x => x.ModifiedBy)
                 .HasMaxLength(256)
                 .IsRequired(false);
 
-            entity.HasIndex(x => new { x.AppName, x.Environment, x.TenantId, x.Key })
+            entity.HasIndex(x => new { x.Scope, x.Environment, x.TenantId, x.Key })
                 .IsUnique()
-                .HasDatabaseName("UX_DbConfig_Entries_AppName_Environment_TenantId_Key");
+                .HasDatabaseName("UX_DbConfig_Entries_Scope_Environment_TenantId_Key");
 
-            entity.HasIndex(x => new { x.AppName, x.Environment, x.TenantId, x.ModifiedUtc })
-                .HasDatabaseName("IX_DbConfig_Entries_AppName_Environment_TenantId_ModifiedUtc");
+            entity.HasIndex(x => new { x.Scope, x.Environment, x.TenantId, x.ModifiedUtc })
+                .HasDatabaseName("IX_DbConfig_Entries_Scope_Environment_TenantId_ModifiedUtc");
         });
 
         modelBuilder.Entity<ConfigAuditEntryEntity>(entity =>
@@ -79,7 +79,7 @@ public sealed class DbConfigDbContext : DbContext
             entity.Property(x => x.Id)
                 .ValueGeneratedNever();
 
-            entity.Property(x => x.AppName)
+            entity.Property(x => x.Scope)
                 .HasMaxLength(128)
                 .IsRequired();
 
@@ -116,8 +116,8 @@ public sealed class DbConfigDbContext : DbContext
                 .HasMaxLength(256)
                 .IsRequired(false);
 
-            entity.HasIndex(x => new { x.AppName, x.Environment, x.TenantId, x.Key, x.ModifiedUtc })
-                .HasDatabaseName("IX_DbConfig_Audit_AppName_Environment_TenantId_Key_ModifiedUtc");
+            entity.HasIndex(x => new { x.Scope, x.Environment, x.TenantId, x.Key, x.ModifiedUtc })
+                .HasDatabaseName("IX_DbConfig_Audit_Scope_Environment_TenantId_Key_ModifiedUtc");
         });
     }
 }

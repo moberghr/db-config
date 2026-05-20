@@ -43,7 +43,7 @@ public sealed class SqlServerStoreCrudTests : IAsyncLifetime
         var all = await _store.GetAllAsync(App, Env, CancellationToken.None);
         all.ShouldHaveSingleItem();
         var stored = all[0];
-        stored.AppName.ShouldBe(App);
+        stored.Scope.ShouldBe(App);
         stored.Environment.ShouldBe(Env);
         stored.Key.ShouldBe("Section:Key");
         stored.Value.ShouldBe("value1");

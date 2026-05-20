@@ -5,8 +5,11 @@ namespace DbConfig.Core;
 /// </summary>
 public sealed class DbConfigOptions
 {
-    /// <summary>Gets or sets the application name used to scope configuration entries.</summary>
-    public string AppName { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the scope (logical application name) used as the primary bucket for
+    /// configuration entries. Stored in the <c>Scope</c> column of <c>DbConfig_Entries</c>.
+    /// </summary>
+    public string Scope { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the environment name used to scope configuration entries.</summary>
     public string Environment { get; set; } = string.Empty;
@@ -15,10 +18,10 @@ public sealed class DbConfigOptions
     public TimeSpan ReloadInterval { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Additional AppName scopes to include in polling reads, ordered lowest-precedence-first.
-    /// The configured <see cref="AppName"/> is always read with highest precedence (last-writer-wins).
+    /// Additional scopes to include in polling reads, ordered lowest-precedence-first.
+    /// The configured <see cref="Scope"/> is always read with highest precedence (last-writer-wins).
     /// Empty by default. Example: ["PlatformDefaults", "Shared"] yields effective precedence
-    /// PlatformDefaults &lt; Shared &lt; AppName.
+    /// PlatformDefaults &lt; Shared &lt; <see cref="Scope"/>.
     /// </summary>
     public IReadOnlyList<string> IncludeScopes { get; set; } = [];
 

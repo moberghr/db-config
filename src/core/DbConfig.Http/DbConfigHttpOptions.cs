@@ -17,9 +17,9 @@ public class DbConfigHttpOptions
 
     /// <summary>
     /// When non-null, all endpoints in the group enforce that the
-    /// <c>{appName}</c> route value matches this value (ordinal comparison).
-    /// Requests with a mismatched <c>{appName}</c> receive HTTP 403.
-    /// Endpoints that have no <c>{appName}</c> route value (e.g.
+    /// <c>{scope}</c> route value matches this value (ordinal comparison).
+    /// Requests with a mismatched <c>{scope}</c> receive HTTP 403.
+    /// Endpoints that have no <c>{scope}</c> route value (e.g.
     /// <c>POST /reload</c>) are always allowed.
     /// </summary>
     public string? ScopeFilter { get; set; }

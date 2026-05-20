@@ -23,7 +23,7 @@ public sealed class ReloadFailureResilienceTests
 
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
         };
@@ -42,7 +42,7 @@ public sealed class ReloadFailureResilienceTests
 
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
         };
@@ -86,7 +86,7 @@ public sealed class ReloadFailureResilienceTests
 
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
         };
@@ -151,7 +151,7 @@ public sealed class ReloadFailureResilienceTests
             FaultOnGetAll = faultOnNextCall;
         }
 
-        public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
+        public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
         {
             _nextGetAllTcs?.TrySetResult(true);
 
@@ -160,15 +160,15 @@ public sealed class ReloadFailureResilienceTests
                 throw new TimeoutException("Simulated store fault");
             }
 
-            return await _inner.GetAllAsync(appName, environment, ct);
+            return await _inner.GetAllAsync(scope, environment, ct);
         }
 
-        public Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
-            => _inner.GetAsync(appName, environment, key, ct);
+        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+            => _inner.GetAsync(scope, environment, key, ct);
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
+        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
         {
-            return _inner.GetLatestModifiedUtcAsync(appName, environment, ct);
+            return _inner.GetLatestModifiedUtcAsync(scope, environment, ct);
         }
 
         public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
@@ -176,13 +176,13 @@ public sealed class ReloadFailureResilienceTests
             return _inner.UpsertAsync(entry, ct);
         }
 
-        public Task DeleteAsync(string appName, string environment, string key, CancellationToken ct)
+        public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
         {
-            return _inner.DeleteAsync(appName, environment, key, ct);
+            return _inner.DeleteAsync(scope, environment, key, ct);
         }
 
         public async Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             _nextGetAllTcs?.TrySetResult(true);
 
@@ -191,31 +191,31 @@ public sealed class ReloadFailureResilienceTests
                 throw new TimeoutException("Simulated store fault");
             }
 
-            return await _inner.GetAllScopedAsync(appNames, environment, ct);
+            return await _inner.GetAllScopedAsync(scopes, environment, ct);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcScopedAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
-            string appName, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetAllForTenantAsync(appName, environment, tenantId, ct);
+            string scope, string environment, string tenantId, CancellationToken ct)
+            => _inner.GetAllForTenantAsync(scope, environment, tenantId, ct);
 
         public Task<ConfigEntry?> GetForTenantAsync(
-            string appName, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.GetForTenantAsync(appName, environment, tenantId, key, ct);
+            string scope, string environment, string tenantId, string key, CancellationToken ct)
+            => _inner.GetForTenantAsync(scope, environment, tenantId, key, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
-            string appName, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcForTenantAsync(appName, environment, tenantId, ct);
+            string scope, string environment, string tenantId, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcForTenantAsync(scope, environment, tenantId, ct);
 
         public Task DeleteForTenantAsync(
-            string appName, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.DeleteForTenantAsync(appName, environment, tenantId, key, ct);
+            string scope, string environment, string tenantId, string key, CancellationToken ct)
+            => _inner.DeleteForTenantAsync(scope, environment, tenantId, key, ct);
 
         public async Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
-            string appName, string environment, CancellationToken ct)
+            string scope, string environment, CancellationToken ct)
         {
             _nextGetAllTcs?.TrySetResult(true);
 
@@ -224,15 +224,15 @@ public sealed class ReloadFailureResilienceTests
                 throw new TimeoutException("Simulated store fault");
             }
 
-            return await _inner.GetAllForAllTenantsAsync(appName, environment, ct);
+            return await _inner.GetAllForAllTenantsAsync(scope, environment, ct);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(
-            string appName, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(appName, environment, ct);
+            string scope, string environment, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(scope, environment, ct);
 
         public async Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             _nextGetAllTcs?.TrySetResult(true);
 
@@ -241,15 +241,15 @@ public sealed class ReloadFailureResilienceTests
                 throw new TimeoutException("Simulated store fault");
             }
 
-            return await _inner.GetAllScopedForAllTenantsAsync(appNames, environment, ct);
+            return await _inner.GetAllScopedForAllTenantsAsync(scopes, environment, ct);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(scopes, environment, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
-            string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
-            => _inner.QueryAsync(appName, environment, tenantId, keyPrefix, take, ct);
+            string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
     }
 }

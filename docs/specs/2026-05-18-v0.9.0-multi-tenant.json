@@ -45,7 +45,7 @@
       {
         "id": "B53",
         "test_count": 241,
-        "behavioral_diff": "Schema migrations added TenantId nvarchar(128) NOT NULL DEFAULT '' column to DbConfig_Entries and DbConfig_AuditEntries on both SQL Server and PostgreSQL; unique constraint updated to (AppName, Environment, TenantId, Key); all four scope columns carry case-sensitive collation. This schema shape is final."
+        "behavioral_diff": "Schema migrations added TenantId nvarchar(128) NOT NULL DEFAULT '' column to DbConfig_Entries and DbConfig_AuditEntries on both SQL Server and PostgreSQL; unique constraint updated to (Scope, Environment, TenantId, Key); all four scope columns carry case-sensitive collation. This schema shape is final."
       },
       {
         "id": "B54",
@@ -95,7 +95,7 @@
       {
         "id": "B64",
         "test_count": 290,
-        "behavioral_diff": "Composed IncludeScopes × Tenants resolution in DbConfigConfigurationProvider. Previously these were mutually exclusive (one or the other). The polling provider's load query now uses AppName IN (own + IncludeScopes) AND fetches every tenant in one round trip; TryGet walks four buckets in precedence order: tenant×AppName, tenant×IncludeScope, global×AppName, global×IncludeScope. Tenant axis dominates the scope axis. Within a single bag (tenant or global), AppName beats IncludeScopes. Added matrix tests covering the 4-bucket cube with multiple scopes × multiple tenants × multiple keys."
+        "behavioral_diff": "Composed IncludeScopes × Tenants resolution in DbConfigConfigurationProvider. Previously these were mutually exclusive (one or the other). The polling provider's load query now uses Scope IN (own + IncludeScopes) AND fetches every tenant in one round trip; TryGet walks four buckets in precedence order: tenant×Scope, tenant×IncludeScope, global×Scope, global×IncludeScope. Tenant axis dominates the scope axis. Within a single bag (tenant or global), Scope beats IncludeScopes. Added matrix tests covering the 4-bucket cube with multiple scopes × multiple tenants × multiple keys."
       },
       {
         "id": "B64.1",

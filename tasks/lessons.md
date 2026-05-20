@@ -181,7 +181,7 @@ Most "policy per resource shape" needs do not require a new abstraction.
 
 ## L20 — Scope ordering is a contract, not an implementation detail
 
-`IConfigStore.GetAllScopedAsync` returns entries ordered by their AppName's position in the
+`IConfigStore.GetAllScopedAsync` returns entries ordered by their Scope's position in the
 input list. This is a contract — the polling provider and UI both rely on it. The EF Core
 implementation re-orders in memory after the SQL `IN (...)` query because SQL doesn't
 preserve list order. The InMemoryConfigStore already returns in input order. **Document
@@ -222,7 +222,7 @@ v0.5.0 is the concrete payoff.
 
 ## L23 — Default ephemeral key rings ARE a footgun; document and recommend persistence
 
-`DataProtectionProvider.Create("AppName")` produces an ephemeral key ring — the keys
+`DataProtectionProvider.Create("Scope")` produces an ephemeral key ring — the keys
 exist for the lifetime of the process and regenerate on restart. Any encrypted data
 written by a previous instance is unreadable after a restart. We default to this for
 simplicity but the docs need to LOUDLY recommend `PersistKeysToFileSystem` or similar
@@ -368,7 +368,7 @@ config-file change, not a component sweep. Hardcoded color classes (`bg-white`,
 ## L33 — Tree views share selection state with flat views via composite keys
 
 The flat-and-tree dual-view design needed selection to work across both. Solution: a
-single `entriesStore.selectedKeys: Set<string>` keyed by composite `${appName}|${env}|${key}`,
+single `entriesStore.selectedKeys: Set<string>` keyed by composite `${scope}|${env}|${key}`,
 read from both `EntriesTable` and `EntriesTreeView`. Switching views preserves selection;
 bulk operations work uniformly. The tree view's local state is only the expansion set
 (`expandedPrefixes: Set<string>`); selection is global.
@@ -444,19 +444,19 @@ type is resolved via `IOptions<T>` (tracked for v0.10.0+).
 
 When composing two orthogonal scoping dimensions (`IncludeScopes` and `TenantId`), one of
 them has to win on equal-key conflicts. We picked tenant-dominates-scope: a tenant-specific
-entry beats any global entry, regardless of which scope (own AppName vs IncludeScope) the
+entry beats any global entry, regardless of which scope (own Scope vs IncludeScope) the
 tenant entry lives in. Within a single tenant's bag (and within the global bag) the existing
-AppName-beats-IncludeScopes rule applies recursively.
+Scope-beats-IncludeScopes rule applies recursively.
 
-This makes the precedence walk a flat ordered list of four buckets (tenant×AppName,
-tenant×IncludeScope, global×AppName, global×IncludeScope), not a 2-D matrix. Engineers can
+This makes the precedence walk a flat ordered list of four buckets (tenant×Scope,
+tenant×IncludeScope, global×Scope, global×IncludeScope), not a 2-D matrix. Engineers can
 mentally trace any lookup as "did the resolver give me a tenant? if yes, look there first;
 else fall through to global." No tie-breaking between dimensions because one always wins.
 
 The alternative (scope-dominates-tenant: own-scope global beats tenant override in a Shared
 scope) would have been a worse default. Tenant overrides should be the user-facing override
 mechanism; making them lose to a global in your own scope would mean tenant overrides
-silently stop working as soon as you also seed a global default in your own AppName.
+silently stop working as soon as you also seed a global default in your own Scope.
 
 **Rule:** when composing orthogonal scoping dimensions, the more-specific dimension should
 dominate uniformly. Per-tenant is more specific than global; let it win across all scopes,
@@ -475,7 +475,7 @@ the entire cube. Each row in the data set is a self-describing tuple; failures p
 specific (seed, resolve, expected) triple so debugging is targeted.
 
 For B64.1 we added 16+ rows covering: every combination of "Acme has override / doesn't",
-"Globex has override / doesn't", "global×AppName seeded / not", "global×Shared seeded / not",
+"Globex has override / doesn't", "global×Scope seeded / not", "global×Shared seeded / not",
 crossed with resolver returning Acme / Globex / null / empty-string.
 
 **Rule:** when a feature's correctness is a truth table across N boolean axes, write one

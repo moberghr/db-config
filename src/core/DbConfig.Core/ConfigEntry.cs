@@ -1,10 +1,12 @@
 namespace DbConfig.Core;
 
 /// <summary>
-/// A single configuration entry uniquely identified by (AppName, Environment, TenantId, Key).
+/// A single configuration entry uniquely identified by (Scope, Environment, TenantId, Key).
+/// <c>Scope</c> is the same value the host sets via <see cref="DbConfigOptions.Scope"/> and
+/// lists in <see cref="DbConfigOptions.IncludeScopes"/>.
 /// </summary>
 public sealed record ConfigEntry(
-    string AppName,
+    string Scope,
     string Environment,
     string TenantId,    // "" for global default
     string Key,

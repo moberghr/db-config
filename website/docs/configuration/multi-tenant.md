@@ -10,7 +10,7 @@ DbConfig supports per-request multi-tenancy: one host serves N tenants, each wit
 
 When a request arrives, DbConfig calls `ITenantResolver.Resolve()` on every `IConfiguration[key]` read. If the resolver returns a non-empty tenant id, the tenant-specific entry is returned (with fallback to the global default if no tenant-specific entry exists). Standard `IOptionsSnapshot<T>` automatically becomes tenant-aware because it rebinds from `IConfiguration` once per request scope.
 
-See [Resolution order](./resolution-order.md) for the canonical reference on how the four scoping dimensions (Environment, AppName + IncludeScopes, TenantId, Key) combine on every read.
+See [Resolution order](./resolution-order.md) for the canonical reference on how the four scoping dimensions (Environment, Scope + IncludeScopes, TenantId, Key) combine on every read.
 
 ```
 Request (JWT with tenant_id = "Acme")
@@ -57,7 +57,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "PaymentService";
+    b.Options.Scope = "PaymentService";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
     b.AddTenantResolver<MyTenantResolver>();
@@ -138,7 +138,7 @@ The `DbConfig_Entries` and `DbConfig_AuditEntries` tables include a `TenantId` c
 
 ```sql
 DbConfig_Entries
-  AppName       nvarchar(128)  NOT NULL
+  Scope       nvarchar(128)  NOT NULL
   Environment   nvarchar(128)  NOT NULL
   TenantId      nvarchar(128)  NOT NULL DEFAULT ''  -- "" = global default
   Key           nvarchar(512)  NOT NULL
@@ -147,11 +147,11 @@ DbConfig_Entries
   ModifiedUtc   datetimeoffset NOT NULL
   ModifiedBy    nvarchar(256)
 
-  UNIQUE (AppName, Environment, TenantId, Key)       -- unique constraint
-  INDEX  (AppName, Environment, TenantId, ModifiedUtc DESC)  -- watermark index
+  UNIQUE (Scope, Environment, TenantId, Key)       -- unique constraint
+  INDEX  (Scope, Environment, TenantId, ModifiedUtc DESC)  -- watermark index
 ```
 
-The empty string `""` is the global-default sentinel. It is stored literally in the column — not NULL. All four scope columns (`AppName`, `Environment`, `TenantId`, `Key`) use case-sensitive collation. Tenant identifiers are therefore case-sensitive: `"Acme"` and `"acme"` are distinct tenants.
+The empty string `""` is the global-default sentinel. It is stored literally in the column — not NULL. All four scope columns (`Scope`, `Environment`, `TenantId`, `Key`) use case-sensitive collation. Tenant identifiers are therefore case-sensitive: `"Acme"` and `"acme"` are distinct tenants.
 
 ## Editing tenant config via HTTP API
 
@@ -178,7 +178,7 @@ Tenant resolution and [shared scopes](./scopes.md#including-shared-scopes) compo
 ```csharp
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "PaymentService";
+    b.Options.Scope = "PaymentService";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.IncludeScopes = ["Shared"];
     b.UseSqlServer(connectionString);
@@ -186,17 +186,17 @@ builder.AddDbConfig(b =>
 });
 ```
 
-The polling provider's load query becomes `WHERE AppName IN ('Shared', 'PaymentService') AND Environment = 'Production'` — every tenant's entries across both scopes come back in one round trip. The walk on read then applies two rules:
+The polling provider's load query becomes `WHERE Scope IN ('Shared', 'PaymentService') AND Environment = 'Production'` — every tenant's entries across both scopes come back in one round trip. The walk on read then applies two rules:
 
 1. **Tenant axis dominates the scope axis.** A tenant-specific entry beats any global entry, regardless of which scope it lives in. An override in `Shared` for tenant `"Acme"` wins over a global entry in `PaymentService` when the resolver returns `"Acme"`.
-2. **Within a single tenant's bag (and within the global bag), AppName beats IncludeScopes.** Same precedence rule as for global-only resolution: own AppName is read last during load and wins ties. Among multiple IncludeScopes, lowest-precedence-first in array order.
+2. **Within a single tenant's bag (and within the global bag), Scope beats IncludeScopes.** Same precedence rule as for global-only resolution: own Scope is read last during load and wins ties. Among multiple IncludeScopes, lowest-precedence-first in array order.
 
 ### Worked example
 
 `PaymentService` with `IncludeScopes = ["Shared"]` and an `Acme` tenant override sitting in the Shared scope:
 
 ```
-AppName          TenantId   Key                Value
+Scope          TenantId   Key                Value
 -----------------------------------------------------------------
 PaymentService   ""         Stripe:ApiKey      sk_live_global_payment
 Shared           "Acme"     Stripe:ApiKey      sk_live_acme_shared

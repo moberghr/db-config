@@ -33,7 +33,7 @@ public sealed class PollingProviderMultiTenantTests
         var interval = reloadInterval ?? TimeSpan.FromSeconds(30);
         var options = new DbConfigOptions
         {
-            AppName = App,
+            Scope = App,
             Environment = Env,
             ReloadInterval = interval,
         };
@@ -69,7 +69,7 @@ public sealed class PollingProviderMultiTenantTests
 
         provider.Load();
 
-        // B64: composed path always uses GetAllScopedForAllTenants (scope list defaults to [AppName]).
+        // B64: composed path always uses GetAllScopedForAllTenants (scope list defaults to [Scope]).
         tracking.GetAllScopedForAllTenantsCallCount.ShouldBeGreaterThan(0);
 
         // Without a resolver, TryGet returns the global entry.
@@ -130,7 +130,7 @@ public sealed class PollingProviderMultiTenantTests
     [TimedFact]
     public async Task TryGet_ResolverReturnsTenant_ReturnsTenantEntry()
     {
-        var options = new DbConfigOptions { AppName = App, Environment = Env, ReloadInterval = TimeSpan.FromSeconds(30) };
+        var options = new DbConfigOptions { Scope = App, Environment = Env, ReloadInterval = TimeSpan.FromSeconds(30) };
         var store = new InMemoryConfigStore();
         var realProvider = new DbConfigConfigurationProvider(options, store, TimeProvider.System, NullLoggerFactory.Instance);
 
@@ -151,7 +151,7 @@ public sealed class PollingProviderMultiTenantTests
     [TimedFact]
     public async Task TryGet_ResolverReturnsTenant_MissingTenantEntry_FallsBackToGlobal()
     {
-        var options = new DbConfigOptions { AppName = App, Environment = Env, ReloadInterval = TimeSpan.FromSeconds(30) };
+        var options = new DbConfigOptions { Scope = App, Environment = Env, ReloadInterval = TimeSpan.FromSeconds(30) };
         var store = new InMemoryConfigStore();
         var realProvider = new DbConfigConfigurationProvider(options, store, TimeProvider.System, NullLoggerFactory.Instance);
 
@@ -179,69 +179,69 @@ public sealed class PollingProviderMultiTenantTests
 
         public TrackingStore(IConfigStore inner) => _inner = inner;
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string appName, string environment, CancellationToken ct)
-            => _inner.GetAllAsync(appName, environment, ct);
+        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
+            => _inner.GetAllAsync(scope, environment, ct);
 
-        public Task<ConfigEntry?> GetAsync(string appName, string environment, string key, CancellationToken ct)
-            => _inner.GetAsync(appName, environment, key, ct);
+        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+            => _inner.GetAsync(scope, environment, key, ct);
 
-        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string appName, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcAsync(appName, environment, ct);
+        public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcAsync(scope, environment, ct);
 
         public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
             => _inner.UpsertAsync(entry, ct);
 
-        public Task DeleteAsync(string appName, string environment, string key, CancellationToken ct)
-            => _inner.DeleteAsync(appName, environment, key, ct);
+        public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
+            => _inner.DeleteAsync(scope, environment, key, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => _inner.GetAllScopedAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => _inner.GetAllScopedAsync(scopes, environment, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcScopedAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
-            string appName, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetAllForTenantAsync(appName, environment, tenantId, ct);
+            string scope, string environment, string tenantId, CancellationToken ct)
+            => _inner.GetAllForTenantAsync(scope, environment, tenantId, ct);
 
         public Task<ConfigEntry?> GetForTenantAsync(
-            string appName, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.GetForTenantAsync(appName, environment, tenantId, key, ct);
+            string scope, string environment, string tenantId, string key, CancellationToken ct)
+            => _inner.GetForTenantAsync(scope, environment, tenantId, key, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
-            string appName, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcForTenantAsync(appName, environment, tenantId, ct);
+            string scope, string environment, string tenantId, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcForTenantAsync(scope, environment, tenantId, ct);
 
         public Task DeleteForTenantAsync(
-            string appName, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.DeleteForTenantAsync(appName, environment, tenantId, key, ct);
+            string scope, string environment, string tenantId, string key, CancellationToken ct)
+            => _inner.DeleteForTenantAsync(scope, environment, tenantId, key, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
-            string appName, string environment, CancellationToken ct)
+            string scope, string environment, CancellationToken ct)
         {
             GetAllForAllTenantsCallCount++;
-            return _inner.GetAllForAllTenantsAsync(appName, environment, ct);
+            return _inner.GetAllForAllTenantsAsync(scope, environment, ct);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(
-            string appName, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(appName, environment, ct);
+            string scope, string environment, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(scope, environment, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             GetAllScopedForAllTenantsCallCount++;
-            return _inner.GetAllScopedForAllTenantsAsync(appNames, environment, ct);
+            return _inner.GetAllScopedForAllTenantsAsync(scopes, environment, ct);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
-            IReadOnlyList<string> appNames, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(appNames, environment, ct);
+            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(scopes, environment, ct);
 
         public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
-            string? appName, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
-            => _inner.QueryAsync(appName, environment, tenantId, keyPrefix, take, ct);
+            string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
     }
 }

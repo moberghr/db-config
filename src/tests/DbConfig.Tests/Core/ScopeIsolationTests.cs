@@ -7,12 +7,12 @@ using Shouldly;
 namespace DbConfig.Tests.Core;
 
 /// <summary>
-/// Verifies that rows belonging to an AppName outside the configured scope set
-/// (own AppName + IncludeScopes) are invisible to the polling provider, regardless of
+/// Verifies that rows belonging to an Scope outside the configured scope set
+/// (own Scope + IncludeScopes) are invisible to the polling provider, regardless of
 /// tenant id.
 /// </summary>
 [Trait("Category", "Unit")]
-public sealed class AppNameIsolationTests
+public sealed class ScopeIsolationTests
 {
     private const string OwnApp = "MyApp";
     private const string SharedApp = "Shared";
@@ -25,7 +25,7 @@ public sealed class AppNameIsolationTests
     {
         var options = new DbConfigOptions
         {
-            AppName = OwnApp,
+            Scope = OwnApp,
             Environment = Env,
             ReloadInterval = TimeSpan.FromSeconds(30),
             IncludeScopes = includeScopes ?? [],
@@ -39,7 +39,7 @@ public sealed class AppNameIsolationTests
     }
 
     [TimedFact]
-    public async Task UnrelatedAppName_NotInScopes_NotVisible()
+    public async Task UnrelatedScope_NotInScopes_NotVisible()
     {
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
@@ -55,7 +55,7 @@ public sealed class AppNameIsolationTests
     }
 
     [TimedFact]
-    public async Task UnrelatedAppName_TenantRow_NotVisible()
+    public async Task UnrelatedScope_TenantRow_NotVisible()
     {
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
@@ -114,7 +114,7 @@ public sealed class AppNameIsolationTests
     }
 
     [TimedFact]
-    public async Task UnrelatedAppName_DoesNotContributeToTenantBag()
+    public async Task UnrelatedScope_DoesNotContributeToTenantBag()
     {
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;

@@ -9,7 +9,7 @@ internal sealed class ConfigAuditEntryEntity
 {
     public Guid Id { get; set; }
 
-    public string AppName { get; set; } = string.Empty;
+    public string Scope { get; set; } = string.Empty;
 
     public string Environment { get; set; } = string.Empty;
 

@@ -37,9 +37,9 @@ export interface TreeNode {
  * - 'Stripe:ApiKey' → group 'Stripe' → leaf 'ApiKey'.
  * - 'Stripe:Payment:ApiKey' → group 'Stripe' → group 'Payment' → leaf 'ApiKey'.
  *
- * Multiple entries that share the same appName can coexist in the same tree
- * because each entry is identified by its full composite key plus appName.
- * When two entries have different appNames but the same key path, they will
+ * Multiple entries that share the same scope can coexist in the same tree
+ * because each entry is identified by its full composite key plus scope.
+ * When two entries have different scopes but the same key path, they will
  * both appear as separate leaf nodes under the same parent groups (the group
  * nodes are deduplicated by fullPrefix only, so both leaves will be present
  * under the same group).

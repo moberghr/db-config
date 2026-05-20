@@ -50,9 +50,9 @@ dotnet run
 Open `http://localhost:5000/admin/dbconfig` in a browser — the built-in
 cookie login form (`/admin/dbconfig/login`) appears. Sign in with any
 username and the password `demo-admin-key-12345` (value of `Auth:Password`).
-**The UI loads all entries immediately after sign-in** (no AppName +
+**The UI loads all entries immediately after sign-in** (no Scope +
 Environment input required as of v0.10.0). Use the toolbar filter fields
-to narrow by AppName, Environment, or Tenant when needed. The HTTP API
+to narrow by Scope, Environment, or Tenant when needed. The HTTP API
 lives at `/admin/dbconfig/api` and is covered by the same cookie. For
 curl/Postman: either sign in via the browser first and reuse the cookie,
 or wire your own auth scheme onto the route group with

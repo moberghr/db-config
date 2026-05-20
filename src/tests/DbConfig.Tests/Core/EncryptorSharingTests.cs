@@ -35,7 +35,7 @@ public sealed class EncryptorSharingTests
         {
             builder.AddDbConfig(b =>
             {
-                b.Options.AppName = "App";
+                b.Options.Scope = "App";
                 b.Options.Environment = "Test";
                 b.Options.SchemaMode = SchemaMode.None;
                 b.UseSqlServer(FakeConnectionString);
@@ -74,7 +74,7 @@ public sealed class EncryptorSharingTests
             {
                 builder.AddDbConfig(b =>
                 {
-                    b.Options.AppName = "App";
+                    b.Options.Scope = "App";
                     b.Options.Environment = "Test";
                     b.Options.SchemaMode = SchemaMode.None;
                     b.UseSqlServer(FakeConnectionString);

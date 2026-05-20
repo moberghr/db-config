@@ -6,7 +6,7 @@ namespace DbConfig.Http.Endpoints;
 internal static class UpsertEntryEndpoint
 {
     internal static async Task<IResult> HandleAsync(
-        string appName,
+        string scope,
         string environment,
         string key,
         UpsertEntryRequest body,
@@ -23,7 +23,7 @@ internal static class UpsertEntryEndpoint
         var tenantId = string.IsNullOrEmpty(body.TenantId) ? string.Empty : body.TenantId;
 
         var entry = new ConfigEntry(
-            appName,
+            scope,
             environment,
             tenantId,
             normalizedKey,

@@ -13,7 +13,7 @@ public sealed class KeyFlatteningTests
     {
         var options = new DbConfigOptions
         {
-            AppName = "TestApp",
+            Scope = "TestApp",
             Environment = "Test",
             ReloadInterval = TimeSpan.FromMinutes(5),
         };
@@ -26,7 +26,7 @@ public sealed class KeyFlatteningTests
     {
         var store = new InMemoryConfigStore();
         var entry = new ConfigEntry(
-            AppName: "TestApp",
+            Scope: "TestApp",
             Environment: "Test",
             TenantId: string.Empty,
             Key: "Section:Sub",
@@ -48,7 +48,7 @@ public sealed class KeyFlatteningTests
     {
         var store = new InMemoryConfigStore();
         var entry = new ConfigEntry(
-            AppName: "TestApp",
+            Scope: "TestApp",
             Environment: "Test",
             TenantId: string.Empty,
             Key: "Section:Sub",
@@ -73,7 +73,7 @@ public sealed class KeyFlatteningTests
     {
         var store = new InMemoryConfigStore();
         var entry = new ConfigEntry(
-            AppName: "TestApp",
+            Scope: "TestApp",
             Environment: "Test",
             TenantId: string.Empty,
             Key: "SimpleKey",
@@ -120,7 +120,7 @@ public sealed class KeyFlatteningTests
     {
         var store = new InMemoryConfigStore();
         var entry = new ConfigEntry(
-            AppName: "TestApp",
+            Scope: "TestApp",
             Environment: "Test",
             TenantId: string.Empty,
             Key: "NullKey",

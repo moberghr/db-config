@@ -25,7 +25,7 @@ export interface DemoClient {
   upsertEntry(app: string, env: string, key: string, value: string | null, isSecret: boolean, tenantId?: string): Promise<{ data: ConfigEntry; status: number; headers: Record<string, string> }>
   deleteEntry(app: string, env: string, key: string, tenantId?: string): Promise<void>
   triggerReload(): Promise<void>
-  getAuditHistory(appName: string, environment: string, key: string, take?: number, tenantId?: string): Promise<ConfigAuditEntry[]>
+  getAuditHistory(scope: string, environment: string, key: string, take?: number, tenantId?: string): Promise<ConfigAuditEntry[]>
   queryAuditEntries(q: AuditQuery): Promise<ConfigAuditEntry[]>
 }
 
@@ -36,14 +36,14 @@ export interface DemoClient {
 export function createDemoClient(): DemoClient {
   // Deep-copy the seed data so mutations don't corrupt the module-level constants.
   const entries = new Map<string, ConfigEntry>(
-    DEMO_ENTRIES.map((e) => [compositeKey(e.appName, e.environment, e.tenantId, e.key), { ...e }])
+    DEMO_ENTRIES.map((e) => [compositeKey(e.scope, e.environment, e.tenantId, e.key), { ...e }])
   )
   const auditHistory: ConfigAuditEntry[] = DEMO_AUDIT_HISTORY.map((a) => ({ ...a }))
 
   // ---- helpers ----
 
-  function compositeKey(appName: string, environment: string, tenantId: string, key: string): string {
-    return `${appName}||${environment}||${tenantId}||${key}`
+  function compositeKey(scope: string, environment: string, tenantId: string, key: string): string {
+    return `${scope}||${environment}||${tenantId}||${key}`
   }
 
   function appendAudit(
@@ -53,7 +53,7 @@ export function createDemoClient(): DemoClient {
   ): void {
     const row: ConfigAuditEntry = {
       id: `demo-live-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      appName: entry.appName,
+      scope: entry.scope,
       environment: entry.environment,
       tenantId: entry.tenantId,
       key: entry.key,
@@ -70,21 +70,21 @@ export function createDemoClient(): DemoClient {
   // ---- API methods ----
 
   // Mirror the server's flat-query semantics: AND across filters, default take=1000,
-  // case-insensitive keyPrefix, ordered by (AppName, Environment, TenantId, Key) ascending.
+  // case-insensitive keyPrefix, ordered by (Scope, Environment, TenantId, Key) ascending.
   async function queryEntries(q: EntriesQuery): Promise<ConfigEntry[]> {
     const take = q.take ?? 1000
     const cappedTake = Math.min(Math.max(take, 1), 10000)
     const keyPrefixLower = q.keyPrefix ? q.keyPrefix.toLowerCase() : null
     const result: ConfigEntry[] = []
     for (const entry of entries.values()) {
-      if (q.appName && entry.appName.toLowerCase() !== q.appName.toLowerCase()) continue
+      if (q.scope && entry.scope.toLowerCase() !== q.scope.toLowerCase()) continue
       if (q.environment && entry.environment.toLowerCase() !== q.environment.toLowerCase()) continue
       if (q.tenantId !== undefined && entry.tenantId !== q.tenantId) continue
       if (keyPrefixLower && !entry.key.toLowerCase().startsWith(keyPrefixLower)) continue
       result.push({ ...entry })
     }
     result.sort((a, b) =>
-      a.appName.localeCompare(b.appName)
+      a.scope.localeCompare(b.scope)
       || a.environment.localeCompare(b.environment)
       || a.tenantId.localeCompare(b.tenantId)
       || a.key.localeCompare(b.key)
@@ -113,7 +113,7 @@ export function createDemoClient(): DemoClient {
     const oldValue = existing?.value ?? null
 
     const updated: ConfigEntry = {
-      appName: app,
+      scope: app,
       environment: env,
       tenantId: resolvedTenantId,
       key,
@@ -145,7 +145,7 @@ export function createDemoClient(): DemoClient {
   }
 
   async function getAuditHistory(
-    appName: string,
+    scope: string,
     environment: string,
     key: string,
     take: number = 50,
@@ -154,7 +154,7 @@ export function createDemoClient(): DemoClient {
     const resolvedTenantId = tenantId ?? ''
     return auditHistory
       .filter((a) =>
-        a.appName === appName &&
+        a.scope === scope &&
         a.environment === environment &&
         a.key === key &&
         a.tenantId === resolvedTenantId
@@ -173,7 +173,7 @@ export function createDemoClient(): DemoClient {
     const keyPrefixLower = q.keyPrefix ? q.keyPrefix.toLowerCase() : null
     const result: ConfigAuditEntry[] = []
     for (const entry of auditHistory) {
-      if (q.appName && entry.appName.toLowerCase() !== q.appName.toLowerCase()) continue
+      if (q.scope && entry.scope.toLowerCase() !== q.scope.toLowerCase()) continue
       if (q.environment && entry.environment.toLowerCase() !== q.environment.toLowerCase()) continue
       if (q.tenantId !== undefined && entry.tenantId !== q.tenantId) continue
       if (keyPrefixLower && !entry.key.toLowerCase().startsWith(keyPrefixLower)) continue

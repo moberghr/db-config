@@ -52,7 +52,7 @@
 - **§0.4 — NEVER block on the configuration provider's first load.** ASP.NET Core builds the configuration system synchronously at host construction; the DB store MUST tolerate transient unavailability with a clear, in-process exception (`InvalidOperationException` with the connection details redacted) rather than hanging or silently returning empty values.
 - **§0.5 — NEVER let the React UI reach the database directly.** All UI traffic goes through `Moberg.DbConfig.Http`'s JSON endpoints, even in the demo host. The store abstraction is a server-only surface.
 - **§0.6 — NEVER write to a scope outside your `scopeFilter` from the same host.** When
-  `MapDbConfigHttp` is configured with `scopeFilter: "X"`, writes to other AppNames return
+  `MapDbConfigHttp` is configured with `scopeFilter: "X"`, writes to other Scopes return
   403. Use a separately-deployed admin host (or a separate group with `PlatformAdmin` policy)
   to mutate shared scopes. Don't bypass the filter by registering both groups under the same
   auth policy — that defeats the separation.
@@ -115,7 +115,7 @@ For framework-specific guidance, see `.claude/skills/tech-stack-dotnet/SKILL.md`
 
 ## Domain Model — One-Sentence Refresher
 
-Everything is a **ConfigEntry** uniquely identified by `(AppName, Environment, Key)`. The configuration provider polls a store on a configurable interval and fires `IChangeToken` when the highest-watermark `ModifiedUtc` advances. The HTTP layer exposes a CRUD surface over entries; the React UI is the only first-class consumer of that surface. Stores are pluggable via `IConfigStore`; EF Core is the canonical store, now extracted into `Moberg.DbConfig.EntityFrameworkCore` so `Core` carries no EF dependency. Provider-specific unique-constraint detection is handled by `IUniqueConstraintDetector` implementations in each provider package. DI uses a single-call shape: `builder.AddDbConfig(lambda)` on `IHostApplicationBuilder`. Optional `DbConfigOptions.IncludeScopes` enables multi-scope reads with explicit precedence. Full details in `.claude/rules/architecture.md`.
+Everything is a **ConfigEntry** uniquely identified by `(Scope, Environment, Key)`. The configuration provider polls a store on a configurable interval and fires `IChangeToken` when the highest-watermark `ModifiedUtc` advances. The HTTP layer exposes a CRUD surface over entries; the React UI is the only first-class consumer of that surface. Stores are pluggable via `IConfigStore`; EF Core is the canonical store, now extracted into `Moberg.DbConfig.EntityFrameworkCore` so `Core` carries no EF dependency. Provider-specific unique-constraint detection is handled by `IUniqueConstraintDetector` implementations in each provider package. DI uses a single-call shape: `builder.AddDbConfig(lambda)` on `IHostApplicationBuilder`. Optional `DbConfigOptions.IncludeScopes` enables multi-scope reads with explicit precedence. Full details in `.claude/rules/architecture.md`.
 
 ---
 

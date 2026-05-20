@@ -19,7 +19,7 @@ var connectionString = builder.Configuration.GetConnectionString("DbConfig")
 
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyApp";
+    b.Options.Scope = "MyApp";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.ReloadInterval = TimeSpan.FromSeconds(30);
     b.UseSqlServer(connectionString); // or b.UsePostgreSql(connectionString)
@@ -60,7 +60,7 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddDbConfig(b =>
 {
-    b.Options.AppName = "MyWorker";
+    b.Options.Scope = "MyWorker";
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.UseSqlServer(connectionString);
 });
@@ -89,7 +89,7 @@ curl -X PUT http://localhost:5000/admin/dbconfig/api/MyApp/Development/Database:
   -d '{"value": "Server=localhost;Database=mydb;Integrated Security=true", "isSecret": true}'
 ```
 
-The route format is `/{appName}/{environment}/{*key}` under the configured API prefix
+The route format is `/{scope}/{environment}/{*key}` under the configured API prefix
 (`/admin/dbconfig/api` when using `MapDbConfigAdmin`). The key segment uses `:` as the
 hierarchy separator (matching `IConfiguration` convention). Forward slashes in the URL
 path are normalized to `:` automatically, so

@@ -27,7 +27,7 @@ public sealed class EnvironmentIsolationTests
     {
         var options = new DbConfigOptions
         {
-            AppName = OwnApp,
+            Scope = OwnApp,
             Environment = environment,
             ReloadInterval = TimeSpan.FromSeconds(30),
             IncludeScopes = includeScopes ?? [],

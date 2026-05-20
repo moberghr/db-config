@@ -54,11 +54,11 @@
         - button "Collapse all" [ref=e55]
       - table [ref=e57]:
         - rowgroup [ref=e58]:
-          - row "Key Value AppName Environment Tenant Modified Modified By Actions" [ref=e59]:
+          - row "Key Value Scope Environment Tenant Modified Modified By Actions" [ref=e59]:
             - columnheader [ref=e60]
             - columnheader "Key" [ref=e61]
             - columnheader "Value" [ref=e62]
-            - columnheader "AppName" [ref=e63]
+            - columnheader "Scope" [ref=e63]
             - columnheader "Environment" [ref=e64]
             - columnheader "Tenant" [ref=e65]
             - columnheader "Modified" [ref=e66]

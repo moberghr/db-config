@@ -297,14 +297,14 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "DbConfig reload failed for app '{AppName}' / env '{Environment}'. Previous values retained; will retry on next tick.", _options.AppName, _options.Environment);
+            _logger.LogWarning(ex, "DbConfig reload failed for app '{Scope}' / env '{Environment}'. Previous values retained; will retry on next tick.", _options.Scope, _options.Environment);
         }
     }
 
     private async Task PollForChangesAsync(CancellationToken ct)
     {
-        // Composed path: BuildScopeList() returns [..IncludeScopes, AppName].
-        // When IncludeScopes is empty it returns just [AppName], so a host with no scopes
+        // Composed path: BuildScopeList() returns [..IncludeScopes, Scope].
+        // When IncludeScopes is empty it returns just [Scope], so a host with no scopes
         // still gets multi-tenant coverage via the scoped+all-tenants watermark.
         var scopeList = BuildScopeList();
         var latestWatermark = await _store.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
@@ -384,8 +384,8 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
 
     /// <summary>
     /// Builds the ordered scope list for multi-scope reads: IncludeScopes (lowest precedence first,
-    /// deduplicated case-insensitively) followed by AppName (highest precedence, wins ties).
-    /// Blank scopes and scopes equal to AppName inside IncludeScopes are silently dropped.
+    /// deduplicated case-insensitively) followed by Scope (highest precedence, wins ties).
+    /// Blank scopes and scopes equal to Scope inside IncludeScopes are silently dropped.
     /// </summary>
     private List<string> BuildScopeList()
     {
@@ -393,11 +393,11 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
 
         var deduped = _options.IncludeScopes
             .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Where(s => !string.Equals(s, _options.AppName, StringComparison.OrdinalIgnoreCase))
+            .Where(s => !string.Equals(s, _options.Scope, StringComparison.OrdinalIgnoreCase))
             .Where(seen.Add)
             .ToList();
 
-        deduped.Add(_options.AppName);
+        deduped.Add(_options.Scope);
         return deduped;
     }
 

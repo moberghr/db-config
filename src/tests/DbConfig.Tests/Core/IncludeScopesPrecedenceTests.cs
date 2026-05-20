@@ -21,7 +21,7 @@ public sealed class IncludeScopesPrecedenceTests
         var interval = reloadInterval ?? TimeSpan.FromSeconds(30);
         var options = new DbConfigOptions
         {
-            AppName = OwnApp,
+            Scope = OwnApp,
             Environment = Env,
             ReloadInterval = interval,
             IncludeScopes = includeScopes,
@@ -104,9 +104,9 @@ public sealed class IncludeScopesPrecedenceTests
     [TimedFact]
     public void BuildScopeList_WithDuplicates_DedupesPreservingOrder()
     {
-        // IncludeScopes has "Shared" twice and "PlatformDefaults" once; AppName is "MyApp".
+        // IncludeScopes has "Shared" twice and "PlatformDefaults" once; Scope is "MyApp".
         // Expected effective scope list: [PlatformDefaults, Shared, MyApp]
-        // (first occurrence kept, second "Shared" dropped, AppName appended once at end).
+        // (first occurrence kept, second "Shared" dropped, Scope appended once at end).
         var (provider, _, store) = CreateSut(["Shared", "PlatformDefaults", "Shared"]);
         var t = DateTimeOffset.UtcNow;
 
@@ -122,7 +122,7 @@ public sealed class IncludeScopesPrecedenceTests
 
         // After one Load(), GetAllScopedForAllTenantsAsync (the composed scope × tenant
         // load path used by the polling provider) must have been called exactly once,
-        // and the appNames list passed to it must have 3 elements (not 4).
+        // and the scopes list passed to it must have 3 elements (not 4).
         store.GetAllScopedForAllTenantsAsyncCallCount.ShouldBe(1);
 
         // All three scopes' keys must be visible.
