@@ -2,11 +2,15 @@
 sidebar_position: 7
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # Audit Log page
 
-v0.10.1 added an **Audit Log** tab next to **Entries** at the top of the admin UI. It
-surfaces the full audit timeline across every app, environment, tenant, and key — including
-Delete events whose entries no longer exist in the Entries grid.
+The admin UI has an **Audit Log** tab next to **Entries** at the top. It surfaces the
+full audit timeline across every app, environment, tenant, and key — including Delete
+events whose entries no longer exist in the Entries grid.
+
+<Screenshot light="/img/screenshots/16-audit-log.png" dark="/img/screenshots/16-audit-log-dark.png" alt="Audit log page showing color-coded action chips, app/env/tenant columns, key, old and new values, modified-by and timestamp" />
 
 ## When to use it vs the per-row History dialog
 
@@ -58,7 +62,7 @@ re-runs the query against the live database.
 
 ## Backing endpoint
 
-The Audit Log page calls the new flat audit endpoint added in v0.10.1:
+The Audit Log page calls the flat audit endpoint:
 
 ```
 GET {apiPrefix}/audit?appName=&environment=&tenantId=&keyPrefix=&action=&take=
@@ -69,7 +73,7 @@ The endpoint returns a JSON array of `ConfigAuditEntry` ordered `ModifiedUtc DES
 with `action` serialized as its string name (`"Insert"`, `"Update"`, `"Delete"`,
 `"Read"`) — not as the underlying integer.
 
-See [Endpoints](../http-api/endpoints.md#get-audit--flat-audit-timeline-v0101) for the
+See [Endpoints](../http-api/endpoints.md#get-audit--flat-audit-timeline) for the
 full endpoint reference.
 
 ## Limitations

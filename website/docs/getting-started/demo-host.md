@@ -40,7 +40,7 @@ dotnet run
 ```
 
 The sample applies DbConfig migrations automatically on startup (`SchemaMode.CreateIfMissing`
-is the default in v0.10.2+), so you do not need to run `dotnet ef database update` manually.
+is the default), so you do not need to run `dotnet ef database update` manually.
 On first run it also seeds a few dozen demo entries across two apps (`PaymentsApi` and
 `Notifications`) and three tenants (Global / Acme / Globex), plus a small varied audit
 history so the Audit Log page has something interesting to show.

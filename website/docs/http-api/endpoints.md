@@ -4,17 +4,16 @@ sidebar_position: 1
 
 # Endpoints
 
-`MapDbConfigHttp` registers seven endpoints under your chosen prefix (six in v0.10.0,
-plus the flat `/audit` query added in v0.10.1). All endpoints return camelCase JSON and
-share the route prefix you pass to `MapDbConfigHttp` (or `MapDbConfigAdmin`'s
-`{prefix}/api` derivative).
+`MapDbConfigHttp` registers seven endpoints under your chosen prefix. All endpoints
+return camelCase JSON and share the route prefix you pass to `MapDbConfigHttp` (or
+`MapDbConfigAdmin`'s `{prefix}/api` derivative).
 
 ## Endpoint reference
 
 | Method | Path | Body | Success | Description |
 |--------|------|------|---------|-------------|
 | `GET` | `/` | — | 200 / 403 | Flat-query all entries with optional filters |
-| `GET` | `/audit` | — | 200 / 403 | Flat-query audit timeline with optional filters (v0.10.1+) |
+| `GET` | `/audit` | — | 200 / 403 | Flat-query audit timeline with optional filters |
 | `GET` | `/{appName}/{environment}/{*key}` | — | 200 / 404 | Get a single entry |
 | `PUT` | `/{appName}/{environment}/{*key}` | `UpsertEntryRequest` | 204 | Create or update an entry |
 | `DELETE` | `/{appName}/{environment}/{*key}` | — | 204 | Delete an entry |
@@ -25,13 +24,7 @@ All paths are relative to the prefix passed to `MapDbConfigHttp`. With prefix
 `/api/dbconfig`, the flat-query endpoint is `GET /api/dbconfig/`. With the unified
 `MapDbConfigAdmin("/admin/dbconfig", ...)`, it is `GET /admin/dbconfig/api/`.
 
-:::note
-The v0.9.0-and-earlier path-based list endpoint (`GET /{appName}/{environment}`) was
-removed in v0.10.0. Use the flat `GET /` with optional `?appName=&environment=` filters
-instead.
-:::
-
-## `GET /` — flat entries query (v0.10.0+)
+## `GET /` — flat entries query
 
 Returns every entry across all apps, environments, and tenants with optional
 query-string filters. Used by the admin UI on first paint so operators see data
@@ -69,7 +62,7 @@ curl "http://localhost:5000/admin/dbconfig/api/?appName=MyApp&keyPrefix=Stripe:"
 curl "http://localhost:5000/admin/dbconfig/api/?tenantId=Acme&take=50"
 ```
 
-## `GET /audit` — flat audit timeline (v0.10.1+)
+## `GET /audit` — flat audit timeline
 
 Returns the global audit log across all apps, environments, tenants, and keys with
 optional filters. Backs the new Audit Log tab in the admin UI so Delete events for
@@ -224,7 +217,7 @@ Response (200):
 `oldValue` and `newValue` are decrypted plaintext even for secret entries.
 `oldValue` is null for `Insert` actions. `newValue` is null for `Delete` actions. Both are
 null for `Read` actions (when read auditing is enabled). `action` is serialized as its
-string name (v0.10.1+).
+string name.
 
 ## Status code summary
 

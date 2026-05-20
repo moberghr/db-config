@@ -124,7 +124,7 @@ If `ITenantResolver.Resolve()` throws, the exception propagates out of `IConfigu
 
 ### Tenant ids are case-sensitive
 
-After the v0.5.0 collation fix, all four scope columns use case-sensitive comparison. `"Acme"` and `"acme"` are distinct tenants in the DB. The resolver is responsible for normalizing casing — DbConfig does not normalize. Use consistent casing across all writes and reads.
+All four scope columns use case-sensitive comparison. `"Acme"` and `"acme"` are distinct tenants in the DB. The resolver is responsible for normalizing casing — DbConfig does not normalize. Use consistent casing across all writes and reads.
 
 ### `IOptions<T>` vs `IOptionsSnapshot<T>`
 

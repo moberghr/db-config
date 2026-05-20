@@ -134,7 +134,7 @@ When `Resolve()` returns null or empty string, only global entries are consulted
 
 ## Schema
 
-The `DbConfig_Entries` and `DbConfig_AuditEntries` tables gained a `TenantId` column in v0.9.0:
+The `DbConfig_Entries` and `DbConfig_AuditEntries` tables include a `TenantId` column:
 
 ```sql
 DbConfig_Entries
@@ -151,7 +151,7 @@ DbConfig_Entries
   INDEX  (AppName, Environment, TenantId, ModifiedUtc DESC)  -- watermark index
 ```
 
-The empty string `""` is the global-default sentinel. It is stored literally in the column — not NULL. All four scope columns (`AppName`, `Environment`, `TenantId`, `Key`) use the case-sensitive collation introduced in v0.5.0. Tenant identifiers are therefore case-sensitive: `"Acme"` and `"acme"` are distinct tenants.
+The empty string `""` is the global-default sentinel. It is stored literally in the column — not NULL. All four scope columns (`AppName`, `Environment`, `TenantId`, `Key`) use case-sensitive collation. Tenant identifiers are therefore case-sensitive: `"Acme"` and `"acme"` are distinct tenants.
 
 ## Editing tenant config via HTTP API
 
@@ -212,6 +212,6 @@ See [Resolution order](./resolution-order.md) for the full precedence walk inclu
 
 - **`IOptions<T>` not supported for tenant-aware types.** Use `IOptionsSnapshot<T>` (scoped per-request). See the gotcha section above.
 - **Resolver must be sync and fast.** `Resolve()` is called on every `IConfiguration[key]` read. No I/O. Pre-cache complex tenant identification in middleware.
-- **Memory scaling:** all tenants' entries are loaded into memory at startup and on each reload. The practical ceiling is approximately 10,000 tenants × 100 keys per tenant (~200 MB). Beyond this, lazy per-tenant loading is tracked for v0.10.0+.
+- **Memory scaling:** all tenants' entries are loaded into memory at startup and on each reload. The practical ceiling is approximately 10,000 tenants × 100 keys per tenant (~200 MB). Beyond this, lazy per-tenant loading is on the roadmap.
 - **Tenants are case-sensitive:** `"Acme"` and `"acme"` are distinct tenant identifiers. Use consistent casing across all writes and reads.
 - **Single `AddDbConfig` per host still applies** (§2.10). Multiple tenant-scoped `AddDbConfig` registrations on the same host are not supported.

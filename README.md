@@ -18,7 +18,7 @@ Database-backed `IConfiguration` provider for .NET with an embedded React editor
 |---|---|
 | `Moberg.DbConfig.Core` | `IConfigurationSource` / `IConfigurationProvider`, `IConfigStore` abstraction, options |
 | `Moberg.DbConfig.Http` | JSON API endpoints (`MapDbConfigHttp`); auth is host-owned via `RequireAuthorization` |
-| `Moberg.DbConfig.Ui` | React editor UI shipped as embedded static assets (`MapDbConfigUi`); optional built-in cookie login since v0.10.0 |
+| `Moberg.DbConfig.Ui` | React editor UI shipped as embedded static assets (`MapDbConfigUi`); optional built-in cookie login |
 | `Moberg.DbConfig.Provider.SqlServer` | SQL Server EF Core provider + dialect specifics |
 | `Moberg.DbConfig.Provider.PostgreSql` | PostgreSQL (Npgsql) EF Core provider + dialect specifics |
 
@@ -55,7 +55,7 @@ Per-entry encryption via `IsSecret` flag:
   ```
 - Custom key management (Azure Key Vault, AWS KMS, etc.): register a custom
   `IConfigEncryptor` in `builder.Services` BEFORE `AddDbConfig`. Both instance and
-  type-mapped registrations work in v0.6.0:
+  type-mapped registrations are supported:
 
   ```csharp
   // Type-mapped (DI resolves dependencies)
@@ -125,9 +125,9 @@ default and return `RouteGroupBuilder`. Five supported patterns:
 | Split prefixes + `opts.UseBuiltInLogin<T>()` | UI behind CDN, API at different origin |
 | `opts.Authorization = new MyFilter()` | Header-based, IP allowlist, custom JWT cookie |
 
-The unified `MapDbConfigAdmin` is the common case as of v0.10.0 — one call
-mounts UI and HTTP API under one prefix with one shared cookie, so the React
-app can call its own backend right after sign-in.
+The unified `MapDbConfigAdmin` is the common case — one call mounts UI and HTTP
+API under one prefix with one shared cookie, so the React app can call its own
+backend right after sign-in.
 
 See [Authentication & authorization](https://moberg.github.io/db-config/configuration/auth)
 for the full walkthrough.
@@ -139,7 +139,7 @@ Most code reads config through `IOptionsSnapshot<T>` (tenant-aware automatically
 read **another tenant's settings** explicitly, two services are available:
 
 ```csharp
-// v0.11.2 — typed bind via the standard pipeline. Uses the SAME section path you
+// Typed bind via the standard pipeline. Uses the SAME section path you
 // registered for IOptionsSnapshot<T>; no new convention to learn.
 public class AdminController(ITenantConfigReader reader)
 {
@@ -152,7 +152,7 @@ public class AdminController(ITenantConfigReader reader)
     }
 }
 
-// v0.11.1 — direct DB read with raw entries (IsSecret, ModifiedUtc, ModifiedBy).
+// Direct DB read with raw entries (IsSecret, ModifiedUtc, ModifiedBy).
 // Bypasses IConfiguration; section name is typeof(T).Name verbatim.
 public class AuditEndpoint(IConfigStore store)
 {
@@ -289,7 +289,7 @@ builder.AddDbConfig(b =>
 {
     b.UseSqlServer(connStr);
     b.Options.AppName = "PaymentService";
-    b.Options.AuditReads = true;   // NEW in v0.6.0
+    b.Options.AuditReads = true;
 });
 ```
 
@@ -312,7 +312,7 @@ the highest-watermark `ModifiedUtc` in the store advances, the provider fires an
 **Important:** Direct SQL `DELETE` on the `DbConfig_Entries` table will not be reflected by
 the polling provider until another row's `ModifiedUtc` advances. Always mutate via the API —
 the HTTP `DELETE`/`PUT` endpoints fire the in-process reload signal. Direct DB writes from
-migrations or DBA tools are not first-class in v0.1.0.
+migrations or DBA tools are not first-class.
 
 The HTTP `POST /reload` endpoint (mapped by `MapDbConfigHttp`) triggers an immediate in-process
 reload without waiting for the next poll interval.
@@ -351,45 +351,42 @@ npm run screenshots:install   # one-time: playwright install chromium
 npm run screenshots           # produces 10 PNGs in website/static/img/screenshots/
 ```
 
-The screenshots cover all v0.x features: entries list, editing, history with diff, bulk
+The screenshots cover the major features: entries list, editing, history with diff, bulk
 operations, import/export, scope selector, and the access warning banner.
 
-## Status
-
-- **v0.6.0 (2026-05-17):** Opt-in read auditing; UI features (diff view, bulk edit,
-  import/export); type-mapped `IConfigEncryptor` registrations.
-
-v0.5.0 (production hardening) — production-ready for the following scope:
+## Feature scope
 
 - SQL Server and PostgreSQL via EF Core
-- Hierarchical keys, App + Environment scoping
-- Polling-based reload with immediate-reload signal
-- Embedded React editor UI with CRUD, secret masking, scope badge, view-mode toggle, and per-row audit history
-- Host-owned authorization (no auth baked into the package)
-- `Moberg.DbConfig.EntityFrameworkCore` extracted from Core — consumers writing custom
-  non-EF stores no longer pull the EF transitive dependency
-- `IUniqueConstraintDetector` strategy — provider-specific exception handling lives in the
-  provider package, not in the shared store
-- Single-call design — `builder.AddDbConfig(b => ...)` on `IHostApplicationBuilder`
-  wires services, configuration source, and reload signal in one shot. No bridge
-  dance, no second DI container.
-- `IConfigStore.GetAsync` for targeted single-key reads — HTTP GET single no longer scans
-  the full app/environment scope
-- `DbConfigOptions.IncludeScopes` — pull config from one or more shared scopes in addition
-  to your own, with explicit precedence ordering
+- Hierarchical keys; AppName + Environment + TenantId + Key scoping
+- Polling-based reload with immediate-reload signal on HTTP mutations
+- Embedded React editor UI with CRUD, secret masking, scope badges, view-mode toggle,
+  per-row audit history, and a global Audit Log timeline
+- Per-entry encryption via `IConfigEncryptor` (`IsSecret = true` → encrypted at rest via
+  ASP.NET Core Data Protection or a custom implementation)
+- Audit log (`DbConfig_AuditEntries`) with in-transaction writes for mutations and
+  fire-and-forget read audits (opt-in)
+- Multi-tenant configuration via `ITenantResolver`; `IOptionsSnapshot<T>` is automatically
+  tenant-aware
+- Cross-tenant typed reads via `ITenantConfigReader.GetForTenant<T>(tenantId)` (uses the
+  same `services.Configure<T>(...)` registration) and raw-metadata reads via
+  `IConfigStore` convenience overloads
+- Authorization: open by default; opt into built-in cookie login via
+  `IDbConfigCredentialValidator`, plug in `IDbConfigAuthorizationFilter`, or compose with
+  the host's existing pipeline via `RequireAuthorization`
+- Auto-migrating schema (`SchemaMode.CreateIfMissing` default); production teams that
+  prefer DBA-owned schema use `SchemaMode.None` plus `DbConfigMigrator` helpers
+- `IncludeScopes` — pull config from one or more shared scopes with explicit precedence
 - `MapDbConfigHttp(scopeFilter: "X")` — per-scope authorization at the group level
-- Per-entry encryption via `IConfigEncryptor` (`IsSecret = true` → encrypted at rest via ASP.NET Core Data Protection)
-- Audit log (`DbConfig_AuditEntries`) with in-transaction writes, HTTP read endpoint, and UI History dialog
-- Case-sensitive binary collation on scope columns (closes collation mismatch between HTTP filter and DB query)
 
 **Known limitations:**
 
-- No audit log retention pruner (manual cleanup documented; opt-in pruner deferred to v0.7.0+)
-- Direct DB mutations bypass the reload signal AND audit log (always mutate via API — see Reload semantics above)
-- Two `EfCoreConfigStore` instances per host (one for the polling provider, one
-  for the HTTP layer) both pointed at the same DB. They share no in-process state
-  by design — the DB is the source of truth and the reload signal coordinates
-  cache invalidation. Custom `IConfigStore` impls (e.g. Redis) currently can't
-  share a single instance across polling and HTTP; a `UseCustomStore<T>()`
-  registration helper is tracked for v0.6.0.
-- Ephemeral Data Protection key ring by default (document `PersistKeysToXxx` — see Security section)
+- No audit log retention pruner (manual cleanup documented in
+  [Audit retention](https://moberg.github.io/db-config/operations/audit-retention))
+- Direct DB mutations bypass the reload signal AND audit log — always mutate via the API
+- Two `EfCoreConfigStore` instances per host (polling provider + HTTP layer) both pointed
+  at the same DB. They share no in-process state by design — the DB is the source of
+  truth and the reload signal coordinates cache invalidation
+- Ephemeral Data Protection key ring by default — see Security section for
+  `PersistKeysToXxx` configuration
+
+See [Releases](https://moberg.github.io/db-config/releases) for the changelog.

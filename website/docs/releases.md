@@ -4,6 +4,75 @@ sidebar_position: 99
 
 # Releases
 
+## v0.11.2 (2026-05-20)
+
+Patch release. Adds `ITenantConfigReader` so application code can read another tenant's
+typed settings without changing how sections are named — reuses the consumer's existing
+`services.Configure<T>(GetSection("..."))` registration.
+
+- **`ITenantConfigReader.GetForTenant<T>(tenantId)`** — binds `T` using the section path the
+  consumer already registered. Internally sets an `AsyncLocal` tenant override on the
+  polling provider for the duration of the call, then resolves `IOptionsSnapshot<T>` in a
+  fresh DI scope. `PostConfigure<T>`, code-based configurators, and custom section paths
+  all run exactly as they would for a normal request.
+- **No DB hit per call** — the polling provider has all tenants in memory; the reader does
+  in-memory dictionary lookups.
+- **Concurrent-safe** — AsyncLocal isolates concurrent calls on different async flows; the
+  override never leaks to the host's ambient `IConfiguration` after the call returns.
+- **Complements `IConfigStore` typed overloads** — `IConfigStore.GetForTenantAsync<T>` (raw
+  metadata: IsSecret, ModifiedUtc) remains the right tool for admin tooling and types
+  without an `IConfigureOptions<T>` registration.
+
+**Breaking changes:** none.
+
+## v0.11.1 (2026-05-20)
+
+Patch release. Adds ergonomic convenience overloads to `IConfigStore` so consumer code
+reading another tenant's settings doesn't have to pass `appName` / `environment` on every
+call.
+
+- **Six default-interface overloads on `IConfigStore`:** `GetAsync(key, ct)`,
+  `GetAllAsync(ct)`, `GetForTenantAsync(tenantId, key, ct)`, `GetAllForTenantAsync(tenantId,
+  ct)`, `GetAsync<T>(ct)`, and `GetForTenantAsync<T>(tenantId, ct)`. `AppName` and
+  `Environment` come from `DbConfigOptions`; current-tenant overloads consult the registered
+  `ITenantResolver`.
+- **Typed-bind section name is `typeof(T).Name` verbatim** — `StripeOptions` reads from
+  `StripeOptions:` keys (not `Stripe:`). Intentionally diverges from
+  `services.Configure<T>(GetSection("Stripe"))` to avoid silent breakage on refactors. Two
+  viable patterns documented in [Programmatic access to configuration](./configuration/programmatic-access.md).
+- **Targeted DB queries** for all overloads — no full-scope scans.
+- **Generic-arity stripping** — `MyOptions<int>` → `MyOptions:` prefix.
+- **Whitespace-only tenant ids** fall back to global (never queried literally).
+- **Custom `IConfigStore` impls** that don't carry ambient state throw `NotSupportedException`
+  from the convenience overloads; explicit-arg methods keep working.
+
+**Breaking changes:** none. Default-interface methods do not break existing implementers.
+
+## v0.11.0 (2026-05-20)
+
+Minor release. Refactors the built-in cookie login to match sister project Warp's
+architecture: the login UI is now part of the React SPA bundle instead of being
+server-rendered HTML. Visual consistency with the dashboard (dark mode, shared theme
+tokens, typography), screenshot pipeline captures the real form, and the flow is now
+standard SPA auth.
+
+- **`BuiltInLoginEndpoints` is JSON-only:** `POST /api/auth/login`, `POST /api/auth/logout`,
+  `GET /api/auth/status`.
+- **`EmbeddedStaticFileMiddleware` injects `window.dbConfig = { apiPrefix, hasBuiltInLogin }`**
+  into the SPA shell so React knows whether to gate the UI on login.
+- **`ui/src/pages/LoginPage.tsx`** renders the login form with shared theme tokens.
+- **App-level auth gate** checks `/api/auth/status` on mount; routes to LoginPage if
+  unauthenticated and the built-in login is enabled.
+- **Sign-out link** in the header.
+
+**Consumer code unchanged.** `opts.UseBuiltInLogin<TValidator>()` works exactly the same.
+`IDbConfigCredentialValidator` contract unchanged. Cookies issued by the previous version
+continue to validate after upgrade — cookie payload format unchanged.
+
+**Breaking changes:** none for consumers using `opts.UseBuiltInLogin<TValidator>()`. The
+HTTP wire format changed (form POST → JSON POST), but the only caller of those endpoints
+is the SPA bundle shipped by the library.
+
 ## v0.10.2 (2026-05-19)
 
 Patch release. Closes a real DX gap: consumers no longer have to construct a

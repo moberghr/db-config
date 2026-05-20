@@ -5,9 +5,8 @@ sidebar_position: 1
 # Migrations
 
 DbConfig manages its own database schema via EF Core migrations shipped inside the
-provider packages. **In v0.10.2+, the schema is applied automatically on host startup**
-by default — you do not write the migrations, and you do not have to apply them
-manually.
+provider packages. **The schema is applied automatically on host startup** by default —
+you do not write the migrations, and you do not have to apply them manually.
 
 This page covers the two `SchemaMode` options, the `DbConfigMigrator` static helper, and
 the per-provider options helpers.
@@ -28,13 +27,15 @@ helpers wrap that magic string when you need a standalone `DbContextOptions<DbCo
 
 ## Migrations shipped to date
 
-| Migration name | Version | What it does |
-|----------------|---------|-------------|
-| `InitialCreate` | v0.1.0 | Creates `DbConfig_Entries` with composite unique constraint and polling index |
-| `AddAuditEntries` | v0.5.0 | Creates `DbConfig_AuditEntries` table for the audit log |
-| `CaseSensitiveScopeColumns` | v0.5.0 | Binary collation on `AppName`, `Environment`, and `Key` columns on both tables |
-| `AddTenantIdColumn` | v0.9.0 | Adds `TenantId` column (case-sensitive) to both tables; widens the unique constraint to `(AppName, Environment, TenantId, Key)` |
-| (UTC value converters) | v0.10.2 | `ModifiedUtc` columns are read as UTC `DateTime` / `DateTimeOffset` regardless of how the underlying engine stores them (defense-in-depth; no schema change) |
+| Migration name | What it does |
+|----------------|-------------|
+| `InitialCreate` | Creates `DbConfig_Entries` with composite unique constraint and polling index |
+| `AddAuditEntries` | Creates `DbConfig_AuditEntries` table for the audit log |
+| `CaseSensitiveScopeColumns` | Binary collation on `AppName`, `Environment`, and `Key` columns on both tables |
+| `AddTenantIdColumn` | Adds `TenantId` column (case-sensitive) to both tables; widens the unique constraint to `(AppName, Environment, TenantId, Key)` |
+| (UTC value converters) | `ModifiedUtc` columns are read as UTC `DateTime` / `DateTimeOffset` regardless of how the underlying engine stores them (defense-in-depth; no schema change) |
+
+See [Releases](../releases.md) for which library version introduced each migration.
 
 ## `SchemaMode.CreateIfMissing` (default)
 
@@ -162,7 +163,7 @@ hasn't been applied yet.
 
 ## The `CaseSensitiveScopeColumns` migration
 
-The v0.5.0 collation migration changes the collation on scope columns in both tables:
+The collation migration changes the collation on scope columns in both tables:
 
 - **SQL Server:** `Latin1_General_100_BIN2` (binary, case-sensitive)
 - **PostgreSQL:** `"C"` (byte-level, case-sensitive)

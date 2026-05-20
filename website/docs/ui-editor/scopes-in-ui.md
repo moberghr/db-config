@@ -89,7 +89,7 @@ The Flat | Tree preference is persisted to `localStorage` via the scope store.
 
 ## Tenant scoping
 
-v0.9.0 adds a **Tenant** input to the scope selector alongside AppName, Environment, and IncludeScopes.
+The scope selector has a **Tenant** input alongside AppName, Environment, and IncludeScopes.
 
 <Screenshot light="/img/screenshots/12-tenant-selector.png" dark="/img/screenshots/12-tenant-selector-dark.png" alt="Scope selector with Tenant field filled with Acme" />
 

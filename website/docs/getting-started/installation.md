@@ -56,8 +56,8 @@ See [Key persistence](../operations/key-persistence.md) for the full setup.
 ## First-time database setup
 
 DbConfig manages its own schema through EF Core migrations shipped inside the provider
-packages. **In v0.10.2+, the schema is applied automatically on host startup** — you do
-not need to run `dotnet ef database update` manually.
+packages. **The schema is applied automatically on host startup** — you do not need to
+run `dotnet ef database update` manually.
 
 ### Default: auto-migrate at startup (`SchemaMode.CreateIfMissing`)
 

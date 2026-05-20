@@ -14,7 +14,7 @@ two consecutive values.
 The per-row history dialog covered here shows the timeline for a single key. For a
 global view across all apps, environments, tenants, and keys — including Delete events
 whose entries no longer exist in the Entries grid — see the
-[Audit Log page](./audit-log-page.md) added in v0.10.1.
+[Audit Log page](./audit-log-page.md).
 :::
 
 ## Audit history dialog
@@ -82,8 +82,7 @@ GET {apiPrefix}/{appName}/{environment}/audit/{*key}?take=50
 
 Where `{apiPrefix}` is `/admin/dbconfig/api` for unified `MapDbConfigAdmin` mounts, or
 the explicit `apiPrefix` passed to `MapDbConfigUi` in split deployments. `take` defaults
-to 50 and is capped at 500. Results are ordered most-recent-first. As of v0.10.1, the
-`action` field is serialized as its string name (`"Insert"`, `"Update"`, `"Delete"`,
-`"Read"`).
+to 50 and is capped at 500. Results are ordered most-recent-first. The `action` field is
+serialized as its string name (`"Insert"`, `"Update"`, `"Delete"`, `"Read"`).
 
 See [Endpoints](../http-api/endpoints.md) for the full endpoint reference.

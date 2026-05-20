@@ -27,9 +27,8 @@ The polling provider fetches all entries where `AppName = "PaymentService"` and
 `Environment = "Production"`. Entries for other apps are invisible to this host.
 
 :::warning
-Scope column comparisons are case-sensitive after the v0.5.0 `CaseSensitiveScopeColumns`
-migration. `"MyApp"` and `"myapp"` are distinct scopes. Set `AppName` and
-`IncludeScopes` with consistent casing across all your hosts.
+Scope column comparisons are case-sensitive. `"MyApp"` and `"myapp"` are distinct
+scopes. Set `AppName` and `IncludeScopes` with consistent casing across all your hosts.
 :::
 
 ## Including shared scopes
@@ -149,15 +148,13 @@ masking, but every application process that includes the scope can read every se
 ## Limitation: no parent/inheritance chain
 
 The current `IncludeScopes` model is a flat list with explicit precedence. There is no
-automatic parent-child inheritance (e.g. `Production` inheriting from `Default`). That
-pattern (Option C from the v0.4.0 design) was deferred. If you need it, model it explicitly
-in your `IncludeScopes` list.
+automatic parent-child inheritance (e.g. `Production` inheriting from `Default`). If you
+need it, model it explicitly in your `IncludeScopes` list.
 
 ## Cross-scope listing via the flat `GET /` endpoint
 
-v0.10.0 replaced the path-based `/{appName}/{environment}` list with a flat query at the
-group root. There is no separate "merged view" endpoint; instead, callers pass the union
-of `AppName` values they want to see:
+The HTTP API uses a flat query at the group root. There is no separate "merged view"
+endpoint; instead, callers pass the union of `AppName` values they want to see:
 
 ```bash
 # All entries for PaymentService + the two shared scopes in Production
@@ -182,7 +179,7 @@ See [Scopes in UI](../ui-editor/scopes-in-ui.md) for the UI selector and view mo
 
 ## Tenant as a fourth scoping dimension
 
-v0.9.0 added `TenantId` alongside `AppName`, `Environment`, and `Key`. Tenant composes with `IncludeScopes`: every entry (own-scope or included-scope) can have a tenant-specific override on top of its global default. Global default entries store `TenantId = ""`.
+`TenantId` is a fourth scoping dimension alongside `AppName`, `Environment`, and `Key`. Tenant composes with `IncludeScopes`: every entry (own-scope or included-scope) can have a tenant-specific override on top of its global default. Global default entries store `TenantId = ""`.
 
 Tenancy is resolved differently from `IncludeScopes`. `IncludeScopes` is baked into the polling provider's load query at startup and stays fixed for the host's lifetime. Tenant id is picked on every `IConfiguration[key]` read by calling `ITenantResolver.Resolve()`. Consumers see the right tenant's values transparently via standard `IOptionsSnapshot<T>`.
 

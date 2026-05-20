@@ -6,8 +6,8 @@ sidebar_position: 7
 
 Most application code reads configuration through `IOptionsSnapshot<T>` or `IConfiguration` — the standard ASP.NET Core pipeline already handles tenant fallback, hot reload, and decryption transparently. For the cases where you need to read explicitly (admin tools, background jobs that consult another tenant's settings, diagnostic endpoints, cross-tenant analytics), DbConfig provides two complementary services:
 
-- **`ITenantConfigReader`** (v0.11.2) — typed bind that reuses the consumer's existing `services.Configure<T>(...)` registrations, scoped to an explicit tenant id. Recommended for application code that wants a fully-bound POCO without changing how sections are named.
-- **`IConfigStore`** convenience overloads (v0.11.1) — direct DB reads that bypass `IConfiguration`. Returns raw `ConfigEntry` rows with metadata (`IsSecret`, `ModifiedUtc`, `ModifiedBy`) or POCO binds keyed off `typeof(T).Name` verbatim. Best for admin tooling and raw metadata access.
+- **`ITenantConfigReader`** — typed bind that reuses the consumer's existing `services.Configure<T>(...)` registrations, scoped to an explicit tenant id. Recommended for application code that wants a fully-bound POCO without changing how sections are named.
+- **`IConfigStore`** convenience overloads — direct DB reads that bypass `IConfiguration`. Returns raw `ConfigEntry` rows with metadata (`IsSecret`, `ModifiedUtc`, `ModifiedBy`) or POCO binds keyed off `typeof(T).Name` verbatim. Best for admin tooling and raw metadata access.
 
 ## When to use
 

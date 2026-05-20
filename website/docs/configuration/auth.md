@@ -2,13 +2,15 @@
 sidebar_position: 6
 ---
 
+import Screenshot from '@site/src/components/Screenshot';
+
 # Authentication & authorization
 
 DbConfig does not own identity. Both `MapDbConfigHttp` and `MapDbConfigUi` are
 open by default and return a `RouteGroupBuilder` so hosts can compose any
-auth pipeline they already have. v0.10.0 adds an **opt-in built-in cookie
-login** plus a **unified `MapDbConfigAdmin`** mount that gates the UI and
-HTTP API with one cookie.
+auth pipeline they already have. An **opt-in built-in cookie login** plus a
+**unified `MapDbConfigAdmin`** mount that gates the UI and HTTP API with one
+cookie are also available.
 
 There are five supported patterns, listed from "most built-in" to "least
 invasive".
@@ -44,7 +46,7 @@ endpoints.Api.RequireRateLimiting("admin");
 
 ## 2. Open access (default)
 
-The v0.9.0 shape continues to work unchanged:
+The split-prefix shape works with no extra configuration:
 
 ```csharp
 app.MapDbConfigHttp("/api/dbconfig");
@@ -111,7 +113,10 @@ app.MapDbConfigUi("/admin/dbconfig", "/api/dbconfig", opts =>
 });
 ```
 
-What this wires up (v0.11.0 refactor — React-rendered):
+What this wires up (React-rendered):
+
+<Screenshot light="/img/screenshots/15-login-form.png" dark="/img/screenshots/15-login-form-dark.png" alt="DbConfig built-in login form with username, password, and Sign in button" />
+
 
 - `GET /admin/dbconfig/login` — serves the SPA `index.html`. The React app
   detects unauthenticated state via `GET /api/auth/status` and renders its

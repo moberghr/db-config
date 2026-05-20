@@ -47,7 +47,7 @@ app.MapDbConfigHttp("/api/dbconfig")
    .RequireAuthorization("DbConfigAdmin");
 ```
 
-## Embedded asset serving (v0.10.1+)
+## Embedded asset serving
 
 The UI's static assets (JS, CSS, favicon) are served via ASP.NET's `StaticFileMiddleware`
 backed by an `EmbeddedFileProvider`. ETag, conditional `GET`, `Range` requests, and
@@ -57,7 +57,7 @@ is embedded alongside the rest of the bundle.
 ## Tabbed navigation: Entries + Audit Log
 
 The top of the UI has a two-tab header — **Entries** (the primary CRUD surface) and
-**Audit Log** (the global timeline added in v0.10.1).
+**Audit Log** (the global timeline).
 
 ## Entries tab
 
@@ -80,7 +80,7 @@ prefix) narrow the table client-side via the flat `GET /` endpoint. Each row dis
 - **Delete button** — deletes the entry with a confirmation prompt — disabled for
   cross-scope rows
 
-### Clickable rows (v0.10.1+)
+### Clickable rows
 
 Clicking anywhere on an entries row — including plain-text cells and the Value column —
 opens the Edit dialog. The checkbox, the secret-reveal eye, and the per-row action
@@ -88,15 +88,17 @@ buttons keep their own click handlers and don't trigger Edit. This dramatically 
 target-acquisition for the common case (just click the row, don't aim for the small
 Pencil icon).
 
-### Tree-view alignment (v0.10.1+)
+### Tree-view alignment
 
 The tree-view mode (toggle in the toolbar) renders nested keys (`Notifications:Email:Smtp:Host`)
-as a collapsible tree. Leaf checkboxes and group chevrons now share the same X
-coordinate per depth — group rows use `colSpan` so the chevron lives in the same column
-as a leaf's checkbox, and both indent via `paddingLeft = (depth + 1) * 28px` with subtle
-vertical guide lines.
+as a collapsible tree. Leaf checkboxes and group chevrons share the same X coordinate per
+depth — group rows use `colSpan` so the chevron lives in the same column as a leaf's
+checkbox, and both indent via `paddingLeft = (depth + 1) * 28px` with subtle vertical
+guide lines.
 
-## Audit Log tab (v0.10.1+)
+<Screenshot light="/img/screenshots/11-tree-view.png" dark="/img/screenshots/11-tree-view-dark.png" alt="Tree view showing entries grouped by key prefix with expand/collapse chevrons" />
+
+## Audit Log tab
 
 The Audit Log tab surfaces the full audit timeline via `GET /audit`, including Delete
 events whose entries no longer exist in the Entries grid. Action chips are color-coded:
@@ -107,11 +109,10 @@ old/new values inline.
 See [Audit Log page](./audit-log-page.md) for the full feature reference and how it
 complements the per-row History dialog.
 
-## Softer dark mode (v0.10.0+)
+## Dark mode
 
-The dark palette is off-black with slightly compressed contrast instead of the previous
-pure-black background. The hover-on-table-row affordance also gets a softer
-`mute/40 → muted` transition. Light mode is unchanged.
+The dark palette is off-black with slightly compressed contrast (not pure black). The
+hover-on-table-row affordance uses a soft `mute/40 → muted` transition.
 
 ## Access warning banner
 
@@ -123,6 +124,8 @@ A persistent warning banner is always visible at the top of the UI:
 This banner cannot be dismissed. It is a reminder that `IsSecret = false` entries are
 stored as plaintext in the database, readable by anyone with DBA access. Mark sensitive
 values `IsSecret = true` to encrypt them at rest.
+
+<Screenshot light="/img/screenshots/10-access-warning.png" dark="/img/screenshots/10-access-warning-dark.png" alt="Access warning banner at the top of the entries page reminding admins that non-secret values are visible to anyone with DB access" />
 
 ## Where to go next
 

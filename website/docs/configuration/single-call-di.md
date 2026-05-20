@@ -115,19 +115,6 @@ public sealed class DbConfigOptions
 }
 ```
 
-## Brief history
-
-The registration shape has evolved across three versions:
-
-- **v0.1.0** — Two inner `ServiceCollection` instances. The configuration source built its
-  own container; consumers had to bridge `IDbConfigReloadSignal` back out manually.
-- **v0.2.0** — Two-call pattern: `builder.Services.AddDbConfig(...)` then
-  `builder.Configuration.AddDbConfig()`. Eliminated the inner container but required
-  ordering discipline and an explicit services reference.
-- **v0.3.0 (current)** — Single call on `IHostApplicationBuilder`. Inspired by how
-  `AWSSecretsManagerConfigurationExtensions` works — the polling store is built directly
-  from the lambda's captured connection string, not from DI. Cleaner, portable, zero bridge.
-
 ## Custom encryptor registration
 
 If you need a custom `IConfigEncryptor` (Azure Key Vault, AWS KMS, etc.), register it

@@ -100,7 +100,7 @@ public sealed class AzureKeyVaultEncryptor : IConfigEncryptor
 }
 ```
 
-### Instance-registered (v0.5.0+)
+### Instance-registered
 
 Register an already-constructed instance. Works immediately on first `Load()`:
 
@@ -110,7 +110,7 @@ builder.Services.AddSingleton<IConfigEncryptor>(new AzureKeyVaultEncryptor(clien
 builder.AddDbConfig(b => { ... });
 ```
 
-### Type-mapped (v0.6.0+)
+### Type-mapped
 
 Let DI resolve the encryptor and its dependencies after the host is built:
 

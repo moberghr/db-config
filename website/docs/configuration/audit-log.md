@@ -68,7 +68,7 @@ deleted; audit rows must survive.
 `OldValue` and `NewValue` are stored as ciphertext when `IsSecret = true`. The HTTP audit
 history endpoint decrypts them before returning to callers.
 
-## Read auditing (opt-in, v0.6.0+)
+## Read auditing (opt-in)
 
 By default, DbConfig only audits mutations. For compliance scenarios that require "who read
 which secret?" trails, enable read auditing:
