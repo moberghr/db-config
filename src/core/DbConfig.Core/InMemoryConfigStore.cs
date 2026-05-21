@@ -12,8 +12,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     private readonly Dictionary<(string Scope, string Environment, string TenantId, string Key), ConfigEntryRecord> _entries = [];
     private readonly object _lock = new();
     private readonly IConfigEncryptor _encryptor;
-    private readonly InMemoryConfigAuditStore? _auditStore;
-    private readonly bool _enableAuditLog;
+    private readonly IConfigAuditAppender _auditAppender;
     private readonly DbConfigOptions? _options;
     private readonly ITenantResolver? _tenantResolver;
 
@@ -86,8 +85,9 @@ public sealed class InMemoryConfigStore : IConfigStore
         ITenantResolver? tenantResolver)
     {
         _encryptor = encryptor ?? new PassthroughConfigEncryptor();
-        _auditStore = auditStore;
-        _enableAuditLog = enableAuditLog;
+        _auditAppender = (enableAuditLog && auditStore is not null)
+            ? new InMemoryConfigAuditAppender(auditStore)
+            : NoOpConfigAuditAppender.Instance;
         _options = options;
         _tenantResolver = tenantResolver;
     }
@@ -252,21 +252,19 @@ public sealed class InMemoryConfigStore : IConfigStore
 
             _entries[key] = stored;
 
-            if (_enableAuditLog && _auditStore is not null)
-            {
-                _auditStore.Add(new ConfigAuditEntryRecord(
-                    Guid.NewGuid(),
+            _auditAppender.AppendAsync(
+                BuildAuditRow(
                     entry.Scope,
                     entry.Environment,
                     entry.TenantId,
                     entry.Key,
-                    OldValue: oldValue,
-                    NewValue: stored.Value,
-                    IsSecret: entry.IsSecret,
-                    Action: action,
-                    ModifiedUtc: entry.ModifiedUtc == default ? DateTimeOffset.UtcNow : entry.ModifiedUtc,
-                    ModifiedBy: entry.ModifiedBy));
-            }
+                    entry.IsSecret,
+                    action,
+                    oldValue: oldValue,
+                    newValue: stored.Value,
+                    modifiedUtc: entry.ModifiedUtc == default ? DateTimeOffset.UtcNow : entry.ModifiedUtc,
+                    modifiedBy: entry.ModifiedBy),
+                ct).AsTask().GetAwaiter().GetResult();
         }
 
         return Task.CompletedTask;
@@ -282,21 +280,19 @@ public sealed class InMemoryConfigStore : IConfigStore
             {
                 _entries.Remove(storeKey);
 
-                if (_enableAuditLog && _auditStore is not null)
-                {
-                    _auditStore.Add(new ConfigAuditEntryRecord(
-                        Guid.NewGuid(),
+                _auditAppender.AppendAsync(
+                    BuildAuditRow(
                         scope,
                         environment,
                         existing.TenantId,
                         key,
-                        OldValue: existing.Value,
-                        NewValue: null,
-                        IsSecret: existing.IsSecret,
-                        Action: ConfigAuditAction.Delete,
-                        ModifiedUtc: DateTimeOffset.UtcNow,
-                        ModifiedBy: null));
-                }
+                        existing.IsSecret,
+                        ConfigAuditAction.Delete,
+                        oldValue: existing.Value,
+                        newValue: null,
+                        modifiedUtc: DateTimeOffset.UtcNow,
+                        modifiedBy: null),
+                    ct).AsTask().GetAwaiter().GetResult();
             }
             else
             {
@@ -452,21 +448,19 @@ public sealed class InMemoryConfigStore : IConfigStore
             {
                 _entries.Remove(storeKey);
 
-                if (_enableAuditLog && _auditStore is not null)
-                {
-                    _auditStore.Add(new ConfigAuditEntryRecord(
-                        Guid.NewGuid(),
+                _auditAppender.AppendAsync(
+                    BuildAuditRow(
                         scope,
                         environment,
                         tenantId,
                         key,
-                        OldValue: existing.Value,
-                        NewValue: null,
-                        IsSecret: existing.IsSecret,
-                        Action: ConfigAuditAction.Delete,
-                        ModifiedUtc: DateTimeOffset.UtcNow,
-                        ModifiedBy: null));
-                }
+                        existing.IsSecret,
+                        ConfigAuditAction.Delete,
+                        oldValue: existing.Value,
+                        newValue: null,
+                        modifiedUtc: DateTimeOffset.UtcNow,
+                        modifiedBy: null),
+                    ct).AsTask().GetAwaiter().GetResult();
             }
         }
 
@@ -671,6 +665,32 @@ public sealed class InMemoryConfigStore : IConfigStore
         configuration.Bind(instance);
 
         return instance;
+    }
+
+    private static ConfigAuditEntryRecord BuildAuditRow(
+        string scope,
+        string environment,
+        string tenantId,
+        string key,
+        bool isSecret,
+        ConfigAuditAction action,
+        string? oldValue,
+        string? newValue,
+        DateTimeOffset modifiedUtc,
+        string? modifiedBy)
+    {
+        return new ConfigAuditEntryRecord(
+            Id: Guid.NewGuid(),
+            Scope: scope,
+            Environment: environment,
+            TenantId: tenantId,
+            Key: key,
+            OldValue: oldValue,
+            NewValue: newValue,
+            IsSecret: isSecret,
+            Action: action,
+            ModifiedUtc: modifiedUtc,
+            ModifiedBy: modifiedBy);
     }
 
     private ConfigEntryRecord EncryptEntry(ConfigEntryRecord entry)
