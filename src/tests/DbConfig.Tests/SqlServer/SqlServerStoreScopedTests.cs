@@ -42,11 +42,11 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
     {
         // Insert rows in three scopes + one unrelated scope
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "OwnKey", "ownVal", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "SharedKey", "sharedVal", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppPlatform, Env, string.Empty, "PlatformKey", "platformVal", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "OtherKey", "otherVal", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, "OtherEnv", string.Empty, "EnvKey", "envVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "OwnKey", "ownVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, string.Empty, "SharedKey", "sharedVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppPlatform, Env, string.Empty, "PlatformKey", "platformVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, string.Empty, "OtherKey", "otherVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, "OtherEnv", string.Empty, "EnvKey", "envVal", false, t, null), CancellationToken.None);
 
         // Query two of the three scopes + own
         string[] scopes = [AppPlatform, AppShared, AppOwn];
@@ -67,9 +67,9 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
     {
         // Insert rows in reverse order to ensure DB ordering doesn't happen to match input
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "Key", "ownVal", false, t.AddSeconds(2), null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "Key", "sharedVal", false, t.AddSeconds(1), null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppPlatform, Env, string.Empty, "Key", "platformVal", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "Key", "ownVal", false, t.AddSeconds(2), null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, string.Empty, "Key", "sharedVal", false, t.AddSeconds(1), null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppPlatform, Env, string.Empty, "Key", "platformVal", false, t, null), CancellationToken.None);
 
         // Query in forward-precedence order: lowest first, own last
         string[] scopes = [AppPlatform, AppShared, AppOwn];
@@ -94,17 +94,16 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
     {
         // Seed data across two scopes
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "OwnKey", "v1", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "SharedKey", "v2", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "OwnKey", "v1", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, string.Empty, "SharedKey", "v2", false, t, null), CancellationToken.None);
 
         // Build a separate store with SQL logging enabled
         var sqlLog = new StringBuilder();
         var services = new ServiceCollection();
         services.AddDbContextFactory<DbConfigDbContext>(options =>
-            options.UseSqlServer(
-                _fixture.ConnectionString,
-                sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer"))
-            .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
+            options.UseSqlServer(_fixture.ConnectionString)
+                .UseDbConfigSchema("configuration")
+                .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
 
         await using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();
@@ -124,7 +123,7 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
     public async Task GetAllScopedAsync_EmptyScopeList_ReturnsEmpty()
     {
         // Seed some data so the table is not empty
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "Key", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "Key", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var results = await _store.GetAllScopedAsync([], Env, CancellationToken.None);
 
@@ -139,9 +138,9 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
         var t3 = new DateTimeOffset(2026, 1, 3, 0, 0, 0, TimeSpan.Zero);
 
         // t3 is in AppShared, not in AppOwn — to confirm the max crosses scope boundaries
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "A", "a", false, t1, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "B", "b", false, t2, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "C", "c", false, t3, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "A", "a", false, t1, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "B", "b", false, t2, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, string.Empty, "C", "c", false, t3, null), CancellationToken.None);
 
         var watermark = await _store.GetLatestModifiedUtcScopedAsync(
             [AppShared, AppOwn], Env, CancellationToken.None);
@@ -157,19 +156,18 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
         var t = DateTimeOffset.UtcNow;
         for (var i = 1; i <= 3; i++)
         {
-            await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, $"Key{i}", $"v{i}", false, t.AddSeconds(i), null), CancellationToken.None);
+            await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, $"Key{i}", $"v{i}", false, t.AddSeconds(i), null), CancellationToken.None);
         }
 
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "SharedKey", "sv", false, t.AddSeconds(10), null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, string.Empty, "SharedKey", "sv", false, t.AddSeconds(10), null), CancellationToken.None);
 
         // Build a logging store
         var sqlLog = new StringBuilder();
         var services = new ServiceCollection();
         services.AddDbContextFactory<DbConfigDbContext>(options =>
-            options.UseSqlServer(
-                _fixture.ConnectionString,
-                sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer"))
-            .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
+            options.UseSqlServer(_fixture.ConnectionString)
+                .UseDbConfigSchema("configuration")
+                .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
 
         await using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();
@@ -198,7 +196,7 @@ public sealed class SqlServerStoreScopedTests : IAsyncLifetime
     public async Task GetLatestModifiedUtcScopedAsync_EmptyScopeList_ReturnsNull()
     {
         // Seed some data so the table is not empty.
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "Key", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "Key", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var watermark = await _store.GetLatestModifiedUtcScopedAsync(
             [], Env, CancellationToken.None);

@@ -87,7 +87,7 @@ public sealed class GetSingleEndpointTargetedReadTests
         for (var i = 1; i <= 10; i++)
         {
             await store.UpsertAsync(
-                new ConfigEntry(App, Env, string.Empty, $"Key{i}", $"Value{i}", false, now, null),
+                new ConfigEntryRecord(App, Env, string.Empty, $"Key{i}", $"Value{i}", false, now, null),
                 CancellationToken.None);
         }
     }

@@ -75,10 +75,10 @@ public sealed class TenantEndpointsTests
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantAcme, "TenantKey", "acme-val", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantAcme, "TenantKey", "acme-val", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "TenantKey", "global-val", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "TenantKey", "global-val", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);
@@ -103,7 +103,7 @@ public sealed class TenantEndpointsTests
 
         // Only global entry; no Acme-specific entry.
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "FallbackKey", "global-val", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "FallbackKey", "global-val", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);
@@ -128,7 +128,7 @@ public sealed class TenantEndpointsTests
 
         // Only global entry; no Acme-specific entry.
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "NoFallbackKey", "global-val", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "NoFallbackKey", "global-val", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);
@@ -147,10 +147,10 @@ public sealed class TenantEndpointsTests
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "GlobalKey", "global-val", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "global-val", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantAcme, "GlobalKey", "acme-val", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantAcme, "GlobalKey", "acme-val", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);
@@ -173,16 +173,16 @@ public sealed class TenantEndpointsTests
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantAcme, "AcmeKey1", "av1", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey1", "av1", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantAcme, "AcmeKey2", "av2", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey2", "av2", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantGlobex, "GlobexKey", "gv", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantGlobex, "GlobexKey", "gv", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "GlobalKey", "glv", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "glv", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);
@@ -212,13 +212,13 @@ public sealed class TenantEndpointsTests
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantAcme, "AcmeKey", "av", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey", "av", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantGlobex, "GlobexKey", "gv", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantGlobex, "GlobexKey", "gv", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "GlobalKey", "glv", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "glv", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);
@@ -248,13 +248,13 @@ public sealed class TenantEndpointsTests
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "GlobalKey1", "gv1", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey1", "gv1", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "GlobalKey2", "gv2", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey2", "gv2", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantAcme, "AcmeKey", "av", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey", "av", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);
@@ -287,10 +287,10 @@ public sealed class TenantEndpointsTests
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantAcme, "SharedKey", "acme-val", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantAcme, "SharedKey", "acme-val", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "SharedKey", "global-val", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "SharedKey", "global-val", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);
@@ -316,7 +316,7 @@ public sealed class TenantEndpointsTests
     {
         var auditStore = new InMemoryConfigAuditStore();
         var now = DateTimeOffset.UtcNow;
-        auditStore.Add(new ConfigAuditEntry(
+        auditStore.Add(new ConfigAuditEntryRecord(
             Guid.NewGuid(),
             App,
             Env,
@@ -328,7 +328,7 @@ public sealed class TenantEndpointsTests
             ConfigAuditAction.Insert,
             now.AddMinutes(-1),
             null));
-        auditStore.Add(new ConfigAuditEntry(
+        auditStore.Add(new ConfigAuditEntryRecord(
             Guid.NewGuid(),
             App,
             Env,
@@ -361,7 +361,7 @@ public sealed class TenantEndpointsTests
     {
         var auditStore = new InMemoryConfigAuditStore();
         var now = DateTimeOffset.UtcNow;
-        auditStore.Add(new ConfigAuditEntry(
+        auditStore.Add(new ConfigAuditEntryRecord(
             Guid.NewGuid(),
             App,
             Env,
@@ -373,7 +373,7 @@ public sealed class TenantEndpointsTests
             ConfigAuditAction.Insert,
             now.AddMinutes(-1),
             null));
-        auditStore.Add(new ConfigAuditEntry(
+        auditStore.Add(new ConfigAuditEntryRecord(
             Guid.NewGuid(),
             App,
             Env,
@@ -407,7 +407,7 @@ public sealed class TenantEndpointsTests
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, TenantAcme, "JsonKey", "jv", false, now, null),
+            new ConfigEntryRecord(App, Env, TenantAcme, "JsonKey", "jv", false, now, null),
             TestContext.Current.CancellationToken);
 
         await using var app = BuildApp(store);

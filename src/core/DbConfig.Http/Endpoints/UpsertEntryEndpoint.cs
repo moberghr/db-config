@@ -22,7 +22,7 @@ internal static class UpsertEntryEndpoint
 
         var tenantId = string.IsNullOrEmpty(body.TenantId) ? string.Empty : body.TenantId;
 
-        var entry = new ConfigEntry(
+        var entry = new ConfigEntryRecord(
             scope,
             environment,
             tenantId,

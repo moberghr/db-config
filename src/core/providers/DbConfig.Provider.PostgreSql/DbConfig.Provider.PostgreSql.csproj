@@ -11,10 +11,15 @@
 
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <PackageReference Include="EFCore.NamingConventions" Version="8.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\DbConfig.EntityFrameworkCore\DbConfig.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Sql\*.sql" />
   </ItemGroup>
 
   <ItemGroup>

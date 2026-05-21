@@ -4,6 +4,80 @@ sidebar_position: 99
 
 # Releases
 
+## v0.13.0 (2026-05-21)
+
+Minor release. Three independent shifts bundled because they all touched the schema
+layer and the library hasn't shipped to production yet — clean break is cheaper than
+three sequential migrations.
+
+### 1. Configurable schema (was hard-coded `dbo` / `public`)
+
+- **`DbConfigOptions.Schema`** — pass `"app_config"` (or any string) to land the tables
+  in a custom schema. `null` falls back to the database default (`dbo` on SQL Server,
+  `public` on PostgreSQL). New default for fresh installs: `"configuration"`.
+- The schema flows end-to-end: the SQL script's `CREATE SCHEMA` / `CREATE TABLE`
+  statements use it, the EF Core runtime model points the DbContext at the same place,
+  and the polling provider's queries hit the same tables. Implemented via
+  `DbConfigOptionsExtension` (an `IDbContextOptionsExtension` carrying the schema
+  through the EF Core options pipeline) plus `DbConfigOptions.Schema` flowing into the
+  per-provider raw-SQL migrator.
+
+### 2. Migration system replaced with idempotent raw SQL
+
+EF Core migrations are gone. Each provider package ships a single embedded SQL script
+that is fully idempotent (`IF NOT EXISTS` on every `CREATE`).
+
+- Removed: `DbConfigMigrationsAssembly`, all `Migrations/` folders, the `__EFMigrationsHistory`
+  table, the EF Core migration tooling dependency.
+- Added: `SqlServerDbConfigMigrator` and `PostgreSqlDbConfigMigrator` static helpers.
+  Public API:
+  - `MigrateAsync(connectionString, schema = "configuration", ct)` — apply the script
+  - `GetCreateScript(schema = "configuration")` — return the substituted SQL for offline use
+- `DbConfigBuilder.SetMigrator(...)` is set internally by each provider's `Use*`
+  extension. `SchemaMode.CreateIfMissing` (default) calls this migrator synchronously
+  before the polling provider's first `Load()`.
+- Generic `DbConfigMigrator` and `SqlServerDbConfigOptions.ForSqlServer(...)` /
+  `PostgreSqlDbConfigOptions.ForPostgreSql(...)` helpers no longer return EF-wired
+  `DbContextOptions` for migration use. They still exist for ad-hoc DbContext
+  construction (e.g. integration tests) and now take the schema argument directly.
+
+### 3. PG snake_case via convention; entity / record renames
+
+- **PostgreSQL** uses `EFCore.NamingConventions` (snake_case) on the runtime model.
+  Tables: `config_entries`, `audit_entries`. Columns: `scope`, `tenant_id`,
+  `modified_utc`, etc. Indexes/PKs: `ix_config_entries_*`, `pk_config_entries`,
+  matching EF defaults under the rewriter.
+- **SQL Server** stays PascalCase by default: tables `ConfigEntries`, `AuditEntries`,
+  PKs `PK_ConfigEntries` / `PK_AuditEntries`, indexes `IX_ConfigEntries_*`,
+  `IX_AuditEntries_*`.
+- Internal EF entity classes renamed: `ConfigEntryEntity` → `ConfigEntry`,
+  `ConfigAuditEntryEntity` → `AuditEntry`. With matching `DbSet<>` property names
+  (`ConfigEntries`, `AuditEntries`), EF default conventions now drive the table names
+  directly — there is no explicit `ToTable(...)` in `OnModelCreating`. This is what
+  lets the snake_case convention rewriter rewrite cleanly: explicit table-name strings
+  would have defeated it.
+- **Public records renamed (breaking)**: `DbConfig.Core.ConfigEntry` →
+  `ConfigEntryRecord`; `DbConfig.Core.ConfigAuditEntry` → `ConfigAuditEntryRecord`.
+  This frees the `ConfigEntry` / `AuditEntry` identifiers for the internal entity
+  classes (different namespaces, but the C# 8.0 naming-collision rules made the previous
+  arrangement painful to read in `EfCoreConfigStore`).
+
+### Breaking changes
+
+- **Table names changed.** SQL Server: `DbConfig_Entries` → `ConfigEntries`,
+  `DbConfig_AuditEntries` → `AuditEntries`. PostgreSQL: identifiers were not stable
+  before v0.13.0 so this is the first stable layout. Drop existing dev databases and
+  let the new script create the new tables — or `DROP TABLE` the old ones and run
+  the migrator manually.
+- **Default schema is now `"configuration"`** (was the database default). Pin
+  `DbConfigOptions.Schema = null` to keep the old layout if you cannot rename.
+- **Public C# record renamed**: `ConfigEntry` → `ConfigEntryRecord`,
+  `ConfigAuditEntry` → `ConfigAuditEntryRecord`. Update any consumer code that
+  imports these types. JSON wire format (and therefore TypeScript types) is unchanged.
+- **EF Core migration helpers removed**: `DbConfigMigrator` (in
+  `DbConfig.EntityFrameworkCore`) and the `MigrationsAssembly` configuration are gone.
+  Switch to the provider-specific `SqlServerDbConfigMigrator` / `PostgreSqlDbConfigMigrator`.
+
 ## v0.12.0 (2026-05-20)
 
 Minor release. The primary scope column (logical app identifier) is now consistently

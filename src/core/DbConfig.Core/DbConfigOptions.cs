@@ -7,7 +7,8 @@ public sealed class DbConfigOptions
 {
     /// <summary>
     /// Gets or sets the scope (logical application name) used as the primary bucket for
-    /// configuration entries. Stored in the <c>Scope</c> column of <c>DbConfig_Entries</c>.
+    /// configuration entries. Stored in the <c>Scope</c> column of the <c>ConfigEntries</c>
+    /// (SQL Server) / <c>config_entries</c> (PostgreSQL) table.
     /// </summary>
     public string Scope { get; set; } = string.Empty;
 
@@ -28,8 +29,8 @@ public sealed class DbConfigOptions
     /// <summary>
     /// When <see langword="true"/> (the default), every Upsert and Delete operation writes an
     /// audit row in the same <c>SaveChangesAsync</c> as the mutation.  Set to
-    /// <see langword="false"/> to opt out of audit logging entirely (no <c>DbConfig_AuditEntries</c>
-    /// rows are written and no performance cost is incurred).
+    /// <see langword="false"/> to opt out of audit logging entirely (no rows written to
+    /// the <c>AuditEntries</c> / <c>audit_entries</c> table and no performance cost is incurred).
     /// </summary>
     public bool EnableAuditLog { get; set; } = true;
 
@@ -46,4 +47,15 @@ public sealed class DbConfigOptions
     /// Default: <see cref="SchemaMode.CreateIfMissing"/> — auto-migrate.
     /// </summary>
     public SchemaMode SchemaMode { get; set; } = SchemaMode.CreateIfMissing;
+
+    /// <summary>
+    /// Database schema (namespace) for the DbConfig tables. Default: <c>"configuration"</c>.
+    /// Set to <see langword="null"/> to use the database's default schema (<c>dbo</c> on SQL
+    /// Server, <c>public</c> on PostgreSQL). The schema is created automatically when
+    /// <see cref="SchemaMode"/> is <see cref="SchemaMode.CreateIfMissing"/>. On PostgreSQL
+    /// the value MUST be a snake_case identifier (lowercase letters/digits/underscore, leading
+    /// non-digit) because the runtime model applies <c>UseSnakeCaseNamingConvention</c>;
+    /// a non-snake schema would cause the runtime model and the on-disk DDL to disagree.
+    /// </summary>
+    public string? Schema { get; set; } = "configuration";
 }

@@ -28,7 +28,7 @@ public sealed class ReadAuditEndpointTests
 
     private static async Task WaitForAuditRowAsync(
         InMemoryConfigAuditStore auditStore,
-        Func<ConfigAuditEntry, bool> predicate,
+        Func<ConfigAuditEntryRecord, bool> predicate,
         CancellationToken ct)
     {
         var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
@@ -49,7 +49,7 @@ public sealed class ReadAuditEndpointTests
         var auditStore = new InMemoryConfigAuditStore();
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "SomeKey", "val", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "SomeKey", "val", false, now, null), CancellationToken.None);
 
         var options = new DbConfigOptions { AuditReads = false };
 
@@ -71,7 +71,7 @@ public sealed class ReadAuditEndpointTests
         var auditStore = new InMemoryConfigAuditStore();
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "MyKey", "myval", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "MyKey", "myval", false, now, null), CancellationToken.None);
 
         var options = new DbConfigOptions { AuditReads = true };
 
@@ -182,7 +182,7 @@ public sealed class ReadAuditEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "KeyA", "value-a", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "KeyA", "value-a", false, now, null), CancellationToken.None);
 
         var options = new DbConfigOptions { AuditReads = true };
         var capturedWarnings = new List<string>();
@@ -210,7 +210,7 @@ public sealed class ReadAuditEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "KeyB", "value-b", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "KeyB", "value-b", false, now, null), CancellationToken.None);
 
         var options = new DbConfigOptions { AuditReads = true };
         var capturedWarnings = new List<string>();
@@ -239,7 +239,7 @@ public sealed class ReadAuditEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "KeyC", "value-c", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "KeyC", "value-c", false, now, null), CancellationToken.None);
 
         var options = new DbConfigOptions { AuditReads = true };
         var capturedWarnings = new List<string>();
@@ -275,7 +275,7 @@ public sealed class ReadAuditEndpointTests
         var auditStore = new InMemoryConfigAuditStore();
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "AuthKey", "authval", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "AuthKey", "authval", false, now, null), CancellationToken.None);
 
         var options = new DbConfigOptions { AuditReads = true };
 
@@ -390,24 +390,24 @@ public sealed class ReadAuditEndpointTests
 
     private sealed class ThrowingAuditStore : IConfigAuditStore
     {
-        public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
+        public Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryAsync(
             string scope, string environment, string key, int take, CancellationToken ct)
         {
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>([]);
         }
 
-        public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
+        public Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryForTenantAsync(
             string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
         {
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>([]);
         }
 
-        public Task WriteAsync(ConfigAuditEntry entry, CancellationToken ct)
+        public Task WriteAsync(ConfigAuditEntryRecord entry, CancellationToken ct)
         {
             throw new InvalidOperationException("Simulated audit store failure.");
         }
 
-        public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+        public Task<IReadOnlyList<ConfigAuditEntryRecord>> QueryAsync(
             string? scope,
             string? environment,
             string? tenantId,
@@ -416,7 +416,7 @@ public sealed class ReadAuditEndpointTests
             int take,
             CancellationToken ct)
         {
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>([]);
         }
     }
 
@@ -426,24 +426,24 @@ public sealed class ReadAuditEndpointTests
     /// </summary>
     private sealed class AsyncThrowingAuditStore : IConfigAuditStore
     {
-        public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
+        public Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryAsync(
             string scope, string environment, string key, int take, CancellationToken ct)
         {
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>([]);
         }
 
-        public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
+        public Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryForTenantAsync(
             string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
         {
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>([]);
         }
 
-        public Task WriteAsync(ConfigAuditEntry entry, CancellationToken ct)
+        public Task WriteAsync(ConfigAuditEntryRecord entry, CancellationToken ct)
         {
             return Task.FromException(new InvalidOperationException("Simulated async audit store fault."));
         }
 
-        public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+        public Task<IReadOnlyList<ConfigAuditEntryRecord>> QueryAsync(
             string? scope,
             string? environment,
             string? tenantId,
@@ -452,7 +452,7 @@ public sealed class ReadAuditEndpointTests
             int take,
             CancellationToken ct)
         {
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>([]);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>([]);
         }
     }
 

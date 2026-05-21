@@ -45,7 +45,7 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task Upsert_Insert_WritesAuditRowWithActionInsert()
     {
-        var entry = new ConfigEntry(App, Env, string.Empty, "Key1", "value1", false, DateTimeOffset.UtcNow, "tester");
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "Key1", "value1", false, DateTimeOffset.UtcNow, "tester");
 
         await _store.UpsertAsync(entry, CancellationToken.None);
 
@@ -62,8 +62,8 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
     public async Task Upsert_Update_WritesAuditRowWithOldAndNewValues()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "UpdateKey", "old-value", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "UpdateKey", "new-value", false, t.AddSeconds(1), "updater"), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "UpdateKey", "old-value", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "UpdateKey", "new-value", false, t.AddSeconds(1), "updater"), CancellationToken.None);
 
         var history = await _auditStore.GetHistoryAsync(App, Env, "UpdateKey", 10, CancellationToken.None);
 
@@ -79,7 +79,7 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task Delete_WritesAuditRowWithOldValueAndNullNewValue()
     {
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "DeleteKey", "to-delete", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "DeleteKey", "to-delete", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         await _store.DeleteAsync(App, Env, "DeleteKey", CancellationToken.None);
 
@@ -95,7 +95,7 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
     public async Task SecretEntry_AuditRowStoresCiphertext()
     {
         const string plaintext = "super-secret-audit";
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "SecretAuditKey", plaintext, true, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "SecretAuditKey", plaintext, true, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         // Query audit table directly — should be ciphertext, NOT plaintext.
         await using var context = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
@@ -116,10 +116,10 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
         const string key = "OrderedKey";
         var t = DateTimeOffset.UtcNow;
 
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, key, "v0", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, key, "v1", false, t.AddSeconds(1), null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, key, "v2", false, t.AddSeconds(2), null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, key, "v3", false, t.AddSeconds(3), null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, key, "v0", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, key, "v1", false, t.AddSeconds(1), null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, key, "v2", false, t.AddSeconds(2), null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, key, "v3", false, t.AddSeconds(3), null), CancellationToken.None);
 
         var history = await _auditStore.GetHistoryAsync(App, Env, key, 2, CancellationToken.None);
 
@@ -132,7 +132,7 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
     public async Task Audit_GetHistoryAsync_DecryptsSecretValues()
     {
         const string plaintext = "decrypted-secret";
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "DecryptKey", plaintext, true, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "DecryptKey", plaintext, true, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var history = await _auditStore.GetHistoryAsync(App, Env, "DecryptKey", 10, CancellationToken.None);
 
@@ -159,7 +159,7 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
             _fixture.Encryptor,
             enableAuditLog: false);
 
-        await storeNoAudit.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "NoAuditKey", "value", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await storeNoAudit.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "NoAuditKey", "value", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
         await storeNoAudit.DeleteAsync(App, Env, "NoAuditKey", CancellationToken.None);
 
         var history = await _auditStore.GetHistoryAsync(App, Env, "NoAuditKey", 10, CancellationToken.None);
@@ -170,7 +170,7 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task Atomicity_AuditWriteAndMutation_InSameTransaction()
     {
-        var entry = new ConfigEntry(App, Env, string.Empty, "AtomicKey", "atomic-value", false, DateTimeOffset.UtcNow, "atomic-user");
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "AtomicKey", "atomic-value", false, DateTimeOffset.UtcNow, "atomic-user");
 
         await _store.UpsertAsync(entry, CancellationToken.None);
 
@@ -203,14 +203,14 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
         var t = DateTimeOffset.UtcNow;
 
         // Step 1: Insert with IsSecret=true → audit row 1 (Insert, OldValue=null, NewValue="secret-v1").
-        await store.UpsertAsync(new ConfigEntry(App2, Env, string.Empty, "FlipKey", "secret-v1", true, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App2, Env, string.Empty, "FlipKey", "secret-v1", true, t, null), CancellationToken.None);
 
         // Step 2: Update with IsSecret=true → audit row 2 (Update, OldValue="secret-v1", NewValue="secret-v2").
-        await store.UpsertAsync(new ConfigEntry(App2, Env, string.Empty, "FlipKey", "secret-v2", true, t.AddSeconds(1), null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App2, Env, string.Empty, "FlipKey", "secret-v2", true, t.AddSeconds(1), null), CancellationToken.None);
 
         // Step 3: Flip to IsSecret=false → audit row 3 (Update, IsSecret=false in snapshot,
         // OldValue="secret-v2" (stored as plaintext by passthrough), NewValue="plain-v3").
-        await store.UpsertAsync(new ConfigEntry(App2, Env, string.Empty, "FlipKey", "plain-v3", false, t.AddSeconds(2), null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App2, Env, string.Empty, "FlipKey", "plain-v3", false, t.AddSeconds(2), null), CancellationToken.None);
 
         var history = await auditStore.GetHistoryAsync(App2, Env, "FlipKey", 10, CancellationToken.None);
 
@@ -255,14 +255,14 @@ public sealed class PostgreSqlAuditTests : IAsyncLifetime
         var t = DateTimeOffset.UtcNow;
 
         // Step 1: Insert with IsSecret=false → audit row 1 (Insert, OldValue=null, NewValue="plain-v1").
-        await store.UpsertAsync(new ConfigEntry(App2, Env, string.Empty, "FlipKey", "plain-v1", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App2, Env, string.Empty, "FlipKey", "plain-v1", false, t, null), CancellationToken.None);
 
         // Step 2: Update with IsSecret=false → audit row 2 (Update, OldValue="plain-v1", NewValue="plain-v2").
-        await store.UpsertAsync(new ConfigEntry(App2, Env, string.Empty, "FlipKey", "plain-v2", false, t.AddSeconds(1), null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App2, Env, string.Empty, "FlipKey", "plain-v2", false, t.AddSeconds(1), null), CancellationToken.None);
 
         // Step 3: Flip to IsSecret=true → audit row 3 (Update, IsSecret=true in snapshot,
         // OldValue="plain-v2" (raw stored plaintext), NewValue="secret-v3").
-        await store.UpsertAsync(new ConfigEntry(App2, Env, string.Empty, "FlipKey", "secret-v3", true, t.AddSeconds(2), null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App2, Env, string.Empty, "FlipKey", "secret-v3", true, t.AddSeconds(2), null), CancellationToken.None);
 
         var history = await auditStore.GetHistoryAsync(App2, Env, "FlipKey", 10, CancellationToken.None);
 

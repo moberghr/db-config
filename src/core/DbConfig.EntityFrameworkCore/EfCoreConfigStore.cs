@@ -43,7 +43,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     /// <param name="enableAuditLog">
     /// When <see langword="true"/> (the default), every Upsert and Delete writes an audit row
     /// in the same <c>SaveChangesAsync</c> as the mutation. Pass <see langword="false"/> to opt
-    /// out entirely (no rows written to <c>DbConfig_AuditEntries</c>).
+    /// out entirely (no rows written to <c>AuditEntry</c>).
     /// </param>
     public EfCoreConfigStore(
         IDbContextFactory<DbConfigDbContext> factory,
@@ -114,7 +114,7 @@ public sealed class EfCoreConfigStore : IConfigStore
         _tenantResolver = tenantResolver;
     }
 
-    public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
+    public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
@@ -124,7 +124,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == string.Empty)
             .Select(x =>
-                new ConfigEntry(
+                new ConfigEntryRecord(
                     x.Scope,
                     x.Environment,
                     x.TenantId,
@@ -139,7 +139,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(CancellationToken ct)
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(CancellationToken ct)
     {
         var options = RequireOptions();
         var tenantId = _tenantResolver?.Resolve();
@@ -152,7 +152,7 @@ public sealed class EfCoreConfigStore : IConfigStore
         return GetAllForTenantAsync(options.Scope, options.Environment, tenantId, ct);
     }
 
-    public async Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+    public async Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
@@ -163,7 +163,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .Where(x => x.TenantId == string.Empty)
             .Where(x => x.Key == key)
             .Select(x =>
-                new ConfigEntry(
+                new ConfigEntryRecord(
                     x.Scope,
                     x.Environment,
                     x.TenantId,
@@ -178,7 +178,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<ConfigEntry?> GetAsync(string key, CancellationToken ct)
+    public Task<ConfigEntryRecord?> GetAsync(string key, CancellationToken ct)
     {
         var options = RequireOptions();
         var tenantId = _tenantResolver?.Resolve();
@@ -225,7 +225,7 @@ public sealed class EfCoreConfigStore : IConfigStore
         return latestModifiedUtc.Value;
     }
 
-    public async Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
+    public async Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
     {
         var modifiedUtc = entry.ModifiedUtc == default
             ? _timeProvider.GetUtcNow()
@@ -255,7 +255,7 @@ public sealed class EfCoreConfigStore : IConfigStore
 
             if (existing is null)
             {
-                var newEntity = new ConfigEntryEntity
+                var newEntity = new ConfigEntry
                 {
                     Id = Guid.NewGuid(),
                     Scope = entry.Scope,
@@ -341,7 +341,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             var modifiedUtc = _timeProvider.GetUtcNow();
 
             await context.AuditEntries.AddAsync(
-                new ConfigAuditEntryEntity
+                new AuditEntry
                 {
                     Id = Guid.NewGuid(),
                     Scope = scope,
@@ -362,7 +362,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
+    public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(
         IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
@@ -373,7 +373,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == string.Empty)
             .Select(x =>
-                new ConfigEntry(
+                new ConfigEntryRecord(
                     x.Scope,
                     x.Environment,
                     x.TenantId,
@@ -417,7 +417,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     // -------------------------------------------------------------------------
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
+    public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(
         string scope, string environment, string tenantId, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
@@ -428,7 +428,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .Where(x => x.Environment == environment)
             .Where(x => x.TenantId == tenantId)
             .Select(x =>
-                new ConfigEntry(
+                new ConfigEntryRecord(
                     x.Scope,
                     x.Environment,
                     x.TenantId,
@@ -443,7 +443,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
@@ -453,7 +453,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public async Task<ConfigEntry?> GetForTenantAsync(
+    public async Task<ConfigEntryRecord?> GetForTenantAsync(
         string scope, string environment, string tenantId, string key, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
@@ -465,7 +465,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .Where(x => x.TenantId == tenantId)
             .Where(x => x.Key == key)
             .Select(x =>
-                new ConfigEntry(
+                new ConfigEntryRecord(
                     x.Scope,
                     x.Environment,
                     x.TenantId,
@@ -480,7 +480,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<ConfigEntry?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
+    public Task<ConfigEntryRecord?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
@@ -547,7 +547,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             var modifiedUtc = _timeProvider.GetUtcNow();
 
             await context.AuditEntries.AddAsync(
-                new ConfigAuditEntryEntity
+                new AuditEntry
                 {
                     Id = Guid.NewGuid(),
                     Scope = scope,
@@ -568,7 +568,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
+    public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(
         string scope, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
@@ -578,7 +578,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .Where(x => x.Scope == scope)
             .Where(x => x.Environment == environment)
             .Select(x =>
-                new ConfigEntry(
+                new ConfigEntryRecord(
                     x.Scope,
                     x.Environment,
                     x.TenantId,
@@ -614,7 +614,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
+    public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedForAllTenantsAsync(
         IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
@@ -624,7 +624,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .Where(x => scopes.Contains(x.Scope))
             .Where(x => x.Environment == environment)
             .Select(x =>
-                new ConfigEntry(
+                new ConfigEntryRecord(
                     x.Scope,
                     x.Environment,
                     x.TenantId,
@@ -663,7 +663,7 @@ public sealed class EfCoreConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+    public async Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
         string? scope,
         string? environment,
         string? tenantId,
@@ -716,7 +716,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             .ThenBy(x => x.Key)
             .Take(take)
             .Select(x =>
-                new ConfigEntry(
+                new ConfigEntryRecord(
                     x.Scope,
                     x.Environment,
                     x.TenantId,
@@ -800,7 +800,7 @@ public sealed class EfCoreConfigStore : IConfigStore
         return instance;
     }
 
-    private ConfigEntry DecryptEntry(ConfigEntry entry)
+    private ConfigEntryRecord DecryptEntry(ConfigEntryRecord entry)
     {
         if (!entry.IsSecret || entry.Value is null)
         {
@@ -825,14 +825,14 @@ public sealed class EfCoreConfigStore : IConfigStore
             .Replace("_", "\\_", StringComparison.Ordinal);
     }
 
-    private static ConfigAuditEntryEntity BuildAuditEntity(
-        ConfigEntry entry,
+    private static AuditEntry BuildAuditEntity(
+        ConfigEntryRecord entry,
         ConfigAuditAction action,
         string? oldValue,
         string? newValue,
         DateTimeOffset modifiedUtc)
     {
-        return new ConfigAuditEntryEntity
+        return new AuditEntry
         {
             Id = Guid.NewGuid(),
             Scope = entry.Scope,

@@ -39,21 +39,22 @@ public sealed class PostgreSqlTenantSchemaTests : IAsyncLifetime
     {
         // The fixture runs MigrateAsync in InitializeAsync. If the migration was broken,
         // InitializeAsync would have thrown and this test class would have failed to start.
-        // Confirm TenantId column exists in DbConfig_Entries.
+        // Confirm TenantId column exists in config_entries.
         await using var connection = new NpgsqlConnection(_fixture.ConnectionString);
         await connection.OpenAsync(CancellationToken.None);
 
         const string sql = """
             SELECT COUNT(1)
             FROM information_schema.columns
-            WHERE table_name = 'DbConfig_Entries'
-              AND column_name = 'TenantId'
+            WHERE table_schema = 'configuration'
+              AND table_name = 'config_entries'
+              AND column_name = 'tenant_id'
             """;
 
         await using var command = new NpgsqlCommand(sql, connection);
         var count = Convert.ToInt64(await command.ExecuteScalarAsync(CancellationToken.None));
 
-        count.ShouldBe(1L, "TenantId column should exist in DbConfig_Entries after migration");
+        count.ShouldBe(1L, "TenantId column should exist in config_entries after migration");
     }
 
     [TimedFact(60_000)]
@@ -63,7 +64,7 @@ public sealed class PostgreSqlTenantSchemaTests : IAsyncLifetime
         // Both inserts must succeed because the unique constraint is on (Scope, Environment, TenantId, Key).
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
 
-        ctx.ConfigEntries.Add(new ConfigEntryEntity
+        ctx.ConfigEntries.Add(new ConfigEntry
         {
             Id = Guid.NewGuid(),
             Scope = App,
@@ -75,7 +76,7 @@ public sealed class PostgreSqlTenantSchemaTests : IAsyncLifetime
             ModifiedUtc = DateTime.UtcNow,
         });
 
-        ctx.ConfigEntries.Add(new ConfigEntryEntity
+        ctx.ConfigEntries.Add(new ConfigEntry
         {
             Id = Guid.NewGuid(),
             Scope = App,
@@ -107,7 +108,7 @@ public sealed class PostgreSqlTenantSchemaTests : IAsyncLifetime
         await connection.OpenAsync(CancellationToken.None);
 
         const string insert = """
-            INSERT INTO "DbConfig_Entries" ("Id", "Scope", "Environment", "TenantId", "Key", "IsSecret", "ModifiedUtc")
+            INSERT INTO configuration.config_entries (id, scope, environment, tenant_id, key, is_secret, modified_utc)
             VALUES (@id, @app, @env, @tenant, @key, false, NOW())
             """;
 
@@ -140,17 +141,17 @@ public sealed class PostgreSqlTenantSchemaTests : IAsyncLifetime
         // PostgreSQL lowercases unquoted identifiers; EF Core quotes index names in DDL
         // so the names are preserved with original casing. Query is case-insensitive for safety.
         var uniqueIndexExists = await IndexExistsAsync(
-            connection, "UX_DbConfig_Entries_Scope_Environment_TenantId_Key");
+            connection, "ix_config_entries_scope_environment_tenant_id_key");
 
         uniqueIndexExists.ShouldBeTrue("unique index on Entries should include TenantId");
 
         var watermarkIndexExists = await IndexExistsAsync(
-            connection, "IX_DbConfig_Entries_Scope_Environment_TenantId_ModifiedUtc");
+            connection, "ix_config_entries_scope_environment_tenant_id_modified_utc");
 
         watermarkIndexExists.ShouldBeTrue("watermark index on Entries should include TenantId");
 
         var historyIndexExists = await IndexExistsAsync(
-            connection, "IX_DbConfig_Audit_Scope_Environment_TenantId_Key_ModifiedUtc");
+            connection, "ix_audit_entries_scope_environment_tenant_id_key_modified_utc");
 
         historyIndexExists.ShouldBeTrue("history index on AuditEntries should include TenantId");
     }

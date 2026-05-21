@@ -45,9 +45,9 @@ public sealed class IncludeScopesPrecedenceTests
         var (provider, _, store) = CreateSut([SharedApp]);
         var t = DateTimeOffset.UtcNow;
 
-        store.UpsertAsync(new ConfigEntry(SharedApp, Env, string.Empty, "X", "shared", false, t, null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, string.Empty, "X", "shared", false, t, null), CancellationToken.None)
             .GetAwaiter().GetResult();
-        store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "X", "own", false, t.AddMilliseconds(1), null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "X", "own", false, t.AddMilliseconds(1), null), CancellationToken.None)
             .GetAwaiter().GetResult();
 
         provider.Load();
@@ -62,7 +62,7 @@ public sealed class IncludeScopesPrecedenceTests
         var (provider, _, store) = CreateSut([SharedApp]);
         var t = DateTimeOffset.UtcNow;
 
-        store.UpsertAsync(new ConfigEntry(SharedApp, Env, string.Empty, "X", "shared", false, t, null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, string.Empty, "X", "shared", false, t, null), CancellationToken.None)
             .GetAwaiter().GetResult();
 
         provider.Load();
@@ -78,7 +78,7 @@ public sealed class IncludeScopesPrecedenceTests
         var t0 = DateTimeOffset.UtcNow;
 
         // Initial state: own scope has one entry.
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "OwnKey", "own-v", false, t0, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "OwnKey", "own-v", false, t0, null), TestContext.Current.CancellationToken);
 
         provider.Load();
 
@@ -86,7 +86,7 @@ public sealed class IncludeScopesPrecedenceTests
 
         // Add a new entry to the shared scope with a later watermark.
         var t1 = t0.AddSeconds(1);
-        await store.UpsertAsync(new ConfigEntry(SharedApp, Env, string.Empty, "SharedKey", "shared-v", false, t1, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, string.Empty, "SharedKey", "shared-v", false, t1, null), TestContext.Current.CancellationToken);
 
         // Register a TCS that completes when the reload token fires.
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -111,11 +111,11 @@ public sealed class IncludeScopesPrecedenceTests
         var t = DateTimeOffset.UtcNow;
 
         // Insert one unique key per scope.
-        store.UpsertAsync(new ConfigEntry("Shared", Env, string.Empty, "SharedKey", "sv", false, t, null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord("Shared", Env, string.Empty, "SharedKey", "sv", false, t, null), CancellationToken.None)
             .GetAwaiter().GetResult();
-        store.UpsertAsync(new ConfigEntry("PlatformDefaults", Env, string.Empty, "PlatformKey", "pv", false, t, null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord("PlatformDefaults", Env, string.Empty, "PlatformKey", "pv", false, t, null), CancellationToken.None)
             .GetAwaiter().GetResult();
-        store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "OwnKey", "ov", false, t.AddMilliseconds(1), null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "OwnKey", "ov", false, t.AddMilliseconds(1), null), CancellationToken.None)
             .GetAwaiter().GetResult();
 
         provider.Load();
@@ -136,9 +136,9 @@ public sealed class IncludeScopesPrecedenceTests
         ov.ShouldBe("ov");
 
         // Verify deduplication: a conflicting key defined in both Shared and OwnApp resolves to own.
-        store.UpsertAsync(new ConfigEntry("Shared", Env, string.Empty, "ConflictKey", "shared-conflict", false, t, null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord("Shared", Env, string.Empty, "ConflictKey", "shared-conflict", false, t, null), CancellationToken.None)
             .GetAwaiter().GetResult();
-        store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "ConflictKey", "own-conflict", false, t.AddMilliseconds(1), null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "ConflictKey", "own-conflict", false, t.AddMilliseconds(1), null), CancellationToken.None)
             .GetAwaiter().GetResult();
 
         // Force a second load to pick up the new entries.
@@ -155,8 +155,8 @@ public sealed class IncludeScopesPrecedenceTests
         var t0 = DateTimeOffset.UtcNow;
 
         // Both scopes have Key=X.
-        await store.UpsertAsync(new ConfigEntry(SharedApp, Env, string.Empty, "X", "shared", false, t0, null), TestContext.Current.CancellationToken);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "X", "own", false, t0.AddMilliseconds(1), null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, string.Empty, "X", "shared", false, t0, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "X", "own", false, t0.AddMilliseconds(1), null), TestContext.Current.CancellationToken);
 
         provider.Load();
         provider.TryGet("X", out var before).ShouldBeTrue();
@@ -167,7 +167,7 @@ public sealed class IncludeScopesPrecedenceTests
 
         // Trigger watermark advance via a new shared entry so the provider detects the change.
         var t1 = t0.AddSeconds(1);
-        await store.UpsertAsync(new ConfigEntry(SharedApp, Env, string.Empty, "Trigger", "trigger-v", false, t1, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, string.Empty, "Trigger", "trigger-v", false, t1, null), TestContext.Current.CancellationToken);
 
         // Register a TCS that completes when the reload token fires.
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

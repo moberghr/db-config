@@ -56,7 +56,7 @@ public sealed class ChangeTokenTests
 
         // Add entry with watermark in the future.
         var t1 = DateTimeOffset.UtcNow.AddSeconds(1);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key", "v", false, t1, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key", "v", false, t1, null), TestContext.Current.CancellationToken);
 
         fakeTime.Advance(TimeSpan.FromSeconds(30));
 
@@ -81,7 +81,7 @@ public sealed class ChangeTokenTests
 
         var t0 = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "MyOptions:Value", "initial", false, t0, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "MyOptions:Value", "initial", false, t0, null),
             TestContext.Current.CancellationToken);
 
         var source = new DbConfigConfigurationSource(options, store, fakeTime, NullLoggerFactory.Instance);
@@ -105,7 +105,7 @@ public sealed class ChangeTokenTests
 
         var t1 = t0.AddSeconds(1);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "MyOptions:Value", "updated", false, t1, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "MyOptions:Value", "updated", false, t1, null),
             TestContext.Current.CancellationToken);
 
         fakeTime.Advance(reloadInterval);

@@ -12,7 +12,7 @@ public interface IConfigStore
     /// For tenant-specific entries use the tenant-aware overloads or
     /// <see cref="GetAllForAllTenantsAsync"/>.
     /// </summary>
-    Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct);
+    Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct);
 
     /// <summary>
     /// Returns all entries for the Scope and Environment configured on the store's
@@ -20,7 +20,7 @@ public interface IConfigStore
     /// <see cref="ITenantResolver"/> (falls back to global / tenantId = "" when the resolver
     /// returns null/empty or no resolver is registered). Convenience overload.
     /// </summary>
-    Task<IReadOnlyList<ConfigEntry>> GetAllAsync(CancellationToken ct)
+    Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(CancellationToken ct)
         => throw new NotSupportedException(
             "This IConfigStore implementation does not support the implicit-scope/env GetAllAsync overload. " +
             "Use GetAllAsync(scope, environment, ct) instead.");
@@ -31,7 +31,7 @@ public interface IConfigStore
     /// Implementations must issue a targeted single-row query — callers rely on this
     /// to avoid a full-scope scan when fetching a single key.
     /// </summary>
-    Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct);
+    Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct);
 
     /// <summary>
     /// Returns the entry for the given <paramref name="key"/> using the Scope and Environment
@@ -44,7 +44,7 @@ public interface IConfigStore
     /// implementations that do not maintain ambient Scope/Environment state throw
     /// <see cref="NotSupportedException"/>; callers must then use the explicit-scope/env overload.
     /// </remarks>
-    Task<ConfigEntry?> GetAsync(string key, CancellationToken ct)
+    Task<ConfigEntryRecord?> GetAsync(string key, CancellationToken ct)
         => throw new NotSupportedException(
             "This IConfigStore implementation does not support the implicit-scope/env GetAsync overload. " +
             "Use GetAsync(scope, environment, key, ct) instead.");
@@ -80,7 +80,7 @@ public interface IConfigStore
             "Use GetAllAsync(scope, environment, ct) and bind manually instead.");
 
     /// <summary>
-    /// Returns the highest <see cref="ConfigEntry.ModifiedUtc"/> value across all global
+    /// Returns the highest <see cref="ConfigEntryRecord.ModifiedUtc"/> value across all global
     /// (tenantId = "") entries for the given scope and environment, or <see langword="null"/>
     /// if there are no entries. Used as a cheap change-detection watermark.
     /// For tenant-specific watermark use <see cref="GetLatestModifiedUtcForTenantAsync"/>.
@@ -88,8 +88,8 @@ public interface IConfigStore
     Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct);
 
     /// <summary>Inserts or updates an entry. Last-writer-wins on concurrent upserts to the same key.
-    /// The <see cref="ConfigEntry.TenantId"/> on the entry determines the tenant scope.</summary>
-    Task UpsertAsync(ConfigEntry entry, CancellationToken ct);
+    /// The <see cref="ConfigEntryRecord.TenantId"/> on the entry determines the tenant scope.</summary>
+    Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct);
 
     /// <summary>Deletes the global (tenantId = "") entry identified by (scope, environment, key).
     /// No-op if not found. For tenant-specific delete use <c>DeleteForTenantAsync</c>.</summary>
@@ -101,11 +101,11 @@ public interface IConfigStore
     /// Results are returned in the same order as <paramref name="scopes"/>, so callers can rely on
     /// precedence iteration order (last element wins on duplicate keys).
     /// </summary>
-    Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
+    Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(
         IReadOnlyList<string> scopes, string environment, CancellationToken ct);
 
     /// <summary>
-    /// Returns the highest <see cref="ConfigEntry.ModifiedUtc"/> across all global (tenantId = "")
+    /// Returns the highest <see cref="ConfigEntryRecord.ModifiedUtc"/> across all global (tenantId = "")
     /// entries matching any (scope ∈ scopes, environment) pair, or <see langword="null"/> if
     /// there are no such entries. Used as a cheap multi-scope watermark for change detection.
     /// </summary>
@@ -120,7 +120,7 @@ public interface IConfigStore
     /// Returns all entries for the given scope, environment, and explicit tenant.
     /// Does NOT include global (tenantId = "") entries — use <c>GetAllAsync</c> for those.
     /// </summary>
-    Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
+    Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(
         string scope, string environment, string tenantId, CancellationToken ct);
 
     /// <summary>
@@ -128,7 +128,7 @@ public interface IConfigStore
     /// configured on the store's <see cref="DbConfigOptions"/>. Does not include global
     /// (tenantId = "") entries. Convenience overload.
     /// </summary>
-    Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
+    Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
         => throw new NotSupportedException(
             "This IConfigStore implementation does not support the implicit-scope/env GetAllForTenantAsync overload. " +
             "Use GetAllForTenantAsync(scope, environment, tenantId, ct) instead.");
@@ -138,7 +138,7 @@ public interface IConfigStore
     /// or <see langword="null"/> if no such entry exists.
     /// No fallback to global — fallback logic belongs in the polling provider layer.
     /// </summary>
-    Task<ConfigEntry?> GetForTenantAsync(
+    Task<ConfigEntryRecord?> GetForTenantAsync(
         string scope, string environment, string tenantId, string key, CancellationToken ct);
 
     /// <summary>
@@ -148,7 +148,7 @@ public interface IConfigStore
     /// overload <c>GetForTenantAsync&lt;T&gt;</c> for tenant-over-global merge semantics.
     /// Convenience overload.
     /// </summary>
-    Task<ConfigEntry?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
+    Task<ConfigEntryRecord?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
         => throw new NotSupportedException(
             "This IConfigStore implementation does not support the implicit-scope/env GetForTenantAsync overload. " +
             "Use GetForTenantAsync(scope, environment, tenantId, key, ct) instead.");
@@ -180,7 +180,7 @@ public interface IConfigStore
             "Use GetAllForTenantAsync(scope, environment, tenantId, ct) and bind manually instead.");
 
     /// <summary>
-    /// Returns the highest <see cref="ConfigEntry.ModifiedUtc"/> across all entries for the
+    /// Returns the highest <see cref="ConfigEntryRecord.ModifiedUtc"/> across all entries for the
     /// given scope, environment, and tenant, or <see langword="null"/> if there are none.
     /// </summary>
     Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
@@ -198,11 +198,11 @@ public interface IConfigStore
     /// (including the global default where tenantId = "").
     /// Used by the polling provider at boot/reload to load the full multi-tenant snapshot.
     /// </summary>
-    Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
+    Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(
         string scope, string environment, CancellationToken ct);
 
     /// <summary>
-    /// Returns the highest <see cref="ConfigEntry.ModifiedUtc"/> across ALL entries for the
+    /// Returns the highest <see cref="ConfigEntryRecord.ModifiedUtc"/> across ALL entries for the
     /// given scope and environment, regardless of tenant (including tenantId = "").
     /// Used by the polling provider as a change-detection watermark that covers every tenant.
     /// Returns <see langword="null"/> if no entries exist.
@@ -217,11 +217,11 @@ public interface IConfigStore
     /// Results MUST be returned in the same order as <paramref name="scopes"/> so callers
     /// can rely on precedence iteration order (last element wins per (tenant, key) tuple).
     /// </summary>
-    Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
+    Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedForAllTenantsAsync(
         IReadOnlyList<string> scopes, string environment, CancellationToken ct);
 
     /// <summary>
-    /// Returns the highest <see cref="ConfigEntry.ModifiedUtc"/> across ALL entries
+    /// Returns the highest <see cref="ConfigEntryRecord.ModifiedUtc"/> across ALL entries
     /// (every tenant) whose Scope ∈ <paramref name="scopes"/> in the given environment.
     /// Used as a multi-scope, multi-tenant watermark for change detection.
     /// </summary>
@@ -233,17 +233,17 @@ public interface IConfigStore
     /// result set (AND semantics). Used by the admin UI to show a global "all entries" view
     /// on first paint without requiring Scope + Environment input.
     /// </summary>
-    /// <param name="scope">Case-insensitive equality on <see cref="ConfigEntry.Scope"/>, or <see langword="null"/> for no filter.</param>
-    /// <param name="environment">Case-insensitive equality on <see cref="ConfigEntry.Environment"/>, or <see langword="null"/> for no filter.</param>
-    /// <param name="tenantId">Case-sensitive equality on <see cref="ConfigEntry.TenantId"/>, or <see langword="null"/> for no filter. Empty string matches global-default entries.</param>
-    /// <param name="keyPrefix">Case-insensitive starts-with match on <see cref="ConfigEntry.Key"/>, or <see langword="null"/> for no filter.</param>
+    /// <param name="scope">Case-insensitive equality on <see cref="ConfigEntryRecord.Scope"/>, or <see langword="null"/> for no filter.</param>
+    /// <param name="environment">Case-insensitive equality on <see cref="ConfigEntryRecord.Environment"/>, or <see langword="null"/> for no filter.</param>
+    /// <param name="tenantId">Case-sensitive equality on <see cref="ConfigEntryRecord.TenantId"/>, or <see langword="null"/> for no filter. Empty string matches global-default entries.</param>
+    /// <param name="keyPrefix">Case-insensitive starts-with match on <see cref="ConfigEntryRecord.Key"/>, or <see langword="null"/> for no filter.</param>
     /// <param name="take">Maximum number of rows to return. Implementations apply this as a SQL <c>TOP</c> / <c>LIMIT</c> — never as in-memory truncation of a full scan.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>
     /// Entries ordered by (Scope, Environment, TenantId, Key) ascending for deterministic
     /// pagination. Secret entries are returned in plaintext after decryption.
     /// </returns>
-    Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+    Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
         string? scope,
         string? environment,
         string? tenantId,

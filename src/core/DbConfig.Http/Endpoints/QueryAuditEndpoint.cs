@@ -84,7 +84,7 @@ internal static class QueryAuditEndpoint
         if (store is null)
         {
             httpContext.Response.ContentType = "application/json; charset=utf-8";
-            await JsonSerializer.SerializeAsync(httpContext.Response.Body, Array.Empty<ConfigAuditEntry>(), JsonOptions.Default, ct);
+            await JsonSerializer.SerializeAsync(httpContext.Response.Body, Array.Empty<ConfigAuditEntryRecord>(), JsonOptions.Default, ct);
 
             return;
         }

@@ -41,7 +41,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
     public async Task Entries_Scope_CaseSensitive_DifferentCaseReturnsNoRows()
     {
         await _store.UpsertAsync(
-            new ConfigEntry("MyApp", "Production", string.Empty, "Key1", "value", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord("MyApp", "Production", string.Empty, "Key1", "value", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
@@ -57,7 +57,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
     public async Task Entries_Scope_CaseSensitive_ExactCaseReturnsRow()
     {
         await _store.UpsertAsync(
-            new ConfigEntry("MyApp", "Production", string.Empty, "Key2", "value", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord("MyApp", "Production", string.Empty, "Key2", "value", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
@@ -73,7 +73,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
     public async Task Entries_Environment_CaseSensitive_DifferentCaseReturnsNoRows()
     {
         await _store.UpsertAsync(
-            new ConfigEntry("EnvApp", "Production", string.Empty, "Key3", "value", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord("EnvApp", "Production", string.Empty, "Key3", "value", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
@@ -89,7 +89,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
     public async Task Entries_Environment_CaseSensitive_ExactCaseReturnsRow()
     {
         await _store.UpsertAsync(
-            new ConfigEntry("EnvApp", "Production", string.Empty, "Key4", "value", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord("EnvApp", "Production", string.Empty, "Key4", "value", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
@@ -105,7 +105,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
     public async Task Entries_Key_CaseSensitive_DifferentCaseReturnsNoRows()
     {
         await _store.UpsertAsync(
-            new ConfigEntry("KeyApp", "Production", string.Empty, "MySection:MyKey", "value", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord("KeyApp", "Production", string.Empty, "MySection:MyKey", "value", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
@@ -121,7 +121,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
     public async Task Entries_Key_CaseSensitive_ExactCaseReturnsRow()
     {
         await _store.UpsertAsync(
-            new ConfigEntry("KeyApp", "Production", string.Empty, "MySection:MyKey", "value", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord("KeyApp", "Production", string.Empty, "MySection:MyKey", "value", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
@@ -144,7 +144,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
             enableAuditLog: true);
 
         await storeWithAudit.UpsertAsync(
-            new ConfigEntry("AuditMyApp", "Production", string.Empty, "AuditKey1", "v", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord("AuditMyApp", "Production", string.Empty, "AuditKey1", "v", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
@@ -167,7 +167,7 @@ public sealed class PostgreSqlCollationTests : IAsyncLifetime
             enableAuditLog: true);
 
         await storeWithAudit.UpsertAsync(
-            new ConfigEntry("AuditMyApp", "Production", string.Empty, "AuditKey2", "v", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord("AuditMyApp", "Production", string.Empty, "AuditKey2", "v", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);

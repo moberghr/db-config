@@ -234,7 +234,7 @@ public sealed class QueryAuditEndpointTests
         DateTimeOffset modifiedUtc,
         ConfigAuditAction action)
     {
-        var entry = new ConfigAuditEntry(
+        var entry = new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
             Scope: scope,
             Environment: environment,

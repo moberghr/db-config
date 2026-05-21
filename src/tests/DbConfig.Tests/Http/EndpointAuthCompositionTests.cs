@@ -43,7 +43,7 @@ public sealed class EndpointAuthCompositionTests
 
         var store = app.Services.GetRequiredService<IConfigStore>();
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "SomeKey", "val", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "SomeKey", "val", false, DateTimeOffset.UtcNow, null),
             TestContext.Current.CancellationToken);
 
         // The fake scheme authenticates when the header is present.

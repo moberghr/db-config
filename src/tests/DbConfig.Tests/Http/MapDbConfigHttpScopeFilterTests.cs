@@ -21,8 +21,8 @@ public sealed class MapDbConfigHttpScopeFilterTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppB", Env, string.Empty, "Key2", "v2", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppB", Env, string.Empty, "Key2", "v2", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: null);
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -46,7 +46,7 @@ public sealed class MapDbConfigHttpScopeFilterTests
         const string myApp = "MyApp";
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(myApp, Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(myApp, Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: myApp);
         await app.StartAsync(TestContext.Current.CancellationToken);

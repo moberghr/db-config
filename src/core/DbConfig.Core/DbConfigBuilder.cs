@@ -42,6 +42,14 @@ public sealed class DbConfigBuilder
     internal object? DetectorObject { get; private set; }
 
     /// <summary>
+    /// Captured schema-migrator callback. Each provider extension (UseSqlServer/UsePostgreSql)
+    /// sets this to its own raw-SQL migrator. Invoked synchronously by <c>AddDbConfig</c>
+    /// when <see cref="DbConfigOptions.SchemaMode"/> is <c>CreateIfMissing</c>, before the
+    /// configuration source's first <c>Load()</c>. Signature: <c>(schema, ct) =&gt; Task</c>.
+    /// </summary>
+    internal Func<string?, CancellationToken, Task>? MigratorCallback { get; private set; }
+
+    /// <summary>
     /// Sets the EF Core context configuration action. Throws if called more than once.
     /// The <paramref name="action"/> must be an <c>Action&lt;DbContextOptionsBuilder&gt;</c>.
     /// </summary>
@@ -68,6 +76,20 @@ public sealed class DbConfigBuilder
         }
 
         DetectorObject = detector;
+    }
+
+    /// <summary>
+    /// Sets the schema-migrator callback. Throws if called more than once.
+    /// Called by provider extensions to wire their raw-SQL migrator.
+    /// </summary>
+    internal void SetMigrator(Func<string?, CancellationToken, Task> migrator)
+    {
+        if (MigratorCallback is not null)
+        {
+            throw new InvalidOperationException("Migrator callback already set.");
+        }
+
+        MigratorCallback = migrator;
     }
 
     /// <summary>

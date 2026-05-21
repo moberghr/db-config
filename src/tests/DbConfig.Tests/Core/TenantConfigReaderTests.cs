@@ -91,9 +91,9 @@ public sealed class TenantConfigReaderTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:WebhookSecret", "acme-secret", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:WebhookSecret", "acme-secret", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = null };
         using var host = await BuildHostAsync(store, resolver);
@@ -112,9 +112,9 @@ public sealed class TenantConfigReaderTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:WebhookSecret", "global-secret", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:WebhookSecret", "global-secret", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = null };
         using var host = await BuildHostAsync(store, resolver);
@@ -134,9 +134,9 @@ public sealed class TenantConfigReaderTests
         var ct = TestContext.Current.CancellationToken;
 
         // services.Configure<PaymentOptions>(...GetSection("Payment:Stripe"))
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Payment:Stripe:Provider", "global-provider", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Payment:Stripe:Provider", "acme-provider", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Payment:Stripe:TimeoutSeconds", "60", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Payment:Stripe:Provider", "global-provider", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Payment:Stripe:Provider", "acme-provider", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Payment:Stripe:TimeoutSeconds", "60", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = null };
         using var host = await BuildHostAsync(store, resolver);
@@ -155,8 +155,8 @@ public sealed class TenantConfigReaderTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = null };
         using var host = await BuildHostAsync(store, resolver);
@@ -178,9 +178,9 @@ public sealed class TenantConfigReaderTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantGlobex, "Stripe:Key", "globex-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantGlobex, "Stripe:Key", "globex-key", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = TenantGlobex };
         using var host = await BuildHostAsync(store, resolver);
@@ -207,9 +207,9 @@ public sealed class TenantConfigReaderTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantGlobex, "Stripe:Key", "globex-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantGlobex, "Stripe:Key", "globex-key", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = null };
         using var host = await BuildHostAsync(store, resolver);
@@ -247,8 +247,8 @@ public sealed class TenantConfigReaderTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = null };
         using var host = await BuildHostAsync(store, resolver);
@@ -266,8 +266,8 @@ public sealed class TenantConfigReaderTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = null };
         using var host = await BuildHostAsync(store, resolver, (services, _) =>
@@ -287,9 +287,9 @@ public sealed class TenantConfigReaderTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:WebhookSecret", "global-secret", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:Key", "global-key", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:WebhookSecret", "global-secret", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Stripe:Key", "acme-key", false, t, null), ct);
 
         var resolver = new MutableTenantResolver { Tenant = TenantAcme };
         using var host = await BuildHostAsync(store, resolver);

@@ -17,4 +17,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/DbConfig.Tests/DbConfig.Tests.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="../samples/PaymentsApi/PaymentsApi.csproj" />
+  </Folder>
 </Solution>

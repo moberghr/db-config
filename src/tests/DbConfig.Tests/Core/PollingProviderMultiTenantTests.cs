@@ -64,8 +64,8 @@ public sealed class PollingProviderMultiTenantTests
         var (provider, _, tracking) = CreateSut();
         var now = DateTimeOffset.UtcNow;
 
-        await tracking.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "global", false, now, null), TestContext.Current.CancellationToken);
-        await tracking.UpsertAsync(new ConfigEntry(App, Env, "Acme", "Key1", "acme", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
+        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global", false, now, null), TestContext.Current.CancellationToken);
+        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "Key1", "acme", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
 
         provider.Load();
 
@@ -90,14 +90,14 @@ public sealed class PollingProviderMultiTenantTests
         var (provider, fakeTime, tracking) = CreateSut(TimeSpan.FromSeconds(30));
         var t0 = DateTimeOffset.UtcNow;
 
-        await tracking.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Global:Key", "global-val", false, t0, null), TestContext.Current.CancellationToken);
+        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Global:Key", "global-val", false, t0, null), TestContext.Current.CancellationToken);
         provider.Load();
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         provider.GetReloadToken().RegisterChangeCallback(_ => tcs.TrySetResult(true), null);
 
         var t1 = t0.AddSeconds(1);
-        await tracking.UpsertAsync(new ConfigEntry(App, Env, "Acme", "Acme:Key", "acme-val", false, t1, null), TestContext.Current.CancellationToken);
+        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "Acme:Key", "acme-val", false, t1, null), TestContext.Current.CancellationToken);
 
         fakeTime.Advance(TimeSpan.FromSeconds(30));
 
@@ -117,8 +117,8 @@ public sealed class PollingProviderMultiTenantTests
         var (provider, _, tracking) = CreateSut();
         var now = DateTimeOffset.UtcNow;
 
-        await tracking.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "App:Version", "1.0", false, now, null), TestContext.Current.CancellationToken);
-        await tracking.UpsertAsync(new ConfigEntry(App, Env, "Acme", "App:Version", "2.0", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
+        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "App:Version", "1.0", false, now, null), TestContext.Current.CancellationToken);
+        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "App:Version", "2.0", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
 
         provider.Load();
 
@@ -135,8 +135,8 @@ public sealed class PollingProviderMultiTenantTests
         var realProvider = new DbConfigConfigurationProvider(options, store, TimeProvider.System, NullLoggerFactory.Instance);
 
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Stripe:ApiKey", "global-key", false, now, null), TestContext.Current.CancellationToken);
-        await store.UpsertAsync(new ConfigEntry(App, Env, "Acme", "Stripe:ApiKey", "acme-key", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Stripe:ApiKey", "global-key", false, now, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "Stripe:ApiKey", "acme-key", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
 
         realProvider.Load();
 
@@ -156,7 +156,7 @@ public sealed class PollingProviderMultiTenantTests
         var realProvider = new DbConfigConfigurationProvider(options, store, TimeProvider.System, NullLoggerFactory.Instance);
 
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Feature:Flag", "true", false, now, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Feature:Flag", "true", false, now, null), TestContext.Current.CancellationToken);
 
         // Globex has NO override for Feature:Flag
         realProvider.Load();
@@ -179,22 +179,22 @@ public sealed class PollingProviderMultiTenantTests
 
         public TrackingStore(IConfigStore inner) => _inner = inner;
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct)
             => _inner.GetAllAsync(scope, environment, ct);
 
-        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+        public Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct)
             => _inner.GetAsync(scope, environment, key, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcAsync(scope, environment, ct);
 
-        public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
+        public Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
             => _inner.UpsertAsync(entry, ct);
 
         public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
             => _inner.DeleteAsync(scope, environment, key, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetAllScopedAsync(scopes, environment, ct);
 
@@ -202,11 +202,11 @@ public sealed class PollingProviderMultiTenantTests
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(
             string scope, string environment, string tenantId, CancellationToken ct)
             => _inner.GetAllForTenantAsync(scope, environment, tenantId, ct);
 
-        public Task<ConfigEntry?> GetForTenantAsync(
+        public Task<ConfigEntryRecord?> GetForTenantAsync(
             string scope, string environment, string tenantId, string key, CancellationToken ct)
             => _inner.GetForTenantAsync(scope, environment, tenantId, key, ct);
 
@@ -218,7 +218,7 @@ public sealed class PollingProviderMultiTenantTests
             string scope, string environment, string tenantId, string key, CancellationToken ct)
             => _inner.DeleteForTenantAsync(scope, environment, tenantId, key, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(
             string scope, string environment, CancellationToken ct)
         {
             GetAllForAllTenantsCallCount++;
@@ -229,7 +229,7 @@ public sealed class PollingProviderMultiTenantTests
             string scope, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(scope, environment, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedForAllTenantsAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             GetAllScopedForAllTenantsCallCount++;
@@ -240,7 +240,7 @@ public sealed class PollingProviderMultiTenantTests
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(scopes, environment, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
             string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
             => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
     }

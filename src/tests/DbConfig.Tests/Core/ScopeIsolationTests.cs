@@ -45,7 +45,7 @@ public sealed class ScopeIsolationTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "K", "other-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, string.Empty, "K", "other-v", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -61,7 +61,7 @@ public sealed class ScopeIsolationTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry("OtherApp", Env, TenantAcme, "K", "other-acme", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, TenantAcme, "K", "other-acme", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -82,8 +82,8 @@ public sealed class ScopeIsolationTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(SharedApp, Env, string.Empty, "SharedK", "sv", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry("Foreign", Env, string.Empty, "ForeignK", "fv", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, string.Empty, "SharedK", "sv", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord("Foreign", Env, string.Empty, "ForeignK", "fv", false, t, null), ct);
 
         // IncludeScopes lists Shared but NOT Foreign.
         var provider = CreateProvider(store, [SharedApp]);
@@ -103,8 +103,8 @@ public sealed class ScopeIsolationTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "Same:Key", "own-v", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "Same:Key", "other-v", false, t.AddSeconds(1), null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "Same:Key", "own-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, string.Empty, "Same:Key", "other-v", false, t.AddSeconds(1), null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -121,10 +121,10 @@ public sealed class ScopeIsolationTests
         var ct = TestContext.Current.CancellationToken;
 
         // Own-app tenant entry exists.
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, TenantAcme, "K", "own-acme", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, TenantAcme, "K", "own-acme", false, t, null), ct);
 
         // Different app has a different value for the same (tenant, key).
-        await store.UpsertAsync(new ConfigEntry("OtherApp", Env, TenantAcme, "K", "other-acme", false, t.AddSeconds(1), null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, TenantAcme, "K", "other-acme", false, t.AddSeconds(1), null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();

@@ -25,11 +25,11 @@ public enum ConfigAuditAction
 
 /// <summary>
 /// An immutable snapshot of a single audit log record capturing a mutation on a
-/// <see cref="ConfigEntry"/>. Values returned by <see cref="IConfigAuditStore"/> reads are
+/// <see cref="ConfigEntryRecord"/>. Values returned by <see cref="IConfigAuditStore"/> reads are
 /// always plaintext; the store handles decryption internally for entries where
 /// <see cref="IsSecret"/> is <see langword="true"/>.
 /// </summary>
-public sealed record ConfigAuditEntry(
+public sealed record ConfigAuditEntryRecord(
     Guid Id,
     string Scope,
     string Environment,

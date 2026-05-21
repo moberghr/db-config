@@ -220,7 +220,7 @@ public sealed class AuditEndpointTests
         var now = DateTimeOffset.UtcNow;
 
         // Simulate a secret entry — audit store returns plaintext (decrypted) values.
-        var entry = new ConfigAuditEntry(
+        var entry = new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
             Scope: App,
             Environment: Env,
@@ -262,7 +262,7 @@ public sealed class AuditEndpointTests
         DateTimeOffset modifiedUtc,
         ConfigAuditAction action)
     {
-        var entry = new ConfigAuditEntry(
+        var entry = new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
             Scope: scope,
             Environment: environment,

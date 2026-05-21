@@ -39,7 +39,7 @@ public sealed class PostgreSqlStoreGetAsyncTests : IAsyncLifetime
     public async Task GetAsync_KeyExists_ReturnsEntry()
     {
         var t = DateTimeOffset.UtcNow;
-        var entry = new ConfigEntry(App, Env, string.Empty, "Section:Key", "value1", false, t, "user1");
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "Section:Key", "value1", false, t, "user1");
         await _store.UpsertAsync(entry, CancellationToken.None);
 
         var result = await _store.GetAsync(App, Env, "Section:Key", CancellationToken.None);
@@ -56,7 +56,7 @@ public sealed class PostgreSqlStoreGetAsyncTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task GetAsync_KeyDoesNotExist_ReturnsNull()
     {
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "OtherKey", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "OtherKey", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var result = await _store.GetAsync(App, Env, "NonExistentKey", CancellationToken.None);
 
@@ -70,17 +70,17 @@ public sealed class PostgreSqlStoreGetAsyncTests : IAsyncLifetime
         var t = DateTimeOffset.UtcNow;
         for (var i = 1; i <= 5; i++)
         {
-            await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, $"Key{i}", $"v{i}", false, t, null), CancellationToken.None);
+            await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, $"Key{i}", $"v{i}", false, t, null), CancellationToken.None);
         }
 
         // Build a separate store with SQL logging enabled to capture the generated query.
         var sqlLog = new StringBuilder();
         var services = new ServiceCollection();
         services.AddDbContextFactory<DbConfigDbContext>(options =>
-            options.UseNpgsql(
-                _fixture.ConnectionString,
-                npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
-            .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
+            options.UseNpgsql(_fixture.ConnectionString)
+                .UseSnakeCaseNamingConvention()
+                .UseDbConfigSchema("configuration")
+                .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
 
         await using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();
@@ -91,11 +91,16 @@ public sealed class PostgreSqlStoreGetAsyncTests : IAsyncLifetime
         result.ShouldNotBeNull();
         result!.Value.ShouldBe("v3");
 
-        // The SQL must contain a WHERE predicate that filters on the Key column.
-        // EF Core parameterises the value, so we look for the Key column reference
-        // in the WHERE clause rather than the literal string "Key3".
+        // The SQL must contain a WHERE predicate that filters on the key column.
+        // EF Core parameterises the value, so we look for the key column reference
+        // in the WHERE clause rather than the literal string "Key3". PG uses snake_case
+        // identifiers; lowercase identifiers may or may not be quoted by the provider,
+        // so accept either form.
         var capturedSql = sqlLog.ToString();
         capturedSql.ShouldContain("WHERE", Case.Insensitive);
-        capturedSql.ShouldContain("\"Key\"", Case.Sensitive);
+        var hasKeyColumn = capturedSql.Contains("\"key\"", StringComparison.Ordinal)
+            || capturedSql.Contains(" key =", StringComparison.Ordinal)
+            || capturedSql.Contains(".key", StringComparison.Ordinal);
+        hasKeyColumn.ShouldBeTrue($"Expected key column reference in SQL. Full log: {capturedSql}");
     }
 }

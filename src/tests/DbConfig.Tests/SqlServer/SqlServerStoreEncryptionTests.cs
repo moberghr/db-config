@@ -42,7 +42,7 @@ public sealed class SqlServerStoreEncryptionTests : IAsyncLifetime
     public async Task Upsert_SecretEntry_ValueStoredAsCiphertext()
     {
         const string plaintext = "my-secret-password";
-        var entry = new ConfigEntry(App, Env, string.Empty, "SecretKey", plaintext, true, DateTimeOffset.UtcNow, null);
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "SecretKey", plaintext, true, DateTimeOffset.UtcNow, null);
 
         await _store.UpsertAsync(entry, CancellationToken.None);
 
@@ -62,7 +62,7 @@ public sealed class SqlServerStoreEncryptionTests : IAsyncLifetime
     public async Task Upsert_NonSecretEntry_ValueStoredAsPlaintext()
     {
         const string value = "plain-value";
-        var entry = new ConfigEntry(App, Env, string.Empty, "PlainKey", value, false, DateTimeOffset.UtcNow, null);
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "PlainKey", value, false, DateTimeOffset.UtcNow, null);
 
         await _store.UpsertAsync(entry, CancellationToken.None);
 
@@ -80,7 +80,7 @@ public sealed class SqlServerStoreEncryptionTests : IAsyncLifetime
     public async Task GetAsync_SecretEntry_ReturnsDecryptedPlaintext()
     {
         const string plaintext = "transparent-decryption-value";
-        var entry = new ConfigEntry(App, Env, string.Empty, "SecretTransparent", plaintext, true, DateTimeOffset.UtcNow, null);
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "SecretTransparent", plaintext, true, DateTimeOffset.UtcNow, null);
 
         await _store.UpsertAsync(entry, CancellationToken.None);
 
@@ -94,9 +94,9 @@ public sealed class SqlServerStoreEncryptionTests : IAsyncLifetime
     public async Task GetAllAsync_SecretEntries_AllDecrypted()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "S1", "secret-one", true, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "S2", "secret-two", true, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "P1", "plain-one", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "S1", "secret-one", true, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "S2", "secret-two", true, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "P1", "plain-one", false, t, null), CancellationToken.None);
 
         var results = await _store.GetAllAsync(App, Env, CancellationToken.None);
 
@@ -117,7 +117,7 @@ public sealed class SqlServerStoreEncryptionTests : IAsyncLifetime
         // Insert as secret — value is encrypted at rest.
         const string plaintext = "originally-secret";
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "FlippedKey", plaintext, true, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "FlippedKey", plaintext, true, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         // Now update the same entry with IsSecret=false but the same (plaintext) value —

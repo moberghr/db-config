@@ -39,7 +39,7 @@ public sealed class SqlServerStoreGetAsyncTests : IAsyncLifetime
     public async Task GetAsync_KeyExists_ReturnsEntry()
     {
         var t = DateTimeOffset.UtcNow;
-        var entry = new ConfigEntry(App, Env, string.Empty, "Section:Key", "value1", false, t, "user1");
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "Section:Key", "value1", false, t, "user1");
         await _store.UpsertAsync(entry, CancellationToken.None);
 
         var result = await _store.GetAsync(App, Env, "Section:Key", CancellationToken.None);
@@ -56,7 +56,7 @@ public sealed class SqlServerStoreGetAsyncTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task GetAsync_KeyDoesNotExist_ReturnsNull()
     {
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "OtherKey", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "OtherKey", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var result = await _store.GetAsync(App, Env, "NonExistentKey", CancellationToken.None);
 
@@ -70,17 +70,16 @@ public sealed class SqlServerStoreGetAsyncTests : IAsyncLifetime
         var t = DateTimeOffset.UtcNow;
         for (var i = 1; i <= 5; i++)
         {
-            await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, $"Key{i}", $"v{i}", false, t, null), CancellationToken.None);
+            await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, $"Key{i}", $"v{i}", false, t, null), CancellationToken.None);
         }
 
         // Build a separate store with SQL logging enabled to capture the generated query.
         var sqlLog = new StringBuilder();
         var services = new ServiceCollection();
         services.AddDbContextFactory<DbConfigDbContext>(options =>
-            options.UseSqlServer(
-                _fixture.ConnectionString,
-                sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer"))
-            .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
+            options.UseSqlServer(_fixture.ConnectionString)
+                .UseDbConfigSchema("configuration")
+                .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
 
         await using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();

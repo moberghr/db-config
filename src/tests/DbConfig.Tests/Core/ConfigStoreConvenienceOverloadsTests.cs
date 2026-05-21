@@ -22,7 +22,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var t = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Logging:Level", "Info", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "Logging:Level", "Info", false, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetAsync("Logging:Level", CancellationToken.None);
@@ -41,10 +41,10 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var t = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Feature:Beta", "false", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "Feature:Beta", "false", false, t, "seed"),
             CancellationToken.None);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "Feature:Beta", "true", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, "Acme", "Feature:Beta", "true", false, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetAsync("Feature:Beta", CancellationToken.None);
@@ -62,7 +62,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var t = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Locale", "en-US", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "Locale", "en-US", false, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetAsync("Locale", CancellationToken.None);
@@ -79,7 +79,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var t = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Globex", "Limits:Max", "100000", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, "Globex", "Limits:Max", "100000", false, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetForTenantAsync("Globex", "Limits:Max", CancellationToken.None);
@@ -98,13 +98,13 @@ public sealed class ConfigStoreConvenienceOverloadsTests
 
         // Section name = typeof(T).Name verbatim → "StripeOptions:"
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "StripeOptions:ApiKey", "global-key", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "StripeOptions:ApiKey", "global-key", false, t, "seed"),
             CancellationToken.None);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "StripeOptions:DefaultCurrency", "USD", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "StripeOptions:DefaultCurrency", "USD", false, t, "seed"),
             CancellationToken.None);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "acme-key", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, "Acme", "StripeOptions:ApiKey", "acme-key", false, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetAsync<StripeOptions>(CancellationToken.None);
@@ -121,10 +121,10 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var t = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "StripeOptions:ApiKey", "g", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "StripeOptions:ApiKey", "g", false, t, "seed"),
             CancellationToken.None);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "a", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, "Acme", "StripeOptions:ApiKey", "a", false, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetForTenantAsync<StripeOptions>("Acme", CancellationToken.None);
@@ -139,13 +139,13 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var t = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "StripeOptions:ApiKey", "global-key", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "StripeOptions:ApiKey", "global-key", false, t, "seed"),
             CancellationToken.None);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "StripeOptions:WebhookSecret", "global-webhook", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "StripeOptions:WebhookSecret", "global-webhook", false, t, "seed"),
             CancellationToken.None);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "acme-key", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, "Acme", "StripeOptions:ApiKey", "acme-key", false, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetForTenantAsync<StripeOptions>("Acme", CancellationToken.None);
@@ -163,7 +163,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
 
         // The store will encrypt at-rest via the encryptor; the typed bind must return plaintext.
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "sk_live_secret", true, t, "seed"),
+            new ConfigEntryRecord(App, Env, "Acme", "StripeOptions:ApiKey", "sk_live_secret", true, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetForTenantAsync<StripeOptions>("Acme", CancellationToken.None);
@@ -179,12 +179,12 @@ public sealed class ConfigStoreConvenienceOverloadsTests
 
         // Verbatim type name → only "StripeSettings:" prefix is honored.
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "StripeSettings:ApiKey", "from-settings", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "StripeSettings:ApiKey", "from-settings", false, t, "seed"),
             CancellationToken.None);
 
         // "Stripe:" entries should NOT be bound — different prefix.
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Stripe:ApiKey", "from-stripe-prefix", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "Stripe:ApiKey", "from-stripe-prefix", false, t, "seed"),
             CancellationToken.None);
 
         var result = await store.GetAsync<StripeSettings>(CancellationToken.None);
@@ -200,9 +200,9 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "K1", "g1", false, t, "seed"), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "K2", "g2", false, t, "seed"), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, "Acme", "K1", "a1", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "K1", "g1", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "K2", "g2", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "K1", "a1", false, t, "seed"), ct);
 
         var result = await store.GetAllAsync(ct);
 
@@ -217,10 +217,10 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "GlobalKey", "g", false, t, "seed"), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, "Globex", "TenantKey1", "v1", false, t, "seed"), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, "Globex", "TenantKey2", "v2", false, t, "seed"), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, "Acme", "OtherTenant", "x", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "g", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, "Globex", "TenantKey1", "v1", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, "Globex", "TenantKey2", "v2", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "OtherTenant", "x", false, t, "seed"), ct);
 
         var result = await store.GetAllForTenantAsync("Globex", ct);
 
@@ -236,7 +236,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var ct = TestContext.Current.CancellationToken;
 
         // Seed an unrelated key — section "StripeOptions" has no matches.
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Unrelated:Key", "x", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Unrelated:Key", "x", false, t, "seed"), ct);
 
         var result = await store.GetForTenantAsync<StripeOptions>("Acme", ct);
 
@@ -268,7 +268,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var ct = TestContext.Current.CancellationToken;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "MyGeneric:Label", "from-generic", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, "Acme", "MyGeneric:Label", "from-generic", false, t, "seed"),
             ct);
 
         var result = await store.GetForTenantAsync<MyGeneric<int>>("Acme", ct);
@@ -287,7 +287,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var ct = TestContext.Current.CancellationToken;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Locale", "en-US", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "Locale", "en-US", false, t, "seed"),
             ct);
 
         var result = await store.GetAsync("Locale", ct);
@@ -310,9 +310,9 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         var ct = TestContext.Current.CancellationToken;
 
         // Seed both global and tenant section keys plus an unrelated key.
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "StripeOptions:ApiKey", "g", false, t, "seed"), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, "Acme", "StripeOptions:ApiKey", "a", false, t, "seed"), ct);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Unrelated:Key", "x", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "StripeOptions:ApiKey", "g", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "StripeOptions:ApiKey", "a", false, t, "seed"), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Unrelated:Key", "x", false, t, "seed"), ct);
 
         // Reset counters AFTER seeding so we measure only the typed-bind read path.
         var beforeGetAll = store.GetAllAsyncCallCount;
@@ -340,7 +340,7 @@ public sealed class ConfigStoreConvenienceOverloadsTests
             tenantResolver: null);
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "K", "v", false, DateTimeOffset.UtcNow, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "K", "v", false, DateTimeOffset.UtcNow, "seed"),
             CancellationToken.None);
 
         var ex = await Should.ThrowAsync<InvalidOperationException>(
@@ -351,30 +351,30 @@ public sealed class ConfigStoreConvenienceOverloadsTests
 
     private sealed class StubExplicitOnlyStore : IConfigStore
     {
-        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntryRecord>>([]);
 
-        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
-            => Task.FromResult<ConfigEntry?>(null);
+        public Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+            => Task.FromResult<ConfigEntryRecord?>(null);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
-        public Task UpsertAsync(ConfigEntry entry, CancellationToken ct) => Task.CompletedTask;
+        public Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct) => Task.CompletedTask;
 
         public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct) => Task.CompletedTask;
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntryRecord>>([]);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string scope, string environment, string tenantId, CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(string scope, string environment, string tenantId, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntryRecord>>([]);
 
-        public Task<ConfigEntry?> GetForTenantAsync(string scope, string environment, string tenantId, string key, CancellationToken ct)
-            => Task.FromResult<ConfigEntry?>(null);
+        public Task<ConfigEntryRecord?> GetForTenantAsync(string scope, string environment, string tenantId, string key, CancellationToken ct)
+            => Task.FromResult<ConfigEntryRecord?>(null);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(string scope, string environment, string tenantId, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
@@ -382,20 +382,20 @@ public sealed class ConfigStoreConvenienceOverloadsTests
         public Task DeleteForTenantAsync(string scope, string environment, string tenantId, string key, CancellationToken ct)
             => Task.CompletedTask;
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(string scope, string environment, CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(string scope, string environment, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntryRecord>>([]);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(string scope, string environment, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedForAllTenantsAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntryRecord>>([]);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => Task.FromResult<DateTimeOffset?>(null);
 
-        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
-            => Task.FromResult<IReadOnlyList<ConfigEntry>>([]);
+        public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<ConfigEntryRecord>>([]);
     }
 
     private static (InMemoryConfigStore Store, DbConfigOptions Options) CreateStore(

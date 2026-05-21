@@ -29,7 +29,7 @@ internal static class GetEntryEndpoint
         var fallbackRaw = httpContext.Request.Query["fallback"].FirstOrDefault();
         var fallback = string.Equals(fallbackRaw, "true", StringComparison.OrdinalIgnoreCase);
 
-        ConfigEntry? entry;
+        ConfigEntryRecord? entry;
 
         if (string.IsNullOrEmpty(tenantId))
         {
@@ -90,7 +90,7 @@ internal static class GetEntryEndpoint
 
         var clock = timeProvider ?? TimeProvider.System;
 
-        var auditEntry = new ConfigAuditEntry(
+        var auditEntry = new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
             Scope: scope,
             Environment: environment,

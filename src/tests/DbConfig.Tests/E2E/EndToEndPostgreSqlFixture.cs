@@ -40,17 +40,9 @@ public sealed class EndToEndPostgreSqlFixture : IAsyncLifetime
 
         var connectionString = _container.GetConnectionString();
 
-        // Apply EF migrations before starting the host.
-        var migrateOptions = new DbContextOptionsBuilder<DbConfigDbContext>()
-            .UseNpgsql(
-                connectionString,
-                npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
-            .Options;
-
-        await using (var ctx = new DbConfigDbContext(migrateOptions))
-        {
-            await ctx.Database.MigrateAsync(ct);
-        }
+        // Apply the schema before starting the host (matches what AddDbConfig does on
+        // the host below with SchemaMode.CreateIfMissing).
+        await PostgreSqlDbConfigMigrator.MigrateAsync(connectionString, schema: "configuration", ct);
 
         // Build the WebApplication with the real PostgreSQL-backed DbConfig provider.
         var builder = WebApplication.CreateSlimBuilder();

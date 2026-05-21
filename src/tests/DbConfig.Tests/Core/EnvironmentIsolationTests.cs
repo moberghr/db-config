@@ -47,7 +47,7 @@ public sealed class EnvironmentIsolationTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, "Staging", string.Empty, "K", "staging-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, "Staging", string.Empty, "K", "staging-v", false, t, null), ct);
 
         var provider = CreateProvider(store, "Prod");
         provider.Load();
@@ -63,7 +63,7 @@ public sealed class EnvironmentIsolationTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, "Staging", TenantAcme, "K", "staging-acme", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, "Staging", TenantAcme, "K", "staging-acme", false, t, null), ct);
 
         var provider = CreateProvider(store, "Prod");
         provider.Load();
@@ -84,8 +84,8 @@ public sealed class EnvironmentIsolationTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, "Prod", string.Empty, "K", "prod-v", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, "Staging", string.Empty, "K", "staging-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, "Prod", string.Empty, "K", "prod-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, "Staging", string.Empty, "K", "staging-v", false, t, null), ct);
 
         var provider = CreateProvider(store, "Prod");
         provider.Load();
@@ -102,7 +102,7 @@ public sealed class EnvironmentIsolationTests
         var t0 = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, "Prod", string.Empty, "K", "prod-v", false, t0, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, "Prod", string.Empty, "K", "prod-v", false, t0, null), ct);
 
         var provider = CreateProvider(store, "Prod", timeProvider: fakeTime);
         provider.Load();
@@ -112,7 +112,7 @@ public sealed class EnvironmentIsolationTests
 
         // Write to a different environment with a much later timestamp.
         var t1 = t0.AddMinutes(10);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, "Staging", string.Empty, "K", "staging-v", false, t1, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, "Staging", string.Empty, "K", "staging-v", false, t1, null), ct);
 
         fakeTime.Advance(TimeSpan.FromSeconds(30));
 
@@ -132,8 +132,8 @@ public sealed class EnvironmentIsolationTests
         var ct = TestContext.Current.CancellationToken;
 
         // Shared scope has the same key in both envs.
-        await store.UpsertAsync(new ConfigEntry(SharedApp, "Prod", string.Empty, "K", "shared-prod", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(SharedApp, "Staging", string.Empty, "K", "shared-staging", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(SharedApp, "Prod", string.Empty, "K", "shared-prod", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(SharedApp, "Staging", string.Empty, "K", "shared-staging", false, t, null), ct);
 
         var provider = CreateProvider(store, "Prod", includeScopes: [SharedApp]);
         provider.Load();
