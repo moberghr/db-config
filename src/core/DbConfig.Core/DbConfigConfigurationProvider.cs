@@ -27,7 +27,7 @@ namespace DbConfig.Core;
 internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDbConfigReloadSignal, IDisposable
 {
     private readonly DbConfigOptions _options;
-    private readonly IConfigStore _store;
+    private readonly IConfigPollingStore _store;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<DbConfigConfigurationProvider> _logger;
     private readonly CancellationTokenSource _cts = new();
@@ -77,7 +77,7 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
 
     internal DbConfigConfigurationProvider(
         DbConfigOptions options,
-        IConfigStore store,
+        IConfigPollingStore store,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory)
     {

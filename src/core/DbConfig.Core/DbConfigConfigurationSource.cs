@@ -13,7 +13,7 @@ namespace DbConfig.Core;
 internal sealed class DbConfigConfigurationSource : IConfigurationSource
 {
     private readonly DbConfigOptions _options;
-    private readonly IConfigStore _store;
+    private readonly IConfigPollingStore _store;
     private readonly TimeProvider _timeProvider;
     private readonly ILoggerFactory _loggerFactory;
 
@@ -23,7 +23,7 @@ internal sealed class DbConfigConfigurationSource : IConfigurationSource
     /// </summary>
     internal DbConfigConfigurationSource(
         DbConfigOptions options,
-        IConfigStore store,
+        IConfigPollingStore store,
         TimeProvider timeProvider,
         ILoggerFactory loggerFactory)
     {

@@ -231,6 +231,30 @@ public sealed class PollingReloadTests
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetAllScopedForAllTenantsAsync(scopes, environment, ct);
 
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(CancellationToken ct)
+            => _inner.GetAllAsync(ct);
+
+        public Task<ConfigEntryRecord?> GetAsync(string key, CancellationToken ct)
+            => _inner.GetAsync(key, ct);
+
+        public Task<T> GetAsync<T>(CancellationToken ct)
+            where T : class, new()
+            => _inner.GetAsync<T>(ct);
+
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
+            => _inner.GetAllForTenantAsync(tenantId, ct);
+
+        public Task<ConfigEntryRecord?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
+            => _inner.GetForTenantAsync(tenantId, key, ct);
+
+        public Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct)
+            where T : class, new()
+            => _inner.GetForTenantAsync<T>(tenantId, ct);
+
+        public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
+            string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
+            => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
+
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
@@ -239,10 +263,6 @@ public sealed class PollingReloadTests
             _nextCallTcs?.TrySetResult(true);
             return result;
         }
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
-            string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
-            => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
     }
 
     [TimedFact]

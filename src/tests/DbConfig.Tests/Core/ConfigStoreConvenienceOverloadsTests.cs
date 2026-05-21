@@ -247,11 +247,12 @@ public sealed class ConfigStoreConvenienceOverloadsTests
     }
 
     [TimedFact]
-    public async Task CustomStore_UnoverriddenConvenienceMethod_ThrowsNotSupportedException()
+    public async Task CustomStore_AmbientStubThrows_PropagatesNotSupportedException()
     {
-        // A custom IConfigStore implementing only the explicit-app/env contract.
-        // Default interface methods on IConfigStore should throw NotSupportedException
-        // rather than corrupt-silently or compile-fail.
+        // The v0.14.0 ISP split removed default-throwing interface methods from IConfigStore.
+        // A custom store that opts out of the ambient (current-tenant) read contract now
+        // declares that intent by throwing from its IAmbientConfigReader implementations
+        // — this test verifies the throw surfaces correctly to callers.
         IConfigStore store = new StubExplicitOnlyStore();
 
         await Should.ThrowAsync<NotSupportedException>(
@@ -396,6 +397,27 @@ public sealed class ConfigStoreConvenienceOverloadsTests
 
         public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<ConfigEntryRecord>>([]);
+
+        // Ambient (current-tenant) reads are explicitly unsupported by this stub.
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(CancellationToken ct)
+            => throw new NotSupportedException("StubExplicitOnlyStore does not support ambient GetAllAsync.");
+
+        public Task<ConfigEntryRecord?> GetAsync(string key, CancellationToken ct)
+            => throw new NotSupportedException("StubExplicitOnlyStore does not support ambient GetAsync.");
+
+        public Task<T> GetAsync<T>(CancellationToken ct)
+            where T : class, new()
+            => throw new NotSupportedException("StubExplicitOnlyStore does not support typed GetAsync<T>.");
+
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
+            => throw new NotSupportedException("StubExplicitOnlyStore does not support ambient GetAllForTenantAsync.");
+
+        public Task<ConfigEntryRecord?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
+            => throw new NotSupportedException("StubExplicitOnlyStore does not support ambient GetForTenantAsync.");
+
+        public Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct)
+            where T : class, new()
+            => throw new NotSupportedException("StubExplicitOnlyStore does not support typed GetForTenantAsync<T>.");
     }
 
     private static (InMemoryConfigStore Store, DbConfigOptions Options) CreateStore(
