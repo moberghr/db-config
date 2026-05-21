@@ -39,10 +39,10 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
     private ConcurrentDictionary<string, Dictionary<string, string?>> _tenantData = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// Per-tenant secret flags: tenantId → (key → isSecret).
-    /// Used to decide whether to decrypt a value on read.
+    /// Owns the per-tenant secret flags and the encryptor; resolves "is this value
+    /// ciphertext?" and decrypts when needed. Pre-build secret reads throw via this view.
     /// </summary>
-    private ConcurrentDictionary<string, Dictionary<string, bool>> _isSecretByTenantKey = new(StringComparer.Ordinal);
+    private readonly SecretDecryptionView _secretView = new();
 
     /// <summary>
     /// Cached <see cref="ITenantResolver"/> instance resolved from host DI after host build.
@@ -63,13 +63,6 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
     /// Set after the host is built when the provider gains access to the service provider.
     /// </summary>
     internal IServiceProvider? HostServiceProvider { private get; set; }
-
-    /// <summary>
-    /// The encryptor used to decrypt secret values on read. Null until
-    /// <see cref="SetEncryptor"/> is called (e.g. by the DbConfigEncryptorActivator hosted service
-    /// after host.Build() completes). When null, reading a secret key throws InvalidOperationException.
-    /// </summary>
-    private volatile IConfigEncryptor? _encryptor;
 
     private ITimer? _timer;
     private DateTimeOffset? _lastWatermark;
@@ -96,18 +89,7 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
     /// </summary>
     internal void SetEncryptor(IConfigEncryptor encryptor)
     {
-        ArgumentNullException.ThrowIfNull(encryptor);
-
-        var existing = _encryptor;
-        if (existing is not null && !ReferenceEquals(existing, encryptor))
-        {
-            throw new InvalidOperationException(
-                "DbConfigConfigurationProvider already has an encryptor set. " +
-                "SetEncryptor may only be called once (or repeatedly with the same instance). " +
-                "If you intended to swap encryptors, restart the host with a fresh registration.");
-        }
-
-        _encryptor = encryptor;
+        _secretView.SetEncryptor(encryptor);
 
         // Fire a reload notification so change-token subscribers re-read values as plaintext.
         OnReload();
@@ -147,7 +129,7 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
             var tenantSnapshot = Volatile.Read(ref _tenantData);
             if (tenantSnapshot.TryGetValue(tenantId, out var bag) && bag.TryGetValue(key, out var rawTenantValue))
             {
-                value = DecryptIfSecret(tenantId, key, rawTenantValue);
+                value = _secretView.Decrypt(tenantId, key, rawTenantValue);
                 return true;
             }
         }
@@ -155,7 +137,7 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
         // Global fallback — base Data dict holds global (TenantId = "") entries.
         if (base.TryGet(key, out var rawGlobalValue))
         {
-            value = DecryptIfSecret(string.Empty, key, rawGlobalValue);
+            value = _secretView.Decrypt(string.Empty, key, rawGlobalValue);
             return true;
         }
 
@@ -211,36 +193,6 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
         // Cache the resolved instance (singleton; safe to race — all threads converge on same value).
         _resolverCached = resolved;
         return resolved;
-    }
-
-    /// <summary>
-    /// Layering note: the polling-side <c>IConfigStore</c> is constructed with a
-    /// <c>PassthroughConfigEncryptor</c> (see <c>HostApplicationBuilderExtensions.AddDbConfig</c>),
-    /// so <c>rawValue</c> for an <c>IsSecret=true</c> entry is ciphertext as stored in
-    /// the database. Decryption happens here, exactly once, using the encryptor injected
-    /// via <see cref="SetEncryptor"/>. The HTTP-side store, in contrast, has the real
-    /// encryptor and decrypts at the store layer for API responses.
-    /// </summary>
-    private string? DecryptIfSecret(string tenantId, string key, string? rawValue)
-    {
-        var secretSnapshot = Volatile.Read(ref _isSecretByTenantKey);
-        var isSecret = secretSnapshot.TryGetValue(tenantId, out var tenantSecrets) &&
-                       tenantSecrets.TryGetValue(key, out var s) && s;
-
-        if (!isSecret)
-        {
-            return rawValue;
-        }
-
-        if (_encryptor is null)
-        {
-            throw new InvalidOperationException(
-                $"Cannot read secret config value '{key}' before host.Build() has returned. " +
-                "Move this read into a request handler, hosted service, or OnStarted callback. " +
-                "Non-secret values are unaffected.");
-        }
-
-        return rawValue is null ? null : _encryptor.Unprotect(rawValue);
     }
 
     public override void Load()
@@ -374,7 +326,7 @@ internal sealed class DbConfigConfigurationProvider : ConfigurationProvider, IDb
 
         Data = newData;
         Volatile.Write(ref _tenantData, newTenantData);
-        Volatile.Write(ref _isSecretByTenantKey, newIsSecretByTenantKey);
+        _secretView.UpdateSecretFlags(newIsSecretByTenantKey);
         _lastWatermark = highWatermark;
 
         // Invalidate the cached resolver so any updated DI registrations take effect on next read.
