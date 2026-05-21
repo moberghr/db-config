@@ -43,14 +43,14 @@ public sealed class SqlServerStoreScopedTenantTests : IAsyncLifetime
         var t = DateTimeOffset.UtcNow;
 
         // Four rows: two scopes × two tenants (global "" + Acme).
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "K", "own-global", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "K", "shared-global", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, TenantAcme, "K", "own-acme", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, TenantAcme, "K", "shared-acme", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "K", "own-global", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, string.Empty, "K", "shared-global", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, TenantAcme, "K", "own-acme", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, TenantAcme, "K", "shared-acme", false, t, null), CancellationToken.None);
 
         // Unrelated scope and unrelated environment — must be excluded.
-        await _store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "K", "other", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, "OtherEnv", string.Empty, "K", "envk", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, string.Empty, "K", "other", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, "OtherEnv", string.Empty, "K", "envk", false, t, null), CancellationToken.None);
 
         var results = await _store.GetAllScopedForAllTenantsAsync([AppShared, AppOwn], Env, CancellationToken.None);
 
@@ -65,8 +65,8 @@ public sealed class SqlServerStoreScopedTenantTests : IAsyncLifetime
     public async Task GetAllScopedForAllTenants_OrdersByScopePositionInInputList()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "K", "own", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, string.Empty, "K", "shared", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "K", "own", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, string.Empty, "K", "shared", false, t, null), CancellationToken.None);
 
         var sharedFirst = await _store.GetAllScopedForAllTenantsAsync([AppShared, AppOwn], Env, CancellationToken.None);
         sharedFirst.Count.ShouldBe(2);
@@ -86,9 +86,9 @@ public sealed class SqlServerStoreScopedTenantTests : IAsyncLifetime
         var t2 = new DateTimeOffset(2026, 1, 3, 0, 0, 0, TimeSpan.Zero);
         var t3 = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
 
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, string.Empty, "A", "a", false, t1, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppShared, Env, TenantAcme, "B", "b", false, t2, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(AppOwn, Env, TenantAcme, "C", "c", false, t3, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, string.Empty, "A", "a", false, t1, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppShared, Env, TenantAcme, "B", "b", false, t2, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(AppOwn, Env, TenantAcme, "C", "c", false, t3, null), CancellationToken.None);
 
         var watermark = await _store.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
             [AppShared, AppOwn], Env, CancellationToken.None);

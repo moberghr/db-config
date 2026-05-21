@@ -47,8 +47,10 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
             SELECT c.collation_name
             FROM sys.columns c
             INNER JOIN sys.tables t ON c.object_id = t.object_id
-            WHERE t.name = 'DbConfig_Entries'
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            WHERE t.name = 'ConfigEntries'
               AND c.name = 'TenantId'
+              AND s.name = 'configuration'
             """;
 
         await using var command = new SqlCommand(sql, connection);
@@ -65,7 +67,7 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
         // Both inserts must succeed because the unique constraint is on (Scope, Environment, TenantId, Key).
         await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
 
-        ctx.ConfigEntries.Add(new ConfigEntryEntity
+        ctx.ConfigEntries.Add(new ConfigEntry
         {
             Id = Guid.NewGuid(),
             Scope = App,
@@ -77,7 +79,7 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
             ModifiedUtc = DateTime.UtcNow,
         });
 
-        ctx.ConfigEntries.Add(new ConfigEntryEntity
+        ctx.ConfigEntries.Add(new ConfigEntry
         {
             Id = Guid.NewGuid(),
             Scope = App,
@@ -109,7 +111,7 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
         await connection.OpenAsync(CancellationToken.None);
 
         const string insert = """
-            INSERT INTO DbConfig_Entries (Id, Scope, Environment, TenantId, [Key], IsSecret, ModifiedUtc)
+            INSERT INTO configuration.ConfigEntries (Id, Scope, Environment, TenantId, [Key], IsSecret, ModifiedUtc)
             VALUES (@id, @app, @env, @tenant, @key, 0, GETUTCDATE())
             """;
 
@@ -140,17 +142,17 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
         await connection.OpenAsync(CancellationToken.None);
 
         var uniqueIndexExists = await IndexExistsAsync(
-            connection, "DbConfig_Entries", "UX_DbConfig_Entries_Scope_Environment_TenantId_Key");
+            connection, "ConfigEntries", "IX_ConfigEntries_Scope_Environment_TenantId_Key");
 
         uniqueIndexExists.ShouldBeTrue("unique index on Entries should include TenantId");
 
         var watermarkIndexExists = await IndexExistsAsync(
-            connection, "DbConfig_Entries", "IX_DbConfig_Entries_Scope_Environment_TenantId_ModifiedUtc");
+            connection, "ConfigEntries", "IX_ConfigEntries_Scope_Environment_TenantId_ModifiedUtc");
 
         watermarkIndexExists.ShouldBeTrue("watermark index on Entries should include TenantId");
 
         var historyIndexExists = await IndexExistsAsync(
-            connection, "DbConfig_AuditEntries", "IX_DbConfig_Audit_Scope_Environment_TenantId_Key_ModifiedUtc");
+            connection, "AuditEntries", "IX_AuditEntries_Scope_Environment_TenantId_Key_ModifiedUtc");
 
         historyIndexExists.ShouldBeTrue("history index on AuditEntries should include TenantId");
     }
@@ -161,8 +163,10 @@ public sealed class SqlServerTenantSchemaTests : IAsyncLifetime
             SELECT COUNT(1)
             FROM sys.indexes i
             INNER JOIN sys.tables t ON i.object_id = t.object_id
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
             WHERE t.name = @tableName
               AND i.name = @indexName
+              AND s.name = 'configuration'
             """;
 
         await using var command = new SqlCommand(sql, connection);

@@ -41,7 +41,7 @@ public sealed class SqlServerReadAuditTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task EfCoreAuditStore_WriteAsync_PersistsRowToAuditTable()
     {
-        var entry = new ConfigAuditEntry(
+        var entry = new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
             Scope: App,
             Environment: Env,
@@ -68,7 +68,7 @@ public sealed class SqlServerReadAuditTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task EfCoreAuditStore_WriteAsync_FireAndForget_NotInTransaction()
     {
-        var entry = new ConfigAuditEntry(
+        var entry = new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
             Scope: App,
             Environment: Env,
@@ -106,7 +106,7 @@ public sealed class SqlServerReadAuditTests : IAsyncLifetime
             enableAuditLog: true);
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "E2EKey", "e2e-value", false, DateTimeOffset.UtcNow, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "E2EKey", "e2e-value", false, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         var auditStore = new EfCoreConfigAuditStore(_fixture.DbContextFactory, _fixture.Encryptor);

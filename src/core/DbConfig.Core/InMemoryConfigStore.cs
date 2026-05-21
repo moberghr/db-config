@@ -9,7 +9,7 @@ namespace DbConfig.Core;
 public sealed class InMemoryConfigStore : IConfigStore
 {
     // Key: (Scope, Environment, TenantId, Key) — stored case-insensitively on Key; TenantId is case-sensitive.
-    private readonly Dictionary<(string Scope, string Environment, string TenantId, string Key), ConfigEntry> _entries = [];
+    private readonly Dictionary<(string Scope, string Environment, string TenantId, string Key), ConfigEntryRecord> _entries = [];
     private readonly object _lock = new();
     private readonly IConfigEncryptor _encryptor;
     private readonly InMemoryConfigAuditStore? _auditStore;
@@ -138,7 +138,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     /// </summary>
     public int GetAllForTenantAsyncCallCount { get; private set; }
 
-    public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct)
     {
         lock (_lock)
         {
@@ -151,12 +151,12 @@ public sealed class InMemoryConfigStore : IConfigStore
                 .Select(DecryptEntry)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigEntryRecord>>(result);
         }
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(CancellationToken ct)
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(CancellationToken ct)
     {
         var options = RequireOptions();
         var tenantId = _tenantResolver?.Resolve();
@@ -169,7 +169,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         return GetAllForTenantAsync(options.Scope, options.Environment, tenantId, ct);
     }
 
-    public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+    public Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct)
     {
         lock (_lock)
         {
@@ -182,7 +182,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<ConfigEntry?> GetAsync(string key, CancellationToken ct)
+    public Task<ConfigEntryRecord?> GetAsync(string key, CancellationToken ct)
     {
         var options = RequireOptions();
         var tenantId = _tenantResolver?.Resolve();
@@ -230,7 +230,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         }
     }
 
-    public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
+    public Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
     {
         var key = (entry.Scope, entry.Environment, entry.TenantId, entry.Key);
         var stored = EncryptEntry(entry);
@@ -254,7 +254,7 @@ public sealed class InMemoryConfigStore : IConfigStore
 
             if (_enableAuditLog && _auditStore is not null)
             {
-                _auditStore.Add(new ConfigAuditEntry(
+                _auditStore.Add(new ConfigAuditEntryRecord(
                     Guid.NewGuid(),
                     entry.Scope,
                     entry.Environment,
@@ -284,7 +284,7 @@ public sealed class InMemoryConfigStore : IConfigStore
 
                 if (_enableAuditLog && _auditStore is not null)
                 {
-                    _auditStore.Add(new ConfigAuditEntry(
+                    _auditStore.Add(new ConfigAuditEntryRecord(
                         Guid.NewGuid(),
                         scope,
                         environment,
@@ -307,7 +307,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(
         IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         lock (_lock)
@@ -325,7 +325,7 @@ public sealed class InMemoryConfigStore : IConfigStore
                     .Select(DecryptEntry))
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigEntryRecord>>(result);
         }
     }
 
@@ -358,7 +358,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     // -------------------------------------------------------------------------
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(
         string scope, string environment, string tenantId, CancellationToken ct)
     {
         lock (_lock)
@@ -372,12 +372,12 @@ public sealed class InMemoryConfigStore : IConfigStore
                 .Select(DecryptEntry)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigEntryRecord>>(result);
         }
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
@@ -387,7 +387,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<ConfigEntry?> GetForTenantAsync(
+    public Task<ConfigEntryRecord?> GetForTenantAsync(
         string scope, string environment, string tenantId, string key, CancellationToken ct)
     {
         lock (_lock)
@@ -399,7 +399,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<ConfigEntry?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
+    public Task<ConfigEntryRecord?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
@@ -454,7 +454,7 @@ public sealed class InMemoryConfigStore : IConfigStore
 
                 if (_enableAuditLog && _auditStore is not null)
                 {
-                    _auditStore.Add(new ConfigAuditEntry(
+                    _auditStore.Add(new ConfigAuditEntryRecord(
                         Guid.NewGuid(),
                         scope,
                         environment,
@@ -474,7 +474,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(
         string scope, string environment, CancellationToken ct)
     {
         lock (_lock)
@@ -485,7 +485,7 @@ public sealed class InMemoryConfigStore : IConfigStore
                 .Select(DecryptEntry)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigEntryRecord>>(result);
         }
     }
 
@@ -512,7 +512,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
+    public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedForAllTenantsAsync(
         IReadOnlyList<string> scopes, string environment, CancellationToken ct)
     {
         lock (_lock)
@@ -529,7 +529,7 @@ public sealed class InMemoryConfigStore : IConfigStore
                     .Select(DecryptEntry))
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigEntryRecord>>(result);
         }
     }
 
@@ -558,7 +558,7 @@ public sealed class InMemoryConfigStore : IConfigStore
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+    public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
         string? scope,
         string? environment,
         string? tenantId,
@@ -601,7 +601,7 @@ public sealed class InMemoryConfigStore : IConfigStore
                 .Select(DecryptEntry)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigEntryRecord>>(result);
         }
     }
 
@@ -673,7 +673,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         return instance;
     }
 
-    private ConfigEntry EncryptEntry(ConfigEntry entry)
+    private ConfigEntryRecord EncryptEntry(ConfigEntryRecord entry)
     {
         if (!entry.IsSecret || entry.Value is null)
         {
@@ -683,7 +683,7 @@ public sealed class InMemoryConfigStore : IConfigStore
         return entry with { Value = _encryptor.Protect(entry.Value) };
     }
 
-    private ConfigEntry DecryptEntry(ConfigEntry entry)
+    private ConfigEntryRecord DecryptEntry(ConfigEntryRecord entry)
     {
         if (!entry.IsSecret || entry.Value is null)
         {

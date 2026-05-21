@@ -36,7 +36,7 @@ public sealed class PostgreSqlStoreCrudTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task Upsert_InsertsNew_WhenKeyDoesNotExist()
     {
-        var entry = new ConfigEntry(App, Env, string.Empty, "Section:Key", "value1", false, DateTimeOffset.UtcNow, "user1");
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "Section:Key", "value1", false, DateTimeOffset.UtcNow, "user1");
 
         await _store.UpsertAsync(entry, CancellationToken.None);
 
@@ -55,11 +55,11 @@ public sealed class PostgreSqlStoreCrudTests : IAsyncLifetime
     public async Task Upsert_UpdatesValue_WhenKeyExists()
     {
         var t0 = DateTimeOffset.UtcNow.AddSeconds(-5);
-        var initial = new ConfigEntry(App, Env, string.Empty, "Key", "old", false, t0, null);
+        var initial = new ConfigEntryRecord(App, Env, string.Empty, "Key", "old", false, t0, null);
         await _store.UpsertAsync(initial, CancellationToken.None);
 
         var t1 = t0.AddSeconds(1);
-        var updated = new ConfigEntry(App, Env, string.Empty, "Key", "new", false, t1, "updater");
+        var updated = new ConfigEntryRecord(App, Env, string.Empty, "Key", "new", false, t1, "updater");
         await _store.UpsertAsync(updated, CancellationToken.None);
 
         var all = await _store.GetAllAsync(App, Env, CancellationToken.None);
@@ -73,7 +73,7 @@ public sealed class PostgreSqlStoreCrudTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task Delete_RemovesRow()
     {
-        var entry = new ConfigEntry(App, Env, string.Empty, "ToDelete", "v", false, DateTimeOffset.UtcNow, null);
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "ToDelete", "v", false, DateTimeOffset.UtcNow, null);
         await _store.UpsertAsync(entry, CancellationToken.None);
 
         await _store.DeleteAsync(App, Env, "ToDelete", CancellationToken.None);
@@ -98,9 +98,9 @@ public sealed class PostgreSqlStoreCrudTests : IAsyncLifetime
     public async Task GetAllAsync_ScopedByAppEnv()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "v1", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "Key2", "v2", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, "OtherEnv", string.Empty, "Key3", "v3", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "v1", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, string.Empty, "Key2", "v2", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, "OtherEnv", string.Empty, "Key3", "v3", false, t, null), CancellationToken.None);
 
         var results = await _store.GetAllAsync(App, Env, CancellationToken.None);
 
@@ -115,9 +115,9 @@ public sealed class PostgreSqlStoreCrudTests : IAsyncLifetime
         var t2 = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
         var t3 = new DateTimeOffset(2026, 1, 3, 0, 0, 0, TimeSpan.Zero);
 
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "A", "a", false, t1, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "B", "b", false, t3, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "C", "c", false, t2, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "A", "a", false, t1, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "B", "b", false, t3, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "C", "c", false, t2, null), CancellationToken.None);
 
         var watermark = await _store.GetLatestModifiedUtcAsync(App, Env, CancellationToken.None);
 
@@ -137,8 +137,8 @@ public sealed class PostgreSqlStoreCrudTests : IAsyncLifetime
     public async Task Upsert_TwiceSameKey_LastWriterWins()
     {
         var t0 = DateTimeOffset.UtcNow;
-        var first = new ConfigEntry(App, Env, string.Empty, "Concurrent", "first", false, t0, "writer1");
-        var second = new ConfigEntry(App, Env, string.Empty, "Concurrent", "second", false, t0.AddMilliseconds(1), "writer2");
+        var first = new ConfigEntryRecord(App, Env, string.Empty, "Concurrent", "first", false, t0, "writer1");
+        var second = new ConfigEntryRecord(App, Env, string.Empty, "Concurrent", "second", false, t0.AddMilliseconds(1), "writer2");
 
         await _store.UpsertAsync(first, CancellationToken.None);
         await _store.UpsertAsync(second, CancellationToken.None);
@@ -151,7 +151,7 @@ public sealed class PostgreSqlStoreCrudTests : IAsyncLifetime
     [TimedFact(30_000)]
     public async Task GetAllAsync_ReturnsSecretEntries()
     {
-        var entry = new ConfigEntry(App, Env, string.Empty, "SecretKey", "s3cr3t", true, DateTimeOffset.UtcNow, null);
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "SecretKey", "s3cr3t", true, DateTimeOffset.UtcNow, null);
         await _store.UpsertAsync(entry, CancellationToken.None);
 
         var results = await _store.GetAllAsync(App, Env, CancellationToken.None);
@@ -165,8 +165,8 @@ public sealed class PostgreSqlStoreCrudTests : IAsyncLifetime
     public async Task Upsert_Concurrent_LastWriterWins_NoException()
     {
         var t = DateTimeOffset.UtcNow;
-        var first = new ConfigEntry(App, Env, string.Empty, "RaceKey", "value-a", false, t, "writer-a");
-        var second = new ConfigEntry(App, Env, string.Empty, "RaceKey", "value-b", false, t.AddMilliseconds(1), "writer-b");
+        var first = new ConfigEntryRecord(App, Env, string.Empty, "RaceKey", "value-a", false, t, "writer-a");
+        var second = new ConfigEntryRecord(App, Env, string.Empty, "RaceKey", "value-b", false, t.AddMilliseconds(1), "writer-b");
 
         // Both tasks try to insert the same key simultaneously. With the retry logic in
         // EfCoreConfigStore one of them will hit a unique-constraint error and retry as an update.

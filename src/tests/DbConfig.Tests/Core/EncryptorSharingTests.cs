@@ -101,7 +101,7 @@ public sealed class EncryptorSharingTests
 
         // Write via InMemoryConfigStore using the shared encryptor.
         var writeStore = new InMemoryConfigStore(encryptor, auditStore, enableAuditLog: true);
-        var entry = new ConfigEntry("App", "Test", string.Empty, "Secret:Key", "plaintext-value", true, DateTimeOffset.UtcNow, "tester");
+        var entry = new ConfigEntryRecord("App", "Test", string.Empty, "Secret:Key", "plaintext-value", true, DateTimeOffset.UtcNow, "tester");
         await writeStore.UpsertAsync(entry, CancellationToken.None);
 
         // Read back via a second InMemoryConfigStore instance using the same encryptor.

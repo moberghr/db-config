@@ -23,8 +23,8 @@ builder.Services.AddHttpContextAccessor();
 
 // Schema is auto-applied during AddDbConfig (SchemaMode.CreateIfMissing, the default).
 // Production hosts that prefer DBA-controlled or CI-pipeline schema management can opt out
-// via b.Options.SchemaMode = SchemaMode.None and apply migrations out of band with
-// DbConfigMigrator.MigrateAsync(...) or GenerateMigrationScript(...).
+// via b.Options.SchemaMode = SchemaMode.None and apply the schema out of band with
+// PostgreSqlDbConfigMigrator.MigrateAsync(...) or .GetCreateScript(...).
 builder.AddDbConfig(b =>
 {
     b.Options.Scope = dbConfigScope;
@@ -321,7 +321,7 @@ static async Task SeedDemoDataAsync(IConfigStore store, string env, string scope
     }
 
     var now = DateTimeOffset.UtcNow;
-    var entries = new List<ConfigEntry>
+    var entries = new List<ConfigEntryRecord>
     {
         // Global config (TenantId = "")
         // Depth-0 secret — top-level encryption key.
@@ -403,14 +403,14 @@ static async Task SeedDemoDataAsync(IConfigStore store, string env, string scope
     //    audit trail (Insert + Delete) remains reachable only via the new global
     //    Audit Log page.
     await store.UpsertAsync(
-        new ConfigEntry(scope, env, "", "Stripe:DefaultCurrency", "EUR", false, now.AddMinutes(5), "platform-admin"),
+        new ConfigEntryRecord(scope, env, "", "Stripe:DefaultCurrency", "EUR", false, now.AddMinutes(5), "platform-admin"),
         CancellationToken.None);
     await store.UpsertAsync(
-        new ConfigEntry(scope, env, "", "Stripe:DefaultCurrency", "GBP", false, now.AddMinutes(10), "platform-admin"),
+        new ConfigEntryRecord(scope, env, "", "Stripe:DefaultCurrency", "GBP", false, now.AddMinutes(10), "platform-admin"),
         CancellationToken.None);
 
     await store.UpsertAsync(
-        new ConfigEntry(scope, env, "", "Legacy:OldSetting", "deprecated", false, now.AddMinutes(15), "platform-admin"),
+        new ConfigEntryRecord(scope, env, "", "Legacy:OldSetting", "deprecated", false, now.AddMinutes(15), "platform-admin"),
         CancellationToken.None);
     await store.DeleteAsync(scope, env, "Legacy:OldSetting", CancellationToken.None);
 

@@ -41,7 +41,7 @@ public sealed class SqlServerReloadIntegrationTests : IAsyncLifetime
         // Arrange: seed an initial entry.
         var t0 = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Section:Key", "initial", false, t0, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "Section:Key", "initial", false, t0, null),
             TestContext.Current.CancellationToken);
 
         var fakeTime = new FakeTimeProvider();
@@ -64,7 +64,7 @@ public sealed class SqlServerReloadIntegrationTests : IAsyncLifetime
         // Act part 2: upsert a new value with an advanced watermark.
         var t1 = t0.AddSeconds(1);
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Section:Key", "updated", false, t1, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "Section:Key", "updated", false, t1, null),
             TestContext.Current.CancellationToken);
 
         // Arm a TCS on the reload token before advancing time so we don't miss the signal.
@@ -87,7 +87,7 @@ public sealed class SqlServerReloadIntegrationTests : IAsyncLifetime
         // Arrange: seed an initial entry.
         var t0 = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "ToRemove", "value", false, t0, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "ToRemove", "value", false, t0, null),
             TestContext.Current.CancellationToken);
 
         var fakeTime = new FakeTimeProvider();
@@ -110,7 +110,7 @@ public sealed class SqlServerReloadIntegrationTests : IAsyncLifetime
         // We need the watermark to advance so the provider reloads.
         var t1 = t0.AddSeconds(1);
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "AnotherKey", "x", false, t1, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "AnotherKey", "x", false, t1, null),
             TestContext.Current.CancellationToken);
         await _store.DeleteAsync(App, Env, "ToRemove", TestContext.Current.CancellationToken);
 

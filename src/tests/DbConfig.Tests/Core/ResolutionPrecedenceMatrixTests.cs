@@ -96,22 +96,22 @@ public sealed class ResolutionPrecedenceMatrixTests
 
         if (data.HasAcmeApp)
         {
-            await store.UpsertAsync(new ConfigEntry(OwnApp, Env, AcmeTenant, TheKey, "acme-app", false, t, null), ct);
+            await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, AcmeTenant, TheKey, "acme-app", false, t, null), ct);
         }
 
         if (data.HasAcmeShared)
         {
-            await store.UpsertAsync(new ConfigEntry(SharedApp, Env, AcmeTenant, TheKey, "acme-shared", false, t, null), ct);
+            await store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, AcmeTenant, TheKey, "acme-shared", false, t, null), ct);
         }
 
         if (data.HasGlobalApp)
         {
-            await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, TheKey, "global-app", false, t, null), ct);
+            await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, TheKey, "global-app", false, t, null), ct);
         }
 
         if (data.HasGlobalShared)
         {
-            await store.UpsertAsync(new ConfigEntry(SharedApp, Env, string.Empty, TheKey, "global-shared", false, t, null), ct);
+            await store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, string.Empty, TheKey, "global-shared", false, t, null), ct);
         }
 
         var options = new DbConfigOptions

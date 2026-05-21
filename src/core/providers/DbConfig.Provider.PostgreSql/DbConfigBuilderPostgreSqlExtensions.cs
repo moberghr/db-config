@@ -10,19 +10,21 @@ namespace DbConfig.Provider.PostgreSql;
 public static class DbConfigBuilderPostgreSqlExtensions
 {
     /// <summary>
-    /// Configures the DbConfig store to use PostgreSQL via EF Core.
-    /// Migrations are located in the <c>DbConfig.Provider.PostgreSql</c> assembly.
-    /// Uses snake_case naming convention for tables, columns, and indexes — PG-idiomatic.
+    /// Configures the DbConfig store to use PostgreSQL. Schema management uses a raw-SQL
+    /// idempotent script embedded in this assembly; EF Core migrations are not used.
+    /// Applies <c>UseSnakeCaseNamingConvention</c> so the runtime EF model maps the
+    /// PascalCase entity properties to the snake_case identifiers the script creates
+    /// (<c>config_entry</c>, <c>tenant_id</c>, <c>pk_db_config_entries</c>, …).
     /// </summary>
     public static DbConfigBuilder UsePostgreSql(this DbConfigBuilder builder, string connectionString)
     {
         builder.SetDetector(new PostgreSqlUniqueConstraintDetector());
+        builder.SetMigrator((schema, ct) =>
+            PostgreSqlDbConfigMigrator.MigrateAsync(connectionString, schema, ct));
 
         return builder.UseEntityFrameworkCore(options =>
             options
-                .UseNpgsql(
-                    connectionString,
-                    npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
+                .UseNpgsql(connectionString)
                 .UseSnakeCaseNamingConvention());
     }
 }

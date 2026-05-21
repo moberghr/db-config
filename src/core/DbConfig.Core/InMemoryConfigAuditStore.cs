@@ -6,14 +6,14 @@ namespace DbConfig.Core;
 /// </summary>
 public sealed class InMemoryConfigAuditStore : IConfigAuditStore
 {
-    private readonly List<ConfigAuditEntry> _entries = [];
+    private readonly List<ConfigAuditEntryRecord> _entries = [];
     private readonly object _lock = new();
 
     /// <summary>
     /// All audit entries that have been written, in insertion order.
     /// Thread-safe snapshot at the time of access.
     /// </summary>
-    public IReadOnlyList<ConfigAuditEntry> AllEntries
+    public IReadOnlyList<ConfigAuditEntryRecord> AllEntries
     {
         get
         {
@@ -28,7 +28,7 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
     /// Adds an audit entry. Called by <see cref="InMemoryConfigStore"/> when configured
     /// with this audit store.
     /// </summary>
-    internal void Add(ConfigAuditEntry entry)
+    internal void Add(ConfigAuditEntryRecord entry)
     {
         lock (_lock)
         {
@@ -37,7 +37,7 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
     }
 
     /// <inheritdoc/>
-    public Task WriteAsync(ConfigAuditEntry entry, CancellationToken ct)
+    public Task WriteAsync(ConfigAuditEntryRecord entry, CancellationToken ct)
     {
         lock (_lock)
         {
@@ -48,7 +48,7 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
+    public Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryAsync(
         string scope, string environment, string key, int take, CancellationToken ct)
     {
         lock (_lock)
@@ -63,12 +63,12 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
                 .Take(take)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(result);
         }
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
+    public Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryForTenantAsync(
         string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
     {
         lock (_lock)
@@ -82,12 +82,12 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
                 .Take(take)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(result);
         }
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+    public Task<IReadOnlyList<ConfigAuditEntryRecord>> QueryAsync(
         string? scope,
         string? environment,
         string? tenantId,
@@ -131,7 +131,7 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
                 .Take(take)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntry>>(result);
+            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(result);
         }
     }
 }

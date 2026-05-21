@@ -112,9 +112,9 @@ public sealed class EndpointContractTests
         var store = app.Services.GetRequiredService<IConfigStore>();
         var now = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "ListKey1", "v1", false, now, null), TestContext.Current.CancellationToken);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "ListKey2", "v2", false, now, null), TestContext.Current.CancellationToken);
-        await store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "OtherKey", "other", false, now, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "ListKey1", "v1", false, now, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "ListKey2", "v2", false, now, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, string.Empty, "OtherKey", "other", false, now, null), TestContext.Current.CancellationToken);
 
         var response = await client.GetAsync(
             $"/api/dbconfig/?scope={App}&environment={Env}",
@@ -171,7 +171,7 @@ public sealed class EndpointContractTests
 
         var store = app.Services.GetRequiredService<IConfigStore>();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "CamelKey", "cv", true, now, "tester"), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "CamelKey", "cv", true, now, "tester"), TestContext.Current.CancellationToken);
 
         var response = await client.GetAsync(
             $"/api/dbconfig/{App}/{Env}/CamelKey",

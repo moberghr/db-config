@@ -8,8 +8,8 @@ namespace DbConfig.Core;
 /// <c>EfCoreConfigStore</c>) in the same <c>SaveChangesAsync</c> as the mutation.
 /// Read audit writes use <see cref="WriteAsync"/> which is out-of-transaction (fire-and-forget).
 /// <para>
-/// When an entry was stored with <c>IsSecret=true</c>, the returned <see cref="ConfigAuditEntry"/>
-/// values (<see cref="ConfigAuditEntry.OldValue"/> and <see cref="ConfigAuditEntry.NewValue"/>)
+/// When an entry was stored with <c>IsSecret=true</c>, the returned <see cref="ConfigAuditEntryRecord"/>
+/// values (<see cref="ConfigAuditEntryRecord.OldValue"/> and <see cref="ConfigAuditEntryRecord.NewValue"/>)
 /// are decrypted plaintext — the store handles decryption internally before mapping.
 /// </para>
 /// </remarks>
@@ -26,11 +26,11 @@ public interface IConfigAuditStore
     /// <param name="take">Maximum number of entries to return.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>
-    /// A read-only list of <see cref="ConfigAuditEntry"/> records ordered by
-    /// <see cref="ConfigAuditEntry.ModifiedUtc"/> descending. Returns an empty list when the
+    /// A read-only list of <see cref="ConfigAuditEntryRecord"/> records ordered by
+    /// <see cref="ConfigAuditEntryRecord.ModifiedUtc"/> descending. Returns an empty list when the
     /// key has no audit history.
     /// </returns>
-    Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
+    Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryAsync(
         string scope, string environment, string key, int take, CancellationToken ct);
 
     /// <summary>
@@ -43,31 +43,31 @@ public interface IConfigAuditStore
     /// <param name="key">The configuration key.</param>
     /// <param name="take">Maximum number of entries to return.</param>
     /// <param name="ct">Cancellation token.</param>
-    Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
+    Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryForTenantAsync(
         string scope, string environment, string tenantId, string key, int take, CancellationToken ct);
 
     /// <summary>
     /// Writes an audit row out-of-transaction. Used by HTTP read-audit logic.
     /// Mutations use the in-transaction path (EfCoreConfigStore writes via its DbContext).
-    /// The <see cref="ConfigAuditEntry.TenantId"/> on the entry is stored verbatim.
+    /// The <see cref="ConfigAuditEntryRecord.TenantId"/> on the entry is stored verbatim.
     /// </summary>
-    Task WriteAsync(ConfigAuditEntry entry, CancellationToken ct);
+    Task WriteAsync(ConfigAuditEntryRecord entry, CancellationToken ct);
 
     /// <summary>
     /// Returns audit entries matching the supplied filters, ordered most-recent-first
-    /// (with <see cref="ConfigAuditEntry.Key"/> ascending as a stable secondary sort).
+    /// (with <see cref="ConfigAuditEntryRecord.Key"/> ascending as a stable secondary sort).
     /// All filter parameters are optional — pass <see langword="null"/> for "no filter".
-    /// Returned values are plaintext when <see cref="ConfigAuditEntry.IsSecret"/> is
+    /// Returned values are plaintext when <see cref="ConfigAuditEntryRecord.IsSecret"/> is
     /// <see langword="true"/>; the store handles decryption internally.
     /// </summary>
-    /// <param name="scope">Exact-match <see cref="ConfigAuditEntry.Scope"/> filter, or <see langword="null"/>.</param>
-    /// <param name="environment">Exact-match <see cref="ConfigAuditEntry.Environment"/> filter, or <see langword="null"/>.</param>
-    /// <param name="tenantId">Exact-match <see cref="ConfigAuditEntry.TenantId"/> filter (empty string = global), or <see langword="null"/> for no filter.</param>
-    /// <param name="keyPrefix">Case-insensitive starts-with filter on <see cref="ConfigAuditEntry.Key"/>, or <see langword="null"/>.</param>
+    /// <param name="scope">Exact-match <see cref="ConfigAuditEntryRecord.Scope"/> filter, or <see langword="null"/>.</param>
+    /// <param name="environment">Exact-match <see cref="ConfigAuditEntryRecord.Environment"/> filter, or <see langword="null"/>.</param>
+    /// <param name="tenantId">Exact-match <see cref="ConfigAuditEntryRecord.TenantId"/> filter (empty string = global), or <see langword="null"/> for no filter.</param>
+    /// <param name="keyPrefix">Case-insensitive starts-with filter on <see cref="ConfigAuditEntryRecord.Key"/>, or <see langword="null"/>.</param>
     /// <param name="action">Exact-match <see cref="ConfigAuditAction"/> filter, or <see langword="null"/>.</param>
     /// <param name="take">Maximum number of entries to return.</param>
     /// <param name="ct">Cancellation token.</param>
-    Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+    Task<IReadOnlyList<ConfigAuditEntryRecord>> QueryAsync(
         string? scope,
         string? environment,
         string? tenantId,

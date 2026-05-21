@@ -1,5 +1,6 @@
 using DbConfig.Core;
 using DbConfig.EntityFrameworkCore;
+using DbConfig.Provider.SqlServer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -44,17 +45,19 @@ public sealed class SqlServerFixture : IAsyncLifetime
 
         ConnectionString = _container.GetConnectionString();
 
+        // Apply the DbConfig schema via the raw-SQL migrator (matches production SchemaMode.CreateIfMissing).
+        await SqlServerDbConfigMigrator.MigrateAsync(ConnectionString, schema: "configuration", ct);
+
+        // Build a DbContextFactory configured the same way production uses it — same schema, same naming.
         var services = new ServiceCollection();
         services.AddDbContextFactory<DbConfigDbContext>(options =>
-            options.UseSqlServer(
-                ConnectionString,
-                sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer")));
+        {
+            options.UseSqlServer(ConnectionString);
+            options.UseDbConfigSchema("configuration");
+        });
 
         _serviceProvider = services.BuildServiceProvider();
         DbContextFactory = _serviceProvider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();
-
-        await using var context = await DbContextFactory.CreateDbContextAsync(ct);
-        await context.Database.MigrateAsync(ct);
 
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync(ct);
@@ -63,7 +66,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
             connection,
             new RespawnerOptions
             {
-                TablesToIgnore = ["__EFMigrationsHistory"],
+                SchemasToInclude = ["configuration"],
             });
     }
 

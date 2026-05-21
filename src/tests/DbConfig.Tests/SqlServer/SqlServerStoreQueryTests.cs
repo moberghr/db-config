@@ -38,9 +38,9 @@ public sealed class SqlServerStoreQueryTests : IAsyncLifetime
     public async Task QueryAsync_NullFilters_ReturnsAllEntries_UsingServerSidePaging()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "K1", "v1", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("AppB", "Staging", string.Empty, "K2", "v2", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("AppA", Env, "Acme", "K3", "v3", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "K1", "v1", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppB", "Staging", string.Empty, "K2", "v2", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppA", Env, "Acme", "K3", "v3", false, t, null), CancellationToken.None);
 
         var sqlLog = new StringBuilder();
         var loggingStore = BuildLoggingStore(sqlLog);
@@ -52,17 +52,17 @@ public sealed class SqlServerStoreQueryTests : IAsyncLifetime
         // The TOP clause must be present so paging happens server-side, not in-memory.
         var captured = sqlLog.ToString();
         captured.ShouldContain("TOP(", Case.Insensitive);
-        captured.ShouldContain("DbConfig_Entries", Case.Insensitive);
+        captured.ShouldContain("ConfigEntries", Case.Insensitive);
     }
 
     [TimedFact(30_000)]
     public async Task QueryAsync_FilterByScopeAndKeyPrefix_ReturnsMatchingRows()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Stripe:ApiKey", "v1", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Stripe:Currency", "v2", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Other:Key", "v3", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("AppB", Env, string.Empty, "Stripe:ApiKey", "v4", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Stripe:ApiKey", "v1", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Stripe:Currency", "v2", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Other:Key", "v3", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppB", Env, string.Empty, "Stripe:ApiKey", "v4", false, t, null), CancellationToken.None);
 
         var result = await _store.QueryAsync("AppA", null, null, "Stripe:", 1000, CancellationToken.None);
 
@@ -78,7 +78,7 @@ public sealed class SqlServerStoreQueryTests : IAsyncLifetime
         for (var i = 0; i < 5; i++)
         {
             await _store.UpsertAsync(
-                new ConfigEntry("AppA", Env, string.Empty, $"Key{i:D2}", $"v{i}", false, t, null),
+                new ConfigEntryRecord("AppA", Env, string.Empty, $"Key{i:D2}", $"v{i}", false, t, null),
                 CancellationToken.None);
         }
 
@@ -91,9 +91,9 @@ public sealed class SqlServerStoreQueryTests : IAsyncLifetime
     public async Task QueryAsync_FilterByTenantId_CaseSensitive()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry("AppA", Env, "Acme", "K1", "v1", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("AppA", Env, "acme", "K2", "v2", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "K3", "v3", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppA", Env, "Acme", "K1", "v1", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppA", Env, "acme", "K2", "v2", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "K3", "v3", false, t, null), CancellationToken.None);
 
         var result = await _store.QueryAsync(null, null, "Acme", null, 1000, CancellationToken.None);
 
@@ -106,10 +106,9 @@ public sealed class SqlServerStoreQueryTests : IAsyncLifetime
     {
         var services = new ServiceCollection();
         services.AddDbContextFactory<DbConfigDbContext>(options =>
-            options.UseSqlServer(
-                _fixture.ConnectionString,
-                sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer"))
-            .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
+            options.UseSqlServer(_fixture.ConnectionString)
+                .UseDbConfigSchema("configuration")
+                .LogTo(msg => sqlLog.AppendLine(msg), Microsoft.Extensions.Logging.LogLevel.Information));
 
         var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();

@@ -20,7 +20,7 @@ public sealed class InMemoryStoreTenantTests
     public async Task Upsert_WithTenantId_StoresUnderTenant()
     {
         var store = new InMemoryConfigStore();
-        var entry = new ConfigEntry(App, Env, TenantAcme, "Key1", "acme-value", false, DateTimeOffset.UtcNow, null);
+        var entry = new ConfigEntryRecord(App, Env, TenantAcme, "Key1", "acme-value", false, DateTimeOffset.UtcNow, null);
 
         await store.UpsertAsync(entry, CancellationToken.None);
 
@@ -36,8 +36,8 @@ public sealed class InMemoryStoreTenantTests
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "global-value", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Key1", "acme-value", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global-value", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Key1", "acme-value", false, t, null), CancellationToken.None);
 
         var tenantResult = await store.GetForTenantAsync(App, Env, TenantAcme, "Key1", CancellationToken.None);
         tenantResult.ShouldNotBeNull();
@@ -49,7 +49,7 @@ public sealed class InMemoryStoreTenantTests
     {
         // No fallback at store layer — fallback is in ITenantConfigReader (B55).
         var store = new InMemoryConfigStore();
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "global-value", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global-value", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var result = await store.GetForTenantAsync(App, Env, TenantAcme, "Key1", CancellationToken.None);
 
@@ -62,9 +62,9 @@ public sealed class InMemoryStoreTenantTests
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantGlobex, "GlobexKey", "globex", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantGlobex, "GlobexKey", "globex", false, t, null), CancellationToken.None);
 
         var acmeEntries = await store.GetAllForTenantAsync(App, Env, TenantAcme, CancellationToken.None);
 
@@ -79,12 +79,12 @@ public sealed class InMemoryStoreTenantTests
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantGlobex, "GlobexKey", "globex", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantGlobex, "GlobexKey", "globex", false, t, null), CancellationToken.None);
 
         // Entry for a different app — must NOT appear
-        await store.UpsertAsync(new ConfigEntry("OtherApp", Env, TenantAcme, "OtherKey", "other", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, TenantAcme, "OtherKey", "other", false, t, null), CancellationToken.None);
 
         var all = await store.GetAllForAllTenantsAsync(App, Env, CancellationToken.None);
 
@@ -100,8 +100,8 @@ public sealed class InMemoryStoreTenantTests
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "global", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Key1", "acme", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Key1", "acme", false, t, null), CancellationToken.None);
 
         await store.DeleteForTenantAsync(App, Env, TenantAcme, "Key1", CancellationToken.None);
 
@@ -119,8 +119,8 @@ public sealed class InMemoryStoreTenantTests
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
 
         var result = await store.GetAllAsync(App, Env, CancellationToken.None);
 
@@ -137,11 +137,11 @@ public sealed class InMemoryStoreTenantTests
         var t2 = new DateTimeOffset(2026, 1, 3, 0, 0, 0, TimeSpan.Zero);
         var t3 = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "A", "v", false, t1, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "B", "v", false, t2, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "A", "v", false, t1, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "B", "v", false, t2, null), CancellationToken.None);
 
         // A different tenant — should not affect the watermark for Acme
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantGlobex, "C", "v", false, t3, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantGlobex, "C", "v", false, t3, null), CancellationToken.None);
 
         var watermark = await store.GetLatestModifiedUtcForTenantAsync(App, Env, TenantAcme, CancellationToken.None);
 
@@ -156,8 +156,8 @@ public sealed class InMemoryStoreTenantTests
         var store = new InMemoryConfigStore(null, auditStore, enableAuditLog: true);
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "global-v1", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Key1", "acme-v1", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global-v1", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Key1", "acme-v1", false, t, null), CancellationToken.None);
 
         var acmeHistory = await auditStore.GetHistoryForTenantAsync(App, Env, TenantAcme, "Key1", 10, CancellationToken.None);
         acmeHistory.ShouldHaveSingleItem();

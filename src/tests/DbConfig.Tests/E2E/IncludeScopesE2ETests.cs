@@ -51,17 +51,9 @@ public sealed class IncludeScopesE2EFixture : IAsyncLifetime
 
         var connectionString = _container.GetConnectionString();
 
-        // Apply EF migrations before starting the host.
-        var migrateOptions = new DbContextOptionsBuilder<DbConfigDbContext>()
-            .UseSqlServer(
-                connectionString,
-                sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer"))
-            .Options;
-
-        await using (var ctx = new DbConfigDbContext(migrateOptions))
-        {
-            await ctx.Database.MigrateAsync(ct);
-        }
+        // Apply the schema before starting the host (matches what AddDbConfig does on
+        // the host below with SchemaMode.CreateIfMissing).
+        await SqlServerDbConfigMigrator.MigrateAsync(connectionString, schema: "configuration", ct);
 
         // Build the WebApplication with IncludeScopes = ["Shared"].
         var builder = WebApplication.CreateSlimBuilder();

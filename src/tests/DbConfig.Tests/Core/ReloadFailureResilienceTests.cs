@@ -48,7 +48,7 @@ public sealed class ReloadFailureResilienceTests
         };
 
         var t0 = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key", "original", false, t0, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key", "original", false, t0, null), TestContext.Current.CancellationToken);
 
         var faultyStore = new FaultyWrapperStore(store, faultOnNextCall: false);
         var provider = new DbConfigConfigurationProvider(options, faultyStore, fakeTime, NullLoggerFactory.Instance);
@@ -63,7 +63,7 @@ public sealed class ReloadFailureResilienceTests
 
         // Update watermark so the provider thinks a reload is needed.
         var t1 = t0.AddSeconds(1);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key", "shouldNotSee", false, t1, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key", "shouldNotSee", false, t1, null), TestContext.Current.CancellationToken);
 
         // Arm the signal before advancing time so the next GetAll call completes the TCS.
         faultyStore.ArmNextGetAllSignal();
@@ -92,7 +92,7 @@ public sealed class ReloadFailureResilienceTests
         };
 
         var t0 = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key", "original", false, t0, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key", "original", false, t0, null), TestContext.Current.CancellationToken);
 
         var faultyStore = new FaultyWrapperStore(store, faultOnNextCall: false);
         var provider = new DbConfigConfigurationProvider(options, faultyStore, fakeTime, NullLoggerFactory.Instance);
@@ -100,7 +100,7 @@ public sealed class ReloadFailureResilienceTests
 
         // First reload tick: watermark advances and GetAll faults.
         var t1 = t0.AddSeconds(1);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key", "recovered", false, t1, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key", "recovered", false, t1, null), TestContext.Current.CancellationToken);
         faultyStore.FaultOnGetAll = true;
         faultyStore.ArmNextGetAllSignal();
         fakeTime.Advance(TimeSpan.FromSeconds(30));
@@ -151,7 +151,7 @@ public sealed class ReloadFailureResilienceTests
             FaultOnGetAll = faultOnNextCall;
         }
 
-        public async Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
+        public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct)
         {
             _nextGetAllTcs?.TrySetResult(true);
 
@@ -163,7 +163,7 @@ public sealed class ReloadFailureResilienceTests
             return await _inner.GetAllAsync(scope, environment, ct);
         }
 
-        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+        public Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct)
             => _inner.GetAsync(scope, environment, key, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
@@ -171,7 +171,7 @@ public sealed class ReloadFailureResilienceTests
             return _inner.GetLatestModifiedUtcAsync(scope, environment, ct);
         }
 
-        public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
+        public Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
         {
             return _inner.UpsertAsync(entry, ct);
         }
@@ -181,7 +181,7 @@ public sealed class ReloadFailureResilienceTests
             return _inner.DeleteAsync(scope, environment, key, ct);
         }
 
-        public async Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
+        public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             _nextGetAllTcs?.TrySetResult(true);
@@ -198,11 +198,11 @@ public sealed class ReloadFailureResilienceTests
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(
             string scope, string environment, string tenantId, CancellationToken ct)
             => _inner.GetAllForTenantAsync(scope, environment, tenantId, ct);
 
-        public Task<ConfigEntry?> GetForTenantAsync(
+        public Task<ConfigEntryRecord?> GetForTenantAsync(
             string scope, string environment, string tenantId, string key, CancellationToken ct)
             => _inner.GetForTenantAsync(scope, environment, tenantId, key, ct);
 
@@ -214,7 +214,7 @@ public sealed class ReloadFailureResilienceTests
             string scope, string environment, string tenantId, string key, CancellationToken ct)
             => _inner.DeleteForTenantAsync(scope, environment, tenantId, key, ct);
 
-        public async Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
+        public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(
             string scope, string environment, CancellationToken ct)
         {
             _nextGetAllTcs?.TrySetResult(true);
@@ -231,7 +231,7 @@ public sealed class ReloadFailureResilienceTests
             string scope, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(scope, environment, ct);
 
-        public async Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
+        public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedForAllTenantsAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             _nextGetAllTcs?.TrySetResult(true);
@@ -248,7 +248,7 @@ public sealed class ReloadFailureResilienceTests
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(scopes, environment, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
             string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
             => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
     }

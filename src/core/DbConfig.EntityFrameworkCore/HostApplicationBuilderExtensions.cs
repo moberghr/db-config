@@ -1,7 +1,6 @@
 using DbConfig.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -60,20 +59,16 @@ public static class HostApplicationBuilderExtensions
                 "to configure the database provider and store.");
         var userContextConfig = (Action<DbContextOptionsBuilder>)contextConfigObj;
 
-        // Wrap the user's context-config action so we can layer in two DbConfig-specific
-        // services that must be present on EVERY DbContext build (HTTP-side via DI, polling
-        // side via DirectDbContextFactory):
-        //   1. UseDbConfigSchema(options.Schema) → publishes the schema via DbContextOptions
-        //      extension. The migration assembly + DbContext + model cache key factory all
-        //      read it from there.
-        //   2. ReplaceService<IMigrationsAssembly, DbConfigMigrationsAssembly>() → so the
-        //      migration class is constructed with the schema (via its (string?) constructor).
+        // Wrap the user's context-config action so we can publish DbConfigOptions.Schema
+        // to the DbContext via the IDbContextOptionsExtension. DbConfigDbContext.OnModelCreating
+        // reads it and applies modelBuilder.HasDefaultSchema(schema). Both the HTTP-side
+        // DbContextFactory (registered in DI below) and the polling-side DirectDbContextFactory
+        // use this same wrapper, so the runtime EF model is identical on both sides.
         var capturedSchema = options.Schema;
         var contextConfig = new Action<DbContextOptionsBuilder>(opts =>
         {
             userContextConfig(opts);
             opts.UseDbConfigSchema(capturedSchema);
-            opts.ReplaceService<IMigrationsAssembly, DbConfigMigrationsAssembly>();
         });
 
         // Resolve the captured IUniqueConstraintDetector set by the provider extension.
@@ -205,15 +200,29 @@ public static class HostApplicationBuilderExtensions
 
         // ---- Auto-migrate if requested (default) ----
         // The polling provider's first Load() runs synchronously inside hostBuilder.Configuration.Add(source)
-        // below and queries DbConfig_Entries. If the schema isn't applied yet the call throws.
-        // SchemaMode.CreateIfMissing (default) applies any pending migrations now, before the source is
-        // added. Production teams that prefer DBA/CI-pipeline schema management set SchemaMode.None.
-        // Migrate() is synchronous by design — we're still in builder time, no host yet, and the operation
-        // must complete before the source is added.
+        // below and queries ConfigEntry. If the schema isn't applied yet the call throws.
+        // SchemaMode.CreateIfMissing (default) runs the provider's idempotent raw-SQL migrator
+        // now, before the source is added. Production teams that prefer DBA/CI-pipeline schema
+        // management set SchemaMode.None. Sync-over-async is deliberate — we're still in builder
+        // time, no host yet, and the operation must complete before the source is added.
         if (options.SchemaMode == SchemaMode.CreateIfMissing)
         {
-            using var migrateCtx = new DbConfigDbContext(pollingOptionsBuilder.Options);
-            migrateCtx.Database.Migrate();
+            var migrate = dbb.MigratorCallback
+                ?? throw new InvalidOperationException(
+                    "AddDbConfig lambda must call a provider extension (UseSqlServer/UsePostgreSql) " +
+                    "that registers a migrator. SchemaMode.CreateIfMissing requires one.");
+            try
+            {
+                migrate(options.Schema, CancellationToken.None).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    "DbConfig schema migration failed at AddDbConfig time. Verify the connection " +
+                    "string and that the database is reachable, or set Options.SchemaMode = SchemaMode.None " +
+                    "and apply the schema out of band (see SqlServerDbConfigMigrator / PostgreSqlDbConfigMigrator).",
+                    ex);
+            }
         }
 
         IDbContextFactory<DbConfigDbContext> pollingFactory =

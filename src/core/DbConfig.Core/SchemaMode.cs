@@ -6,15 +6,17 @@ namespace DbConfig.Core;
 public enum SchemaMode
 {
     /// <summary>
-    /// On host startup, automatically apply any pending EF Core migrations from the
-    /// provider package. Default. Matches Hangfire / Marten / Wolverine conventions.
+    /// On host startup, run the provider's idempotent raw-SQL migrator
+    /// (<c>SqlServerDbConfigMigrator.MigrateAsync</c> or
+    /// <c>PostgreSqlDbConfigMigrator.MigrateAsync</c>). Default. Matches
+    /// Hangfire / Marten / Wolverine conventions.
     /// </summary>
     CreateIfMissing,
 
     /// <summary>
-    /// Skip migration entirely. The host assumes the schema is already correct
-    /// (typically because a DBA or CI/CD pipeline applied it out of band).
-    /// Use <c>DbConfigMigrator.GenerateMigrationScript</c> to obtain SQL for
+    /// Skip schema management entirely. The host assumes the schema is already correct
+    /// (typically because a DBA or CI/CD pipeline applied it out of band). Use the
+    /// per-provider <c>GetCreateScript(schema)</c> helper to obtain the SQL for
     /// offline application.
     /// </summary>
     None,

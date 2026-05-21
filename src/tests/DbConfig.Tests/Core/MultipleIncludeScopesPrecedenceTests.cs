@@ -46,8 +46,8 @@ public sealed class MultipleIncludeScopesPrecedenceTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(Lower, Env, string.Empty, "K", "lower", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(Mid, Env, string.Empty, "K", "mid", false, t.AddMilliseconds(1), null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Lower, Env, string.Empty, "K", "lower", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Mid, Env, string.Empty, "K", "mid", false, t.AddMilliseconds(1), null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -63,8 +63,8 @@ public sealed class MultipleIncludeScopesPrecedenceTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(Mid, Env, string.Empty, "K", "mid", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(Higher, Env, string.Empty, "K", "higher", false, t.AddMilliseconds(1), null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Mid, Env, string.Empty, "K", "mid", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Higher, Env, string.Empty, "K", "higher", false, t.AddMilliseconds(1), null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -80,10 +80,10 @@ public sealed class MultipleIncludeScopesPrecedenceTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(Lower, Env, string.Empty, "K", "lower", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(Mid, Env, string.Empty, "K", "mid", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(Higher, Env, string.Empty, "K", "higher", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "own", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Lower, Env, string.Empty, "K", "lower", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Mid, Env, string.Empty, "K", "mid", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Higher, Env, string.Empty, "K", "higher", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "own", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -99,10 +99,10 @@ public sealed class MultipleIncludeScopesPrecedenceTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(Lower, Env, string.Empty, "LowerKey", "lv", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(Mid, Env, string.Empty, "MidKey", "mv", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(Higher, Env, string.Empty, "HigherKey", "hv", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "OwnKey", "ov", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Lower, Env, string.Empty, "LowerKey", "lv", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Mid, Env, string.Empty, "MidKey", "mv", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Higher, Env, string.Empty, "HigherKey", "hv", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "OwnKey", "ov", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -127,9 +127,9 @@ public sealed class MultipleIncludeScopesPrecedenceTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(Lower, Env, TenantAcme, "K", "acme-lower", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(Mid, Env, TenantAcme, "K", "acme-mid", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(Higher, Env, TenantAcme, "K", "acme-higher", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Lower, Env, TenantAcme, "K", "acme-lower", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Mid, Env, TenantAcme, "K", "acme-mid", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(Higher, Env, TenantAcme, "K", "acme-higher", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();

@@ -49,7 +49,7 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
     [TimedFact(60_000)]
     public async Task Upsert_WithTenantId_StoresUnderTenant()
     {
-        var entry = new ConfigEntry(App, Env, TenantAcme, "Key1", "acme-value", false, DateTimeOffset.UtcNow, null);
+        var entry = new ConfigEntryRecord(App, Env, TenantAcme, "Key1", "acme-value", false, DateTimeOffset.UtcNow, null);
 
         await _store.UpsertAsync(entry, CancellationToken.None);
 
@@ -63,8 +63,8 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
     public async Task GetForTenantAsync_TenantSpecific_ReturnsTenantValue()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "global-value", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Key1", "acme-value", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global-value", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Key1", "acme-value", false, t, null), CancellationToken.None);
 
         var result = await _store.GetForTenantAsync(App, Env, TenantAcme, "Key1", CancellationToken.None);
 
@@ -76,7 +76,7 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
     public async Task GetForTenantAsync_TenantNotPresent_ReturnsNull()
     {
         // No fallback at store layer — fallback is in ITenantConfigReader (B55).
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "global-value", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global-value", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var result = await _store.GetForTenantAsync(App, Env, TenantAcme, "Key1", CancellationToken.None);
 
@@ -87,9 +87,9 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
     public async Task GetAllForTenantAsync_ScopedByTenant_ReturnsOnlyThatTenant()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, TenantGlobex, "GlobexKey", "globex", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantGlobex, "GlobexKey", "globex", false, t, null), CancellationToken.None);
 
         var acmeEntries = await _store.GetAllForTenantAsync(App, Env, TenantAcme, CancellationToken.None);
 
@@ -102,9 +102,9 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
     public async Task GetAllForAllTenantsAsync_LoadsAcrossTenants()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, TenantGlobex, "GlobexKey", "globex", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantGlobex, "GlobexKey", "globex", false, t, null), CancellationToken.None);
 
         var all = await _store.GetAllForAllTenantsAsync(App, Env, CancellationToken.None);
 
@@ -118,8 +118,8 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
     public async Task DeleteForTenantAsync_OnlyAffectsSpecifiedTenant()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "global", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "Key1", "acme", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "Key1", "acme", false, t, null), CancellationToken.None);
 
         await _store.DeleteForTenantAsync(App, Env, TenantAcme, "Key1", CancellationToken.None);
 
@@ -135,8 +135,8 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
     public async Task LegacyGetAllAsync_OnlyReturnsGlobalEntries()
     {
         var t = DateTimeOffset.UtcNow;
-        await _store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
-        await _store.UpsertAsync(new ConfigEntry(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "GlobalKey", "global", false, t, null), CancellationToken.None);
+        await _store.UpsertAsync(new ConfigEntryRecord(App, Env, TenantAcme, "AcmeKey", "acme", false, t, null), CancellationToken.None);
 
         var result = await _store.GetAllAsync(App, Env, CancellationToken.None);
 
@@ -148,7 +148,7 @@ public sealed class PostgreSqlStoreTenantTests : IAsyncLifetime
     [TimedFact(60_000)]
     public async Task Upsert_TenantSpecific_AuditRowCarriesTenantId()
     {
-        var entry = new ConfigEntry(App, Env, TenantAcme, "AuditKey", "acme-value", false, DateTimeOffset.UtcNow, "tester");
+        var entry = new ConfigEntryRecord(App, Env, TenantAcme, "AuditKey", "acme-value", false, DateTimeOffset.UtcNow, "tester");
 
         await _store.UpsertAsync(entry, CancellationToken.None);
 

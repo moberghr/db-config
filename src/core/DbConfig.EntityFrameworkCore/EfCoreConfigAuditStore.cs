@@ -5,7 +5,7 @@ namespace DbConfig.EntityFrameworkCore;
 
 /// <summary>
 /// EF Core implementation of <see cref="IConfigAuditStore"/>. Queries the
-/// <c>DbConfig_AuditEntries</c> table and decrypts secret values before returning them to callers.
+/// <c>AuditEntry</c> table and decrypts secret values before returning them to callers.
 /// </summary>
 public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 {
@@ -26,11 +26,11 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
     }
 
     /// <inheritdoc/>
-    public async Task WriteAsync(ConfigAuditEntry entry, CancellationToken ct)
+    public async Task WriteAsync(ConfigAuditEntryRecord entry, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
-        var entity = new ConfigAuditEntryEntity
+        var entity = new AuditEntry
         {
             Id = entry.Id,
             Scope = entry.Scope,
@@ -50,14 +50,17 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryAsync(
+    public async Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryAsync(
         string scope, string environment, string key, int take, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
 
         var rows = await context.AuditEntries
             .AsNoTracking()
-            .Where(x => x.Scope == scope && x.Environment == environment && x.TenantId == string.Empty && x.Key == key)
+            .Where(x => x.Scope == scope)
+            .Where(x => x.Environment == environment)
+            .Where(x => x.TenantId == string.Empty)
+            .Where(x => x.Key == key)
             .OrderByDescending(x => x.ModifiedUtc)
             .Take(take)
             .Select(x => new
@@ -88,7 +91,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
             var action = Enum.Parse<ConfigAuditAction>(row.Action);
 
-            return new ConfigAuditEntry(
+            return new ConfigAuditEntryRecord(
                 row.Id,
                 row.Scope,
                 row.Environment,
@@ -104,7 +107,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConfigAuditEntry>> QueryAsync(
+    public async Task<IReadOnlyList<ConfigAuditEntryRecord>> QueryAsync(
         string? scope,
         string? environment,
         string? tenantId,
@@ -178,7 +181,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
             var parsedAction = Enum.Parse<ConfigAuditAction>(row.Action);
 
-            return new ConfigAuditEntry(
+            return new ConfigAuditEntryRecord(
                 row.Id,
                 row.Scope,
                 row.Environment,
@@ -207,7 +210,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<ConfigAuditEntry>> GetHistoryForTenantAsync(
+    public async Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryForTenantAsync(
         string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
@@ -245,7 +248,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 
             var action = Enum.Parse<ConfigAuditAction>(row.Action);
 
-            return new ConfigAuditEntry(
+            return new ConfigAuditEntryRecord(
                 row.Id,
                 row.Scope,
                 row.Environment,

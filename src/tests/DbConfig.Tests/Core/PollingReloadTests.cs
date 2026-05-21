@@ -49,7 +49,7 @@ public sealed class PollingReloadTests
     {
         var (provider, _, store) = CreateSut();
         var now = DateTimeOffset.UtcNow;
-        store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "val1", false, now, null), CancellationToken.None)
+        store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "val1", false, now, null), CancellationToken.None)
             .GetAwaiter().GetResult();
 
         provider.Load();
@@ -63,7 +63,7 @@ public sealed class PollingReloadTests
     {
         var (provider, fakeTime, store) = CreateSut(TimeSpan.FromSeconds(30));
         var t0 = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "initial", false, t0, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "initial", false, t0, null), TestContext.Current.CancellationToken);
 
         provider.Load();
 
@@ -72,7 +72,7 @@ public sealed class PollingReloadTests
 
         // Add a new entry with a later watermark.
         var t1 = t0.AddSeconds(1);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key2", "added", false, t1, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key2", "added", false, t1, null), TestContext.Current.CancellationToken);
 
         // Register a TCS that completes when the reload token fires.
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -112,7 +112,7 @@ public sealed class PollingReloadTests
             NullLoggerFactory.Instance);
 
         var t0 = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "value", false, t0, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "value", false, t0, null), TestContext.Current.CancellationToken);
 
         provider.Load();
 
@@ -165,10 +165,10 @@ public sealed class PollingReloadTests
             _inner = inner;
         }
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllAsync(string scope, string environment, CancellationToken ct)
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct)
             => _inner.GetAllAsync(scope, environment, ct);
 
-        public Task<ConfigEntry?> GetAsync(string scope, string environment, string key, CancellationToken ct)
+        public Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct)
             => _inner.GetAsync(scope, environment, key, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
@@ -179,13 +179,13 @@ public sealed class PollingReloadTests
             return result;
         }
 
-        public Task UpsertAsync(ConfigEntry entry, CancellationToken ct)
+        public Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
             => _inner.UpsertAsync(entry, ct);
 
         public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
             => _inner.DeleteAsync(scope, environment, key, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetAllScopedAsync(scopes, environment, ct);
 
@@ -198,11 +198,11 @@ public sealed class PollingReloadTests
             return result;
         }
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForTenantAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(
             string scope, string environment, string tenantId, CancellationToken ct)
             => _inner.GetAllForTenantAsync(scope, environment, tenantId, ct);
 
-        public Task<ConfigEntry?> GetForTenantAsync(
+        public Task<ConfigEntryRecord?> GetForTenantAsync(
             string scope, string environment, string tenantId, string key, CancellationToken ct)
             => _inner.GetForTenantAsync(scope, environment, tenantId, key, ct);
 
@@ -214,7 +214,7 @@ public sealed class PollingReloadTests
             string scope, string environment, string tenantId, string key, CancellationToken ct)
             => _inner.DeleteForTenantAsync(scope, environment, tenantId, key, ct);
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllForAllTenantsAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(
             string scope, string environment, CancellationToken ct)
             => _inner.GetAllForAllTenantsAsync(scope, environment, ct);
 
@@ -227,7 +227,7 @@ public sealed class PollingReloadTests
             return result;
         }
 
-        public Task<IReadOnlyList<ConfigEntry>> GetAllScopedForAllTenantsAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedForAllTenantsAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetAllScopedForAllTenantsAsync(scopes, environment, ct);
 
@@ -240,7 +240,7 @@ public sealed class PollingReloadTests
             return result;
         }
 
-        public Task<IReadOnlyList<ConfigEntry>> QueryAsync(
+        public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
             string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
             => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
     }
@@ -250,7 +250,7 @@ public sealed class PollingReloadTests
     {
         var (provider, fakeTime, store) = CreateSut(TimeSpan.FromSeconds(30));
         var t0 = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "old", false, t0, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "old", false, t0, null), TestContext.Current.CancellationToken);
 
         provider.Load();
 
@@ -258,7 +258,7 @@ public sealed class PollingReloadTests
         before.ShouldBe("old");
 
         var t1 = t0.AddSeconds(1);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "new", false, t1, null), TestContext.Current.CancellationToken);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "new", false, t1, null), TestContext.Current.CancellationToken);
 
         // Register a TCS that completes when the reload token fires.
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

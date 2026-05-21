@@ -58,9 +58,9 @@ public sealed class CompositionGapsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, "Acme", "K", "acme-v", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, "Globex", "K", "globex-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Acme", "K", "acme-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Globex", "K", "globex-v", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -93,8 +93,8 @@ public sealed class CompositionGapsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "global-myapp", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(SharedApp, Env, "Acme", "K", "acme-shared", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "global-myapp", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, "Acme", "K", "acme-shared", false, t, null), ct);
 
         var provider = CreateProvider(store, includeScopes: [SharedApp]);
         provider.Load();
@@ -115,8 +115,8 @@ public sealed class CompositionGapsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, "Acme", "K", "acme-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Acme", "K", "acme-v", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -135,8 +135,8 @@ public sealed class CompositionGapsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, "Acme", "K", "acme-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Acme", "K", "acme-v", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -157,8 +157,8 @@ public sealed class CompositionGapsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, "Acme", "K", "acme-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Acme", "K", "acme-v", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -176,7 +176,7 @@ public sealed class CompositionGapsTests
         var ct = TestContext.Current.CancellationToken;
 
         // Only an "Acme" (PascalCase) row exists; no global, no lowercase row.
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, "Acme", "K", "acme-cap", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Acme", "K", "acme-cap", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -203,7 +203,7 @@ public sealed class CompositionGapsTests
         var t0 = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "global-v", false, t0, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "global-v", false, t0, null), ct);
 
         var provider = CreateProvider(store, timeProvider: fakeTime);
         provider.Load();
@@ -219,7 +219,7 @@ public sealed class CompositionGapsTests
         provider.GetReloadToken().RegisterChangeCallback(_ => tcs.TrySetResult(true), null);
 
         // Add a tenant-specific row with a later timestamp.
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, "Acme", "K", "acme-new", false, t0.AddMinutes(1), null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Acme", "K", "acme-new", false, t0.AddMinutes(1), null), ct);
 
         fakeTime.Advance(TimeSpan.FromSeconds(30));
 
@@ -237,8 +237,8 @@ public sealed class CompositionGapsTests
         var t0 = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "myapp-v", false, t0, null), ct);
-        await store.UpsertAsync(new ConfigEntry(SharedApp, Env, string.Empty, "K", "shared-v", false, t0, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "myapp-v", false, t0, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(SharedApp, Env, string.Empty, "K", "shared-v", false, t0, null), ct);
 
         var provider = CreateProvider(store, includeScopes: [SharedApp], timeProvider: fakeTime);
         provider.Load();
@@ -247,7 +247,7 @@ public sealed class CompositionGapsTests
         provider.GetReloadToken().RegisterChangeCallback(_ => reloadFired = true, null);
 
         // Foreign app (not in scope list) writes a much later row.
-        await store.UpsertAsync(new ConfigEntry("Foreign", Env, string.Empty, "K", "foreign-v", false, t0.AddMinutes(10), null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord("Foreign", Env, string.Empty, "K", "foreign-v", false, t0.AddMinutes(10), null), ct);
 
         fakeTime.Advance(TimeSpan.FromSeconds(30));
 
@@ -276,8 +276,8 @@ public sealed class CompositionGapsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await writerStore.UpsertAsync(new ConfigEntry(OwnApp, Env, "Acme", "Stripe:Key", "secret-acme", true, t, null), ct);
-        await writerStore.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "Stripe:Key", "secret-global", true, t, null), ct);
+        await writerStore.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Acme", "Stripe:Key", "secret-acme", true, t, null), ct);
+        await writerStore.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "Stripe:Key", "secret-global", true, t, null), ct);
 
         // Read-side store mirrors the polling pipeline: passthrough encryptor (null →
         // Passthrough internally), so _tenantData receives ciphertext that the provider
@@ -285,8 +285,8 @@ public sealed class CompositionGapsTests
         var rawCiphertextAcme = encryptor.Protect("secret-acme");
         var rawCiphertextGlobal = encryptor.Protect("secret-global");
         var readerStore = new InMemoryConfigStore(encryptor: null);
-        await readerStore.UpsertAsync(new ConfigEntry(OwnApp, Env, "Acme", "Stripe:Key", rawCiphertextAcme, true, t, null), ct);
-        await readerStore.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "Stripe:Key", rawCiphertextGlobal, true, t, null), ct);
+        await readerStore.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, "Acme", "Stripe:Key", rawCiphertextAcme, true, t, null), ct);
+        await readerStore.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "Stripe:Key", rawCiphertextGlobal, true, t, null), ct);
 
         var provider = CreateProvider(readerStore);
         provider.Load();
@@ -311,7 +311,7 @@ public sealed class CompositionGapsTests
         var t = DateTimeOffset.UtcNow;
         var ct = TestContext.Current.CancellationToken;
 
-        await store.UpsertAsync(new ConfigEntry(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
+        await store.UpsertAsync(new ConfigEntryRecord(OwnApp, Env, string.Empty, "K", "global-v", false, t, null), ct);
 
         var provider = CreateProvider(store);
         provider.Load();

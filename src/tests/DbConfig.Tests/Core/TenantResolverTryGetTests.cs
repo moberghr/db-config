@@ -77,7 +77,7 @@ public sealed class TenantResolverTryGetTests
         var now = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "App:Name", "global-app", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "App:Name", "global-app", false, now, null),
             TestContext.Current.CancellationToken);
 
         provider.Load();
@@ -95,10 +95,10 @@ public sealed class TenantResolverTryGetTests
         var now = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Feature:X", "global-x", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "Feature:X", "global-x", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "Feature:X", "acme-x", false, now.AddSeconds(1), null),
+            new ConfigEntryRecord(App, Env, "Acme", "Feature:X", "acme-x", false, now.AddSeconds(1), null),
             TestContext.Current.CancellationToken);
 
         provider.Load();
@@ -119,10 +119,10 @@ public sealed class TenantResolverTryGetTests
         var now = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Stripe:ApiKey", "global-key", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "Stripe:ApiKey", "global-key", false, now, null),
             TestContext.Current.CancellationToken);
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "Stripe:ApiKey", "acme-key", false, now.AddSeconds(1), null),
+            new ConfigEntryRecord(App, Env, "Acme", "Stripe:ApiKey", "acme-key", false, now.AddSeconds(1), null),
             TestContext.Current.CancellationToken);
 
         provider.Load();
@@ -143,7 +143,7 @@ public sealed class TenantResolverTryGetTests
         var now = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Smtp:Host", "global-smtp", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "Smtp:Host", "global-smtp", false, now, null),
             TestContext.Current.CancellationToken);
 
         // Globex has no override for Smtp:Host
@@ -165,7 +165,7 @@ public sealed class TenantResolverTryGetTests
         var now = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Other:Key", "other-val", false, now, null),
+            new ConfigEntryRecord(App, Env, string.Empty, "Other:Key", "other-val", false, now, null),
             TestContext.Current.CancellationToken);
 
         provider.Load();
@@ -187,7 +187,7 @@ public sealed class TenantResolverTryGetTests
         var now = DateTimeOffset.UtcNow;
 
         await rawStore.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "Payment:SecretKey", encryptor.Protect("acme-secret"), true, now, null),
+            new ConfigEntryRecord(App, Env, "Acme", "Payment:SecretKey", encryptor.Protect("acme-secret"), true, now, null),
             TestContext.Current.CancellationToken);
 
         provider.Load();
@@ -210,7 +210,7 @@ public sealed class TenantResolverTryGetTests
         var now = DateTimeOffset.UtcNow;
 
         await rawStore.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "Db:Password", encryptor.Protect("secret-pw"), true, now, null),
+            new ConfigEntryRecord(App, Env, "Acme", "Db:Password", encryptor.Protect("secret-pw"), true, now, null),
             TestContext.Current.CancellationToken);
 
         provider.Load();

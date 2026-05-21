@@ -36,7 +36,7 @@ internal static class GetAuditHistoryEndpoint
         var tenantIdRaw = httpContext.Request.Query["tenantId"].FirstOrDefault();
         var tenantId = string.IsNullOrEmpty(tenantIdRaw) ? string.Empty : tenantIdRaw;
 
-        IReadOnlyList<ConfigAuditEntry> history;
+        IReadOnlyList<ConfigAuditEntryRecord> history;
         if (auditStore is null)
         {
             logger?.LogWarning(

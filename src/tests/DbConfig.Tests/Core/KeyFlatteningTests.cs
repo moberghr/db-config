@@ -25,7 +25,7 @@ public sealed class KeyFlatteningTests
     public void Load_HierarchicalKey_IsReachableViaColonNotation()
     {
         var store = new InMemoryConfigStore();
-        var entry = new ConfigEntry(
+        var entry = new ConfigEntryRecord(
             Scope: "TestApp",
             Environment: "Test",
             TenantId: string.Empty,
@@ -47,7 +47,7 @@ public sealed class KeyFlatteningTests
     public void Load_HierarchicalKey_IsReachableViaGetSection()
     {
         var store = new InMemoryConfigStore();
-        var entry = new ConfigEntry(
+        var entry = new ConfigEntryRecord(
             Scope: "TestApp",
             Environment: "Test",
             TenantId: string.Empty,
@@ -72,7 +72,7 @@ public sealed class KeyFlatteningTests
     public void Load_TopLevelKey_IsReachableDirectly()
     {
         var store = new InMemoryConfigStore();
-        var entry = new ConfigEntry(
+        var entry = new ConfigEntryRecord(
             Scope: "TestApp",
             Environment: "Test",
             TenantId: string.Empty,
@@ -99,9 +99,9 @@ public sealed class KeyFlatteningTests
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
 
-        store.UpsertAsync(new ConfigEntry("TestApp", "Test", string.Empty, "A:B", "ab", false, now, null), CancellationToken.None).GetAwaiter().GetResult();
-        store.UpsertAsync(new ConfigEntry("TestApp", "Test", string.Empty, "A:C", "ac", false, now, null), CancellationToken.None).GetAwaiter().GetResult();
-        store.UpsertAsync(new ConfigEntry("TestApp", "Test", string.Empty, "X", "x", false, now, null), CancellationToken.None).GetAwaiter().GetResult();
+        store.UpsertAsync(new ConfigEntryRecord("TestApp", "Test", string.Empty, "A:B", "ab", false, now, null), CancellationToken.None).GetAwaiter().GetResult();
+        store.UpsertAsync(new ConfigEntryRecord("TestApp", "Test", string.Empty, "A:C", "ac", false, now, null), CancellationToken.None).GetAwaiter().GetResult();
+        store.UpsertAsync(new ConfigEntryRecord("TestApp", "Test", string.Empty, "X", "x", false, now, null), CancellationToken.None).GetAwaiter().GetResult();
 
         var provider = CreateProvider(store);
         provider.Load();
@@ -119,7 +119,7 @@ public sealed class KeyFlatteningTests
     public void Load_NullValue_IsStoredAsNull()
     {
         var store = new InMemoryConfigStore();
-        var entry = new ConfigEntry(
+        var entry = new ConfigEntryRecord(
             Scope: "TestApp",
             Environment: "Test",
             TenantId: string.Empty,

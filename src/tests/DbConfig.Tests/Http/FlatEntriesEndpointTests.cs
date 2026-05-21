@@ -21,10 +21,10 @@ public sealed class FlatEntriesEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppB", Env, string.Empty, "Key2", "v2", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", "Staging", string.Empty, "Key3", "v3", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, "Acme", "Key1", "tenant-v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppB", Env, string.Empty, "Key2", "v2", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", "Staging", string.Empty, "Key3", "v3", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, "Acme", "Key1", "tenant-v1", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: null);
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -43,9 +43,9 @@ public sealed class FlatEntriesEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "K1", "a1", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "K2", "a2", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppB", Env, string.Empty, "K3", "b1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "K1", "a1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "K2", "a2", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppB", Env, string.Empty, "K3", "b1", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: null);
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -65,10 +65,10 @@ public sealed class FlatEntriesEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, "Acme", "K1", "v1", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, "Globex", "K2", "v2", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppB", Env, "Acme", "K3", "v3", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "K4", "v4", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, "Acme", "K1", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, "Globex", "K2", "v2", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppB", Env, "Acme", "K3", "v3", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "K4", "v4", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: null);
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -90,9 +90,9 @@ public sealed class FlatEntriesEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Stripe:Foo", "v1", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "STRIPE:Bar", "v2", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Other", "v3", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Stripe:Foo", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "STRIPE:Bar", "v2", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Other", "v3", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: null);
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -116,7 +116,7 @@ public sealed class FlatEntriesEndpointTests
 
         // Seed a single entry so we can verify response, but assert that the cap doesn't
         // throw and that the response succeeds.
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "K1", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "K1", "v1", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: null);
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -140,8 +140,8 @@ public sealed class FlatEntriesEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "K1", "v1", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppB", Env, string.Empty, "K2", "v2", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "K1", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppB", Env, string.Empty, "K2", "v2", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: "AppA");
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -159,8 +159,8 @@ public sealed class FlatEntriesEndpointTests
     {
         var store = new InMemoryConfigStore();
         var now = DateTimeOffset.UtcNow;
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "K1", "v1", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppB", Env, string.Empty, "K2", "v2", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "K1", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppB", Env, string.Empty, "K2", "v2", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: "AppA");
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -183,11 +183,11 @@ public sealed class FlatEntriesEndpointTests
 
         // Insert in a non-sorted order so any incidental DB ordering would NOT match the
         // expected output. We assert by (Scope, Environment, TenantId, Key) ascending.
-        await store.UpsertAsync(new ConfigEntry("AppB", Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", "Staging", "Acme", "Key1", "v2", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Key2", "v3", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, "Acme", "Key1", "v4", false, now, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("AppA", Env, string.Empty, "Key1", "v5", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppB", Env, string.Empty, "Key1", "v1", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", "Staging", "Acme", "Key1", "v2", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Key2", "v3", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, "Acme", "Key1", "v4", false, now, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("AppA", Env, string.Empty, "Key1", "v5", false, now, null), CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: null);
         await app.StartAsync(TestContext.Current.CancellationToken);
@@ -231,7 +231,7 @@ public sealed class FlatEntriesEndpointTests
         var store = new InMemoryConfigStore(encryptor);
         var now = DateTimeOffset.UtcNow;
         await store.UpsertAsync(
-            new ConfigEntry("AppA", Env, string.Empty, "Stripe:ApiKey", "sk_test_secret", true, now, null),
+            new ConfigEntryRecord("AppA", Env, string.Empty, "Stripe:ApiKey", "sk_test_secret", true, now, null),
             CancellationToken.None);
 
         await using var app = BuildApp(store, scopeFilter: null);

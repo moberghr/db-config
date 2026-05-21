@@ -1,14 +1,13 @@
 using DbConfig.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace DbConfig.Provider.PostgreSql;
 
 /// <summary>
 /// Helpers for constructing <see cref="DbContextOptions{TContext}"/> for the DbConfig
-/// PostgreSQL provider, pre-wired with the correct migrations assembly, schema,
-/// snake_case naming convention, and custom <c>IMigrationsAssembly</c>. Pass the result
-/// to <see cref="DbConfigMigrator"/>.
+/// PostgreSQL provider, pre-wired with the configured schema and snake_case naming
+/// convention. Use when you need a stand-alone <see cref="DbConfigDbContext"/>
+/// (e.g. integration tests). For schema management see <see cref="PostgreSqlDbConfigMigrator"/>.
 /// </summary>
 public static class PostgreSqlDbConfigOptions
 {
@@ -25,12 +24,9 @@ public static class PostgreSqlDbConfigOptions
         ArgumentException.ThrowIfNullOrEmpty(connectionString);
 
         return new DbContextOptionsBuilder<DbConfigDbContext>()
-            .UseNpgsql(
-                connectionString,
-                npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"))
+            .UseNpgsql(connectionString)
             .UseSnakeCaseNamingConvention()
             .UseDbConfigSchema(schema)
-            .ReplaceService<IMigrationsAssembly, DbConfigMigrationsAssembly>()
             .Options;
     }
 }

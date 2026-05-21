@@ -29,7 +29,7 @@ public sealed class DbConfigOptionsExtension : IDbContextOptionsExtension
     }
 
     /// <summary>
-    /// Database schema for the <c>DbConfig_Entries</c> and <c>DbConfig_AuditEntries</c>
+    /// Database schema for the <c>ConfigEntry</c> and <c>AuditEntry</c>
     /// tables. <see langword="null"/> means use the database default
     /// (<c>dbo</c> on SQL Server, <c>public</c> on PostgreSQL).
     /// </summary>
@@ -48,9 +48,9 @@ public sealed class DbConfigOptionsExtension : IDbContextOptionsExtension
     /// <inheritdoc/>
     public void ApplyServices(IServiceCollection services)
     {
-        // DbConfigMigrationsAssembly is registered via DbContextOptionsBuilder.ReplaceService
-        // in the provider Use* wrappers — no service registration needed here. This method
-        // intentionally has no effect; the extension carries data, not services.
+        // The extension carries data (Schema) only — no EF Core internal services to register.
+        // EF Core requires the method on every IDbContextOptionsExtension, so this is an
+        // intentional no-op.
     }
 
     /// <inheritdoc/>

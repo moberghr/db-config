@@ -14,7 +14,7 @@ public sealed class InMemoryStoreGetAsyncTests
     public async Task GetAsync_KeyExists_ReturnsEntry()
     {
         var store = new InMemoryConfigStore();
-        var entry = new ConfigEntry(App, Env, string.Empty, "Section:Key", "hello", false, DateTimeOffset.UtcNow, "user1");
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "Section:Key", "hello", false, DateTimeOffset.UtcNow, "user1");
         await store.UpsertAsync(entry, CancellationToken.None);
 
         var result = await store.GetAsync(App, Env, "Section:Key", CancellationToken.None);
@@ -32,7 +32,7 @@ public sealed class InMemoryStoreGetAsyncTests
     public async Task GetAsync_KeyDoesNotExist_ReturnsNull()
     {
         var store = new InMemoryConfigStore();
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "OtherKey", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "OtherKey", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var result = await store.GetAsync(App, Env, "NonExistentKey", CancellationToken.None);
 
@@ -46,10 +46,10 @@ public sealed class InMemoryStoreGetAsyncTests
         var t = DateTimeOffset.UtcNow;
 
         // Same key, different app — should not match.
-        await store.UpsertAsync(new ConfigEntry("OtherApp", Env, string.Empty, "SharedKey", "v1", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("OtherApp", Env, string.Empty, "SharedKey", "v1", false, t, null), CancellationToken.None);
 
         // Same key, different env — should not match.
-        await store.UpsertAsync(new ConfigEntry(App, "OtherEnv", string.Empty, "SharedKey", "v2", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, "OtherEnv", string.Empty, "SharedKey", "v2", false, t, null), CancellationToken.None);
 
         var result = await store.GetAsync(App, Env, "SharedKey", CancellationToken.None);
 

@@ -8,6 +8,16 @@ namespace DbConfig.EntityFrameworkCore;
 /// Shared across provider packages; each provider configures the connection
 /// string via <see cref="DbContextOptions{TContext}"/>.
 /// </summary>
+/// <remarks>
+/// <para>Identifiers come from EF Core defaults — the class name drives the table name,
+/// property names drive column names, and indexes auto-name from the columns they cover.
+/// Per-provider casing comes from the provider's options pipeline: PostgreSQL applies
+/// <c>UseSnakeCaseNamingConvention</c> so <c>ConfigEntry</c> becomes <c>config_entry</c>,
+/// <c>TenantId</c> becomes <c>tenant_id</c>, and so on. SQL Server keeps PascalCase.</para>
+/// <para>OnModelCreating contains NO name literals on purpose — explicit <c>ToTable</c>
+/// or <c>HasColumnName</c> strings would defeat the convention rewriter and produce
+/// runtime queries that target the wrong identifiers on PostgreSQL.</para>
+/// </remarks>
 public sealed class DbConfigDbContext : DbContext
 {
     public DbConfigDbContext(DbContextOptions<DbConfigDbContext> options)
@@ -15,28 +25,15 @@ public sealed class DbConfigDbContext : DbContext
     {
     }
 
-    internal DbSet<ConfigEntryEntity> ConfigEntries => Set<ConfigEntryEntity>();
+    internal DbSet<ConfigEntry> ConfigEntries => Set<ConfigEntry>();
 
-    internal DbSet<ConfigAuditEntryEntity> AuditEntries => Set<ConfigAuditEntryEntity>();
-
-    /// <summary>
-    /// Replaces the default <see cref="IModelCacheKeyFactory"/> so the cached model varies
-    /// with <see cref="DbConfigOptionsExtension.Schema"/>. Without this, the first DbContext
-    /// build caches a model for whatever schema it sees first, and subsequent contexts built
-    /// with a different schema would reuse the stale model. Required for tests that mount
-    /// multiple hosts with different schemas in one process.
-    /// </summary>
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-        optionsBuilder.ReplaceService<IModelCacheKeyFactory, DbConfigModelCacheKeyFactory>();
-    }
+    internal DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Apply the configured schema (set via DbContextOptionsBuilder.UseDbConfigSchema or
+        // Apply the configured schema (via DbContextOptionsBuilder.UseDbConfigSchema or
         // by provider helpers). Null means "use the database's default schema".
         var schema = this.GetService<IDbContextOptions>().GetDbConfigSchema();
         if (schema is not null)
@@ -44,10 +41,8 @@ public sealed class DbConfigDbContext : DbContext
             modelBuilder.HasDefaultSchema(schema);
         }
 
-        modelBuilder.Entity<ConfigEntryEntity>(entity =>
+        modelBuilder.Entity<ConfigEntry>(entity =>
         {
-            entity.ToTable("DbConfig_Entries");
-
             entity.HasKey(x => x.Id);
 
             entity.Property(x => x.Id)
@@ -85,17 +80,13 @@ public sealed class DbConfigDbContext : DbContext
                 .IsRequired(false);
 
             entity.HasIndex(x => new { x.Scope, x.Environment, x.TenantId, x.Key })
-                .IsUnique()
-                .HasDatabaseName("UX_DbConfig_Entries_Scope_Environment_TenantId_Key");
+                .IsUnique();
 
-            entity.HasIndex(x => new { x.Scope, x.Environment, x.TenantId, x.ModifiedUtc })
-                .HasDatabaseName("IX_DbConfig_Entries_Scope_Environment_TenantId_ModifiedUtc");
+            entity.HasIndex(x => new { x.Scope, x.Environment, x.TenantId, x.ModifiedUtc });
         });
 
-        modelBuilder.Entity<ConfigAuditEntryEntity>(entity =>
+        modelBuilder.Entity<AuditEntry>(entity =>
         {
-            entity.ToTable("DbConfig_AuditEntries");
-
             entity.HasKey(x => x.Id);
 
             entity.Property(x => x.Id)
@@ -138,8 +129,7 @@ public sealed class DbConfigDbContext : DbContext
                 .HasMaxLength(256)
                 .IsRequired(false);
 
-            entity.HasIndex(x => new { x.Scope, x.Environment, x.TenantId, x.Key, x.ModifiedUtc })
-                .HasDatabaseName("IX_DbConfig_Audit_Scope_Environment_TenantId_Key_ModifiedUtc");
+            entity.HasIndex(x => new { x.Scope, x.Environment, x.TenantId, x.Key, x.ModifiedUtc });
         });
     }
 }

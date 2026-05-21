@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Sql\*.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="DbConfig.Tests" />
   </ItemGroup>
 

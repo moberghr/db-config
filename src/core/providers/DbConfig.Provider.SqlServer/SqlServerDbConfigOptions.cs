@@ -1,13 +1,13 @@
 using DbConfig.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace DbConfig.Provider.SqlServer;
 
 /// <summary>
 /// Helpers for constructing <see cref="DbContextOptions{TContext}"/> for the DbConfig
-/// SQL Server provider, pre-wired with the correct migrations assembly, schema, and
-/// custom <c>IMigrationsAssembly</c>. Pass the result to <see cref="DbConfigMigrator"/>.
+/// SQL Server provider, pre-wired with the configured schema. Use when you need a
+/// stand-alone <see cref="DbConfigDbContext"/> (e.g. integration tests). For schema
+/// management see <see cref="SqlServerDbConfigMigrator"/>.
 /// </summary>
 public static class SqlServerDbConfigOptions
 {
@@ -24,11 +24,8 @@ public static class SqlServerDbConfigOptions
         ArgumentException.ThrowIfNullOrEmpty(connectionString);
 
         return new DbContextOptionsBuilder<DbConfigDbContext>()
-            .UseSqlServer(
-                connectionString,
-                sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer"))
+            .UseSqlServer(connectionString)
             .UseDbConfigSchema(schema)
-            .ReplaceService<IMigrationsAssembly, DbConfigMigrationsAssembly>()
             .Options;
     }
 }

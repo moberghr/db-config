@@ -5,7 +5,7 @@ namespace DbConfig.Core;
 /// <c>Scope</c> is the same value the host sets via <see cref="DbConfigOptions.Scope"/> and
 /// lists in <see cref="DbConfigOptions.IncludeScopes"/>.
 /// </summary>
-public sealed record ConfigEntry(
+public sealed record ConfigEntryRecord(
     string Scope,
     string Environment,
     string TenantId,    // "" for global default

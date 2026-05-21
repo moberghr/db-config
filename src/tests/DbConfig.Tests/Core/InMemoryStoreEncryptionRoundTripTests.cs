@@ -23,7 +23,7 @@ public sealed class InMemoryStoreEncryptionRoundTripTests
         const string plaintext = "passthrough-secret-value";
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Secret:Key", plaintext, true, DateTimeOffset.UtcNow, "tester"),
+            new ConfigEntryRecord(App, Env, string.Empty, "Secret:Key", plaintext, true, DateTimeOffset.UtcNow, "tester"),
             CancellationToken.None);
 
         var retrieved = await store.GetAsync(App, Env, "Secret:Key", CancellationToken.None);
@@ -45,11 +45,11 @@ public sealed class InMemoryStoreEncryptionRoundTripTests
         var t = DateTimeOffset.UtcNow;
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "History:Key", plaintextV1, true, t, "tester"),
+            new ConfigEntryRecord(App, Env, string.Empty, "History:Key", plaintextV1, true, t, "tester"),
             CancellationToken.None);
 
         await store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "History:Key", plaintextV2, true, t.AddSeconds(1), "tester"),
+            new ConfigEntryRecord(App, Env, string.Empty, "History:Key", plaintextV2, true, t.AddSeconds(1), "tester"),
             CancellationToken.None);
 
         var history = await auditStore.GetHistoryAsync(App, Env, "History:Key", 10, CancellationToken.None);

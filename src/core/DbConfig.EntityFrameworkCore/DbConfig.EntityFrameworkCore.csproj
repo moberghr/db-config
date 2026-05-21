@@ -24,8 +24,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="DbConfig.Tests" />
-    <InternalsVisibleTo Include="DbConfig.Provider.SqlServer" />
-    <InternalsVisibleTo Include="DbConfig.Provider.PostgreSql" />
   </ItemGroup>
 
 </Project>

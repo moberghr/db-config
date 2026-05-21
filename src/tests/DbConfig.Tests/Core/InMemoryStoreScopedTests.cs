@@ -15,9 +15,9 @@ public sealed class InMemoryStoreScopedTests
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry("Shared", Env, string.Empty, "Key1", "shared-v", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("MyApp", Env, string.Empty, "Key2", "own-v", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("Other", Env, string.Empty, "Key3", "other-v", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("Shared", Env, string.Empty, "Key1", "shared-v", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("MyApp", Env, string.Empty, "Key2", "own-v", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("Other", Env, string.Empty, "Key3", "other-v", false, t, null), CancellationToken.None);
 
         var result = await store.GetAllScopedAsync(["Shared", "MyApp"], Env, CancellationToken.None);
 
@@ -32,8 +32,8 @@ public sealed class InMemoryStoreScopedTests
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry("MyApp", Env, string.Empty, "Key", "own", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("Shared", Env, string.Empty, "Key", "shared", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("MyApp", Env, string.Empty, "Key", "own", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("Shared", Env, string.Empty, "Key", "shared", false, t, null), CancellationToken.None);
 
         // Input order: Shared first, MyApp second — caller relies on this for precedence.
         var result = await store.GetAllScopedAsync(["Shared", "MyApp"], Env, CancellationToken.None);
@@ -49,7 +49,7 @@ public sealed class InMemoryStoreScopedTests
         var store = new InMemoryConfigStore();
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry("MyApp", Env, string.Empty, "Key", "v", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("MyApp", Env, string.Empty, "Key", "v", false, t, null), CancellationToken.None);
 
         var result = await store.GetAllScopedAsync([], Env, CancellationToken.None);
 
@@ -63,8 +63,8 @@ public sealed class InMemoryStoreScopedTests
         var t0 = DateTimeOffset.UtcNow;
         var t1 = t0.AddSeconds(10);
 
-        await store.UpsertAsync(new ConfigEntry("Shared", Env, string.Empty, "Key1", "v1", false, t0, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry("MyApp", Env, string.Empty, "Key2", "v2", false, t1, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("Shared", Env, string.Empty, "Key1", "v1", false, t0, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord("MyApp", Env, string.Empty, "Key2", "v2", false, t1, null), CancellationToken.None);
 
         var result = await store.GetLatestModifiedUtcScopedAsync(["Shared", "MyApp"], Env, CancellationToken.None);
 

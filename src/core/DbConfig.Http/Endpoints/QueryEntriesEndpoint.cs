@@ -118,7 +118,7 @@ internal static class QueryEntriesEndpoint
 
         // Key sentinel "*" — flat query reads multiple keys; "*" is reserved by route normalization
         // so no real config key can collide.
-        var auditEntry = new ConfigAuditEntry(
+        var auditEntry = new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
             Scope: scope ?? string.Empty,
             Environment: environment ?? string.Empty,

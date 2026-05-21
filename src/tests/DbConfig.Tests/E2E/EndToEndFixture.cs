@@ -40,17 +40,10 @@ public sealed class EndToEndFixture : IAsyncLifetime
 
         var connectionString = _container.GetConnectionString();
 
-        // Apply EF migrations before starting the host.
-        var migrateOptions = new DbContextOptionsBuilder<DbConfigDbContext>()
-            .UseSqlServer(
-                connectionString,
-                sql => sql.MigrationsAssembly("DbConfig.Provider.SqlServer"))
-            .Options;
-
-        await using (var ctx = new DbConfigDbContext(migrateOptions))
-        {
-            await ctx.Database.MigrateAsync(ct);
-        }
+        // Apply the schema before starting the host. AddDbConfig with default SchemaMode does
+        // the same thing — but doing it explicitly here lets the host build with SchemaMode.None
+        // semantics if a future test wants to verify that path.
+        await SqlServerDbConfigMigrator.MigrateAsync(connectionString, schema: "configuration", ct);
 
         // Build the WebApplication with the real SQL Server-backed DbConfig provider.
         var builder = WebApplication.CreateSlimBuilder();

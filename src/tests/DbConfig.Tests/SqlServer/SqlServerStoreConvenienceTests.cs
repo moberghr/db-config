@@ -52,7 +52,7 @@ public sealed class SqlServerStoreConvenienceTests : IAsyncLifetime
     public async Task GetAsync_ImplicitAppEnv_ReturnsGlobalEntry()
     {
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "Logging:Level", "Warning", false, DateTimeOffset.UtcNow, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "Logging:Level", "Warning", false, DateTimeOffset.UtcNow, "seed"),
             CancellationToken.None);
 
         var result = await _store.GetAsync("Logging:Level", CancellationToken.None);
@@ -66,13 +66,13 @@ public sealed class SqlServerStoreConvenienceTests : IAsyncLifetime
     {
         var t = DateTimeOffset.UtcNow;
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "TestOptions:ApiKey", "global", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "TestOptions:ApiKey", "global", false, t, "seed"),
             CancellationToken.None);
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, string.Empty, "TestOptions:WebhookSecret", "global-webhook", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, string.Empty, "TestOptions:WebhookSecret", "global-webhook", false, t, "seed"),
             CancellationToken.None);
         await _store.UpsertAsync(
-            new ConfigEntry(App, Env, "Acme", "TestOptions:ApiKey", "acme", false, t, "seed"),
+            new ConfigEntryRecord(App, Env, "Acme", "TestOptions:ApiKey", "acme", false, t, "seed"),
             CancellationToken.None);
 
         var result = await _store.GetForTenantAsync<TestOptions>("Acme", CancellationToken.None);

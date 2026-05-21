@@ -29,7 +29,7 @@ public sealed class InMemoryAuditStoreTests
     {
         var auditStore = new InMemoryConfigAuditStore();
         var store = new InMemoryConfigStore(null, auditStore, enableAuditLog: true);
-        var entry = new ConfigEntry(App, Env, string.Empty, "Key1", "value1", false, DateTimeOffset.UtcNow, "user1");
+        var entry = new ConfigEntryRecord(App, Env, string.Empty, "Key1", "value1", false, DateTimeOffset.UtcNow, "user1");
 
         await store.UpsertAsync(entry, CancellationToken.None);
 
@@ -48,8 +48,8 @@ public sealed class InMemoryAuditStoreTests
         var store = new InMemoryConfigStore(null, auditStore, enableAuditLog: true);
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "old", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "new", false, t.AddSeconds(1), "updater"), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "old", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "new", false, t.AddSeconds(1), "updater"), CancellationToken.None);
 
         var history = await auditStore.GetHistoryAsync(App, Env, "Key1", 10, CancellationToken.None);
         history.Count.ShouldBe(2);
@@ -68,7 +68,7 @@ public sealed class InMemoryAuditStoreTests
         var auditStore = new InMemoryConfigAuditStore();
         var store = new InMemoryConfigStore(null, auditStore, enableAuditLog: true);
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "ToDelete", "del-value", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "ToDelete", "del-value", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
         await store.DeleteAsync(App, Env, "ToDelete", CancellationToken.None);
 
         var history = await auditStore.GetHistoryAsync(App, Env, "ToDelete", 10, CancellationToken.None);
@@ -84,7 +84,7 @@ public sealed class InMemoryAuditStoreTests
         var auditStore = new InMemoryConfigAuditStore();
         var store = new InMemoryConfigStore(null, auditStore, enableAuditLog: false);
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "value1", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "value1", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
         await store.DeleteAsync(App, Env, "Key1", CancellationToken.None);
 
         var history = await auditStore.GetHistoryAsync(App, Env, "Key1", 10, CancellationToken.None);
@@ -98,9 +98,9 @@ public sealed class InMemoryAuditStoreTests
         var store = new InMemoryConfigStore(null, auditStore, enableAuditLog: true);
         var t = DateTimeOffset.UtcNow;
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "v0", false, t, null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "v1", false, t.AddSeconds(1), null), CancellationToken.None);
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "v2", false, t.AddSeconds(2), null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "v0", false, t, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "v1", false, t.AddSeconds(1), null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "v2", false, t.AddSeconds(2), null), CancellationToken.None);
 
         var history = await auditStore.GetHistoryAsync(App, Env, "Key1", 2, CancellationToken.None);
 
@@ -115,7 +115,7 @@ public sealed class InMemoryAuditStoreTests
         var auditStore = new InMemoryConfigAuditStore();
         var store = new InMemoryConfigStore(null, auditStore, enableAuditLog: true);
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "OtherKey", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "OtherKey", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
 
         var history = await auditStore.GetHistoryAsync(App, Env, "NonExistentKey", 10, CancellationToken.None);
 
@@ -128,7 +128,7 @@ public sealed class InMemoryAuditStoreTests
         // Store without audit sink — operations succeed silently
         var store = new InMemoryConfigStore();
 
-        await store.UpsertAsync(new ConfigEntry(App, Env, string.Empty, "Key1", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
+        await store.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "v", false, DateTimeOffset.UtcNow, null), CancellationToken.None);
         await store.DeleteAsync(App, Env, "Key1", CancellationToken.None);
 
         var result = await store.GetAsync(App, Env, "Key1", CancellationToken.None);
