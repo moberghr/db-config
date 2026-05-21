@@ -19,6 +19,7 @@ public sealed class PostgreSqlTenantSchemaTests : IAsyncLifetime
 {
     private const string App = "TenantSchemaApp";
     private const string Env = "Test";
+    private const string Schema = "configuration";
 
     private readonly PostgreSqlFixture _fixture;
 
@@ -46,12 +47,13 @@ public sealed class PostgreSqlTenantSchemaTests : IAsyncLifetime
         const string sql = """
             SELECT COUNT(1)
             FROM information_schema.columns
-            WHERE table_schema = 'configuration'
+            WHERE table_schema = @schema
               AND table_name = 'config_entries'
               AND column_name = 'tenant_id'
             """;
 
         await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@schema", Schema);
         var count = Convert.ToInt64(await command.ExecuteScalarAsync(CancellationToken.None));
 
         count.ShouldBe(1L, "TenantId column should exist in config_entries after migration");
@@ -103,31 +105,37 @@ public sealed class PostgreSqlTenantSchemaTests : IAsyncLifetime
     [TimedFact(60_000)]
     public async Task UniqueConstraint_RejectsDuplicate_AppEnvTenantIdKey()
     {
-        // Insert first row then attempt a raw SQL duplicate insert; must fail.
+        // Seed the first row via EF; attempt the duplicate via raw SQL so the change tracker
+        // can't catch it in memory — we need the database itself to enforce the constraint.
+        await using var ctx = await _fixture.DbContextFactory.CreateDbContextAsync(CancellationToken.None);
+        ctx.ConfigEntries.Add(new ConfigEntry
+        {
+            Id = Guid.NewGuid(),
+            Scope = App,
+            Environment = Env,
+            TenantId = "Acme",
+            Key = "DupKey",
+            IsSecret = false,
+            ModifiedUtc = DateTime.UtcNow,
+        });
+        await ctx.SaveChangesAsync(CancellationToken.None);
+
         await using var connection = new NpgsqlConnection(_fixture.ConnectionString);
         await connection.OpenAsync(CancellationToken.None);
 
-        const string insert = """
-            INSERT INTO configuration.config_entries (id, scope, environment, tenant_id, key, is_secret, modified_utc)
+        const string insert = $"""
+            INSERT INTO {Schema}.config_entries (id, scope, environment, tenant_id, key, is_secret, modified_utc)
             VALUES (@id, @app, @env, @tenant, @key, false, NOW())
             """;
 
-        await using var cmd1 = new NpgsqlCommand(insert, connection);
-        cmd1.Parameters.AddWithValue("@id", Guid.NewGuid());
-        cmd1.Parameters.AddWithValue("@app", App);
-        cmd1.Parameters.AddWithValue("@env", Env);
-        cmd1.Parameters.AddWithValue("@tenant", "Acme");
-        cmd1.Parameters.AddWithValue("@key", "DupKey");
-        await cmd1.ExecuteNonQueryAsync(CancellationToken.None);
+        await using var cmd = new NpgsqlCommand(insert, connection);
+        cmd.Parameters.AddWithValue("@id", Guid.NewGuid());
+        cmd.Parameters.AddWithValue("@app", App);
+        cmd.Parameters.AddWithValue("@env", Env);
+        cmd.Parameters.AddWithValue("@tenant", "Acme");
+        cmd.Parameters.AddWithValue("@key", "DupKey");
 
-        await using var cmd2 = new NpgsqlCommand(insert, connection);
-        cmd2.Parameters.AddWithValue("@id", Guid.NewGuid());
-        cmd2.Parameters.AddWithValue("@app", App);
-        cmd2.Parameters.AddWithValue("@env", Env);
-        cmd2.Parameters.AddWithValue("@tenant", "Acme");
-        cmd2.Parameters.AddWithValue("@key", "DupKey");
-
-        var ex = await Record.ExceptionAsync(() => cmd2.ExecuteNonQueryAsync(CancellationToken.None));
+        var ex = await Record.ExceptionAsync(() => cmd.ExecuteNonQueryAsync(CancellationToken.None));
         ex.ShouldNotBeNull("inserting a duplicate (App, Env, TenantId, Key) should violate the unique constraint");
         ex.ShouldBeOfType<PostgresException>();
     }
