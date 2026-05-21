@@ -10,11 +10,30 @@ public partial class InitialCreate : Migration
 {
     private const string ScopeCollation = "Latin1_General_100_BIN2";
 
+    private readonly string _schema;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InitialCreate"/> class with the configured
+    /// schema. Invoked by <c>DbConfigMigrationsAssembly</c> with the value of
+    /// <c>DbConfigOptionsExtension.Schema</c>. Passing <see langword="null"/> uses the database
+    /// default schema (<c>dbo</c>).
+    /// </summary>
+    public InitialCreate(string schema)
+    {
+        _schema = schema;
+    }
+
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        if (_schema is not null)
+        {
+            migrationBuilder.EnsureSchema(name: _schema);
+        }
+
         migrationBuilder.CreateTable(
             name: "DbConfig_Entries",
+            schema: _schema,
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -31,17 +50,20 @@ public partial class InitialCreate : Migration
 
         migrationBuilder.CreateIndex(
             name: "IX_DbConfig_Entries_Scope_Environment_TenantId_ModifiedUtc",
+            schema: _schema,
             table: "DbConfig_Entries",
             columns: ["Scope", "Environment", "TenantId", "ModifiedUtc"]);
 
         migrationBuilder.CreateIndex(
             name: "UX_DbConfig_Entries_Scope_Environment_TenantId_Key",
+            schema: _schema,
             table: "DbConfig_Entries",
             columns: ["Scope", "Environment", "TenantId", "Key"],
             unique: true);
 
         migrationBuilder.CreateTable(
             name: "DbConfig_AuditEntries",
+            schema: _schema,
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -60,6 +82,7 @@ public partial class InitialCreate : Migration
 
         migrationBuilder.CreateIndex(
             name: "IX_DbConfig_Audit_Scope_Environment_TenantId_Key_ModifiedUtc",
+            schema: _schema,
             table: "DbConfig_AuditEntries",
             columns: ["Scope", "Environment", "TenantId", "Key", "ModifiedUtc"]);
     }
@@ -67,7 +90,7 @@ public partial class InitialCreate : Migration
     /// <inheritdoc />
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropTable(name: "DbConfig_AuditEntries");
-        migrationBuilder.DropTable(name: "DbConfig_Entries");
+        migrationBuilder.DropTable(name: "DbConfig_AuditEntries", schema: _schema);
+        migrationBuilder.DropTable(name: "DbConfig_Entries", schema: _schema);
     }
 }

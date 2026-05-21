@@ -46,4 +46,13 @@ public sealed class DbConfigOptions
     /// Default: <see cref="SchemaMode.CreateIfMissing"/> — auto-migrate.
     /// </summary>
     public SchemaMode SchemaMode { get; set; } = SchemaMode.CreateIfMissing;
+
+    /// <summary>
+    /// Database schema (namespace) for the <c>DbConfig_Entries</c> and <c>DbConfig_AuditEntries</c>
+    /// tables. Default: <c>"configuration"</c>. Set to <see langword="null"/> to use the
+    /// database's default schema (<c>dbo</c> on SQL Server, <c>public</c> on PostgreSQL).
+    /// The schema is created automatically by the migration when <see cref="SchemaMode"/>
+    /// is <see cref="SchemaMode.CreateIfMissing"/>.
+    /// </summary>
+    public string? Schema { get; set; } = "configuration";
 }

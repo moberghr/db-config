@@ -1,6 +1,7 @@
 using DbConfig.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -57,7 +58,23 @@ public static class HostApplicationBuilderExtensions
             ?? throw new InvalidOperationException(
                 "AddDbConfig lambda must call a provider extension such as b.UseSqlServer(...) or b.UsePostgreSql(...) " +
                 "to configure the database provider and store.");
-        var contextConfig = (Action<DbContextOptionsBuilder>)contextConfigObj;
+        var userContextConfig = (Action<DbContextOptionsBuilder>)contextConfigObj;
+
+        // Wrap the user's context-config action so we can layer in two DbConfig-specific
+        // services that must be present on EVERY DbContext build (HTTP-side via DI, polling
+        // side via DirectDbContextFactory):
+        //   1. UseDbConfigSchema(options.Schema) → publishes the schema via DbContextOptions
+        //      extension. The migration assembly + DbContext + model cache key factory all
+        //      read it from there.
+        //   2. ReplaceService<IMigrationsAssembly, DbConfigMigrationsAssembly>() → so the
+        //      migration class is constructed with the schema (via its (string?) constructor).
+        var capturedSchema = options.Schema;
+        var contextConfig = new Action<DbContextOptionsBuilder>(opts =>
+        {
+            userContextConfig(opts);
+            opts.UseDbConfigSchema(capturedSchema);
+            opts.ReplaceService<IMigrationsAssembly, DbConfigMigrationsAssembly>();
+        });
 
         // Resolve the captured IUniqueConstraintDetector set by the provider extension.
         var detectorObj = dbb.DetectorObject

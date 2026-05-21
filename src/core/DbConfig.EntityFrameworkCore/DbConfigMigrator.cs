@@ -10,6 +10,12 @@ namespace DbConfig.EntityFrameworkCore;
 /// <c>AddDbConfig</c> auto-create path. Useful for DBA-controlled or CI/CD
 /// deployment workflows where the schema is applied out of band.
 /// </summary>
+/// <remarks>
+/// The <see cref="DbContextOptions"/> passed to these helpers MUST have the DbConfig
+/// schema applied via <c>DbContextOptionsBuilder.UseDbConfigSchema(...)</c> — the provider
+/// helpers (<c>SqlServerDbConfigOptions.ForSqlServer</c>, <c>PostgreSqlDbConfigOptions.ForPostgreSql</c>)
+/// do this for you via their <c>schema</c> parameter.
+/// </remarks>
 public static class DbConfigMigrator
 {
     /// <summary>
@@ -35,7 +41,6 @@ public static class DbConfigMigrator
         ArgumentNullException.ThrowIfNull(options);
 
         using var ctx = new DbConfigDbContext(options);
-
         return ctx.Database.GenerateCreateScript();
     }
 

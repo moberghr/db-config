@@ -2,6 +2,7 @@ using DbConfig.Core;
 using DbConfig.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Respawn;
@@ -44,11 +45,18 @@ public sealed class PostgreSqlFixture : IAsyncLifetime
 
         ConnectionString = _container.GetConnectionString();
 
+        // Same setup as production via PostgreSqlDbConfigOptions.ForPostgreSql — snake_case
+        // naming convention, the configuration schema, the custom IMigrationsAssembly, and the
+        // migrations-assembly name. Inlined here because AddDbContextFactory takes an Action,
+        // not a pre-built DbContextOptions instance.
         var services = new ServiceCollection();
         services.AddDbContextFactory<DbConfigDbContext>(options =>
-            options.UseNpgsql(
-                ConnectionString,
-                npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql")));
+        {
+            options.UseNpgsql(ConnectionString, npg => npg.MigrationsAssembly("DbConfig.Provider.PostgreSql"));
+            options.UseSnakeCaseNamingConvention();
+            options.UseDbConfigSchema("configuration");
+            options.ReplaceService<IMigrationsAssembly, DbConfigMigrationsAssembly>();
+        });
 
         _serviceProvider = services.BuildServiceProvider();
         DbContextFactory = _serviceProvider.GetRequiredService<IDbContextFactory<DbConfigDbContext>>();
@@ -64,6 +72,7 @@ public sealed class PostgreSqlFixture : IAsyncLifetime
             new RespawnerOptions
             {
                 DbAdapter = DbAdapter.Postgres,
+                SchemasToInclude = ["configuration"],
                 TablesToIgnore = ["__EFMigrationsHistory"],
             });
     }

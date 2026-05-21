@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace DbConfig.EntityFrameworkCore;
 
@@ -18,9 +19,30 @@ public sealed class DbConfigDbContext : DbContext
 
     internal DbSet<ConfigAuditEntryEntity> AuditEntries => Set<ConfigAuditEntryEntity>();
 
+    /// <summary>
+    /// Replaces the default <see cref="IModelCacheKeyFactory"/> so the cached model varies
+    /// with <see cref="DbConfigOptionsExtension.Schema"/>. Without this, the first DbContext
+    /// build caches a model for whatever schema it sees first, and subsequent contexts built
+    /// with a different schema would reuse the stale model. Required for tests that mount
+    /// multiple hosts with different schemas in one process.
+    /// </summary>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder.ReplaceService<IModelCacheKeyFactory, DbConfigModelCacheKeyFactory>();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Apply the configured schema (set via DbContextOptionsBuilder.UseDbConfigSchema or
+        // by provider helpers). Null means "use the database's default schema".
+        var schema = this.GetService<IDbContextOptions>().GetDbConfigSchema();
+        if (schema is not null)
+        {
+            modelBuilder.HasDefaultSchema(schema);
+        }
 
         modelBuilder.Entity<ConfigEntryEntity>(entity =>
         {
