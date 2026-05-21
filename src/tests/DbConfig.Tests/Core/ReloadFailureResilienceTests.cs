@@ -129,90 +129,38 @@ public sealed class ReloadFailureResilienceTests
     /// <c>await NextGetAllSignal.WaitAsync(...)</c> to block until the timer callback
     /// has invoked GetAllAsync.
     /// </summary>
-    private sealed class FaultyWrapperStore : IConfigStore
+    private sealed class FaultyWrapperStore : IConfigPollingStore
     {
-        private readonly IConfigStore _inner;
+        private readonly IConfigPollingStore _inner;
         private TaskCompletionSource<bool>? _nextGetAllTcs;
 
         public bool FaultOnGetAll { get; set; }
 
-        /// <summary>The task that completes after the next GetAllAsync call.</summary>
+        /// <summary>The task that completes after the next snapshot-read call.</summary>
         public Task NextGetAllSignal => _nextGetAllTcs?.Task ?? Task.CompletedTask;
 
-        /// <summary>Arms the signal so that the next GetAllAsync call completes <see cref="NextGetAllSignal"/>.</summary>
+        /// <summary>Arms the signal so that the next snapshot-read call completes <see cref="NextGetAllSignal"/>.</summary>
         public void ArmNextGetAllSignal()
         {
             _nextGetAllTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
-        public FaultyWrapperStore(IConfigStore inner, bool faultOnNextCall)
+        public FaultyWrapperStore(IConfigPollingStore inner, bool faultOnNextCall)
         {
             _inner = inner;
             FaultOnGetAll = faultOnNextCall;
         }
 
-        public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct)
-        {
-            _nextGetAllTcs?.TrySetResult(true);
-
-            if (FaultOnGetAll)
-            {
-                throw new TimeoutException("Simulated store fault");
-            }
-
-            return await _inner.GetAllAsync(scope, environment, ct);
-        }
-
-        public Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct)
-            => _inner.GetAsync(scope, environment, key, ct);
-
         public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
-        {
-            return _inner.GetLatestModifiedUtcAsync(scope, environment, ct);
-        }
-
-        public Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
-        {
-            return _inner.UpsertAsync(entry, ct);
-        }
-
-        public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
-        {
-            return _inner.DeleteAsync(scope, environment, key, ct);
-        }
-
-        public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(
-            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
-        {
-            _nextGetAllTcs?.TrySetResult(true);
-
-            if (FaultOnGetAll)
-            {
-                throw new TimeoutException("Simulated store fault");
-            }
-
-            return await _inner.GetAllScopedAsync(scopes, environment, ct);
-        }
+            => _inner.GetLatestModifiedUtcAsync(scope, environment, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
 
-        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(
-            string scope, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetAllForTenantAsync(scope, environment, tenantId, ct);
-
-        public Task<ConfigEntryRecord?> GetForTenantAsync(
-            string scope, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.GetForTenantAsync(scope, environment, tenantId, key, ct);
-
         public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
             string scope, string environment, string tenantId, CancellationToken ct)
             => _inner.GetLatestModifiedUtcForTenantAsync(scope, environment, tenantId, ct);
-
-        public Task DeleteForTenantAsync(
-            string scope, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.DeleteForTenantAsync(scope, environment, tenantId, key, ct);
 
         public async Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(
             string scope, string environment, CancellationToken ct)
@@ -247,29 +195,5 @@ public sealed class ReloadFailureResilienceTests
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
             => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(scopes, environment, ct);
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
-            string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
-            => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(CancellationToken ct)
-            => _inner.GetAllAsync(ct);
-
-        public Task<ConfigEntryRecord?> GetAsync(string key, CancellationToken ct)
-            => _inner.GetAsync(key, ct);
-
-        public Task<T> GetAsync<T>(CancellationToken ct)
-            where T : class, new()
-            => _inner.GetAsync<T>(ct);
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
-            => _inner.GetAllForTenantAsync(tenantId, ct);
-
-        public Task<ConfigEntryRecord?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
-            => _inner.GetForTenantAsync(tenantId, key, ct);
-
-        public Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct)
-            where T : class, new()
-            => _inner.GetForTenantAsync<T>(tenantId, ct);
     }
 }

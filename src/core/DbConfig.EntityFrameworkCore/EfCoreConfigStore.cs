@@ -272,17 +272,12 @@ public sealed class EfCoreConfigStore : IConfigStore
                 await context.ConfigEntries.AddAsync(newEntity, ct);
 
                 await auditAppender.AppendAsync(
-                    BuildAuditRow(
-                        entry.Scope,
-                        entry.Environment,
-                        entry.TenantId,
-                        entry.Key,
-                        entry.IsSecret,
+                    BuildAuditRowForUpsert(
+                        entry,
                         ConfigAuditAction.Insert,
                         oldValue: null,
                         newValue: storedValue,
-                        modifiedUtc,
-                        entry.ModifiedBy),
+                        modifiedUtc),
                     ct);
             }
             else
@@ -295,17 +290,12 @@ public sealed class EfCoreConfigStore : IConfigStore
                 existing.ModifiedBy = entry.ModifiedBy;
 
                 await auditAppender.AppendAsync(
-                    BuildAuditRow(
-                        entry.Scope,
-                        entry.Environment,
-                        entry.TenantId,
-                        entry.Key,
-                        entry.IsSecret,
+                    BuildAuditRowForUpsert(
+                        entry,
                         ConfigAuditAction.Update,
                         oldValue: oldStoredValue,
                         newValue: storedValue,
-                        modifiedUtc,
-                        entry.ModifiedBy),
+                        modifiedUtc),
                     ct);
             }
 
@@ -343,17 +333,14 @@ public sealed class EfCoreConfigStore : IConfigStore
         context.ConfigEntries.Remove(existing);
 
         await auditAppender.AppendAsync(
-            BuildAuditRow(
+            BuildAuditRowForDelete(
                 scope,
                 environment,
                 tenantId: string.Empty,
                 key,
                 existing.IsSecret,
-                ConfigAuditAction.Delete,
                 oldValue: oldStoredValue,
-                newValue: null,
-                _timeProvider.GetUtcNow(),
-                modifiedBy: null),
+                _timeProvider.GetUtcNow()),
             ct);
 
         await context.SaveChangesAsync(ct);
@@ -542,17 +529,14 @@ public sealed class EfCoreConfigStore : IConfigStore
         context.ConfigEntries.Remove(existing);
 
         await auditAppender.AppendAsync(
-            BuildAuditRow(
+            BuildAuditRowForDelete(
                 scope,
                 environment,
                 tenantId,
                 key,
                 existing.IsSecret,
-                ConfigAuditAction.Delete,
                 oldValue: oldStoredValue,
-                newValue: null,
-                _timeProvider.GetUtcNow(),
-                modifiedBy: null),
+                _timeProvider.GetUtcNow()),
             ct);
 
         await context.SaveChangesAsync(ct);
@@ -823,17 +807,35 @@ public sealed class EfCoreConfigStore : IConfigStore
             : NoOpConfigAuditAppender.Instance;
     }
 
-    private static ConfigAuditEntryRecord BuildAuditRow(
+    private static ConfigAuditEntryRecord BuildAuditRowForUpsert(
+        ConfigEntryRecord entry,
+        ConfigAuditAction action,
+        string? oldValue,
+        string? newValue,
+        DateTimeOffset modifiedUtc)
+    {
+        return new ConfigAuditEntryRecord(
+            Id: Guid.NewGuid(),
+            Scope: entry.Scope,
+            Environment: entry.Environment,
+            TenantId: entry.TenantId,
+            Key: entry.Key,
+            OldValue: oldValue,
+            NewValue: newValue,
+            IsSecret: entry.IsSecret,
+            Action: action,
+            ModifiedUtc: modifiedUtc,
+            ModifiedBy: entry.ModifiedBy);
+    }
+
+    private static ConfigAuditEntryRecord BuildAuditRowForDelete(
         string scope,
         string environment,
         string tenantId,
         string key,
         bool isSecret,
-        ConfigAuditAction action,
         string? oldValue,
-        string? newValue,
-        DateTimeOffset modifiedUtc,
-        string? modifiedBy)
+        DateTimeOffset modifiedUtc)
     {
         return new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
@@ -842,10 +844,10 @@ public sealed class EfCoreConfigStore : IConfigStore
             TenantId: tenantId,
             Key: key,
             OldValue: oldValue,
-            NewValue: newValue,
+            NewValue: null,
             IsSecret: isSecret,
-            Action: action,
+            Action: ConfigAuditAction.Delete,
             ModifiedUtc: modifiedUtc,
-            ModifiedBy: modifiedBy);
+            ModifiedBy: null);
     }
 }

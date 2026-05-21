@@ -253,17 +253,12 @@ public sealed class InMemoryConfigStore : IConfigStore
             _entries[key] = stored;
 
             _auditAppender.AppendAsync(
-                BuildAuditRow(
-                    entry.Scope,
-                    entry.Environment,
-                    entry.TenantId,
-                    entry.Key,
-                    entry.IsSecret,
+                BuildAuditRowForUpsert(
+                    entry,
                     action,
                     oldValue: oldValue,
                     newValue: stored.Value,
-                    modifiedUtc: entry.ModifiedUtc == default ? DateTimeOffset.UtcNow : entry.ModifiedUtc,
-                    modifiedBy: entry.ModifiedBy),
+                    modifiedUtc: entry.ModifiedUtc == default ? DateTimeOffset.UtcNow : entry.ModifiedUtc),
                 ct).AsTask().GetAwaiter().GetResult();
         }
 
@@ -281,17 +276,14 @@ public sealed class InMemoryConfigStore : IConfigStore
                 _entries.Remove(storeKey);
 
                 _auditAppender.AppendAsync(
-                    BuildAuditRow(
+                    BuildAuditRowForDelete(
                         scope,
                         environment,
                         existing.TenantId,
                         key,
                         existing.IsSecret,
-                        ConfigAuditAction.Delete,
                         oldValue: existing.Value,
-                        newValue: null,
-                        modifiedUtc: DateTimeOffset.UtcNow,
-                        modifiedBy: null),
+                        modifiedUtc: DateTimeOffset.UtcNow),
                     ct).AsTask().GetAwaiter().GetResult();
             }
             else
@@ -449,17 +441,14 @@ public sealed class InMemoryConfigStore : IConfigStore
                 _entries.Remove(storeKey);
 
                 _auditAppender.AppendAsync(
-                    BuildAuditRow(
+                    BuildAuditRowForDelete(
                         scope,
                         environment,
                         tenantId,
                         key,
                         existing.IsSecret,
-                        ConfigAuditAction.Delete,
                         oldValue: existing.Value,
-                        newValue: null,
-                        modifiedUtc: DateTimeOffset.UtcNow,
-                        modifiedBy: null),
+                        modifiedUtc: DateTimeOffset.UtcNow),
                     ct).AsTask().GetAwaiter().GetResult();
             }
         }
@@ -667,17 +656,35 @@ public sealed class InMemoryConfigStore : IConfigStore
         return instance;
     }
 
-    private static ConfigAuditEntryRecord BuildAuditRow(
+    private static ConfigAuditEntryRecord BuildAuditRowForUpsert(
+        ConfigEntryRecord entry,
+        ConfigAuditAction action,
+        string? oldValue,
+        string? newValue,
+        DateTimeOffset modifiedUtc)
+    {
+        return new ConfigAuditEntryRecord(
+            Id: Guid.NewGuid(),
+            Scope: entry.Scope,
+            Environment: entry.Environment,
+            TenantId: entry.TenantId,
+            Key: entry.Key,
+            OldValue: oldValue,
+            NewValue: newValue,
+            IsSecret: entry.IsSecret,
+            Action: action,
+            ModifiedUtc: modifiedUtc,
+            ModifiedBy: entry.ModifiedBy);
+    }
+
+    private static ConfigAuditEntryRecord BuildAuditRowForDelete(
         string scope,
         string environment,
         string tenantId,
         string key,
         bool isSecret,
-        ConfigAuditAction action,
         string? oldValue,
-        string? newValue,
-        DateTimeOffset modifiedUtc,
-        string? modifiedBy)
+        DateTimeOffset modifiedUtc)
     {
         return new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
@@ -686,11 +693,11 @@ public sealed class InMemoryConfigStore : IConfigStore
             TenantId: tenantId,
             Key: key,
             OldValue: oldValue,
-            NewValue: newValue,
+            NewValue: null,
             IsSecret: isSecret,
-            Action: action,
+            Action: ConfigAuditAction.Delete,
             ModifiedUtc: modifiedUtc,
-            ModifiedBy: modifiedBy);
+            ModifiedBy: null);
     }
 
     private ConfigEntryRecord EncryptEntry(ConfigEntryRecord entry)

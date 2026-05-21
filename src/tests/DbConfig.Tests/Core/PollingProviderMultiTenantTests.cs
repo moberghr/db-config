@@ -64,8 +64,8 @@ public sealed class PollingProviderMultiTenantTests
         var (provider, _, tracking) = CreateSut();
         var now = DateTimeOffset.UtcNow;
 
-        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global", false, now, null), TestContext.Current.CancellationToken);
-        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "Key1", "acme", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
+        await tracking.Inner.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Key1", "global", false, now, null), TestContext.Current.CancellationToken);
+        await tracking.Inner.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "Key1", "acme", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
 
         provider.Load();
 
@@ -90,14 +90,14 @@ public sealed class PollingProviderMultiTenantTests
         var (provider, fakeTime, tracking) = CreateSut(TimeSpan.FromSeconds(30));
         var t0 = DateTimeOffset.UtcNow;
 
-        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Global:Key", "global-val", false, t0, null), TestContext.Current.CancellationToken);
+        await tracking.Inner.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "Global:Key", "global-val", false, t0, null), TestContext.Current.CancellationToken);
         provider.Load();
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         provider.GetReloadToken().RegisterChangeCallback(_ => tcs.TrySetResult(true), null);
 
         var t1 = t0.AddSeconds(1);
-        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "Acme:Key", "acme-val", false, t1, null), TestContext.Current.CancellationToken);
+        await tracking.Inner.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "Acme:Key", "acme-val", false, t1, null), TestContext.Current.CancellationToken);
 
         fakeTime.Advance(TimeSpan.FromSeconds(30));
 
@@ -117,8 +117,8 @@ public sealed class PollingProviderMultiTenantTests
         var (provider, _, tracking) = CreateSut();
         var now = DateTimeOffset.UtcNow;
 
-        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "App:Version", "1.0", false, now, null), TestContext.Current.CancellationToken);
-        await tracking.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "App:Version", "2.0", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
+        await tracking.Inner.UpsertAsync(new ConfigEntryRecord(App, Env, string.Empty, "App:Version", "1.0", false, now, null), TestContext.Current.CancellationToken);
+        await tracking.Inner.UpsertAsync(new ConfigEntryRecord(App, Env, "Acme", "App:Version", "2.0", false, now.AddSeconds(1), null), TestContext.Current.CancellationToken);
 
         provider.Load();
 
@@ -169,99 +169,48 @@ public sealed class PollingProviderMultiTenantTests
         value.ShouldBe("true");
     }
 
-    private sealed class TrackingStore : IConfigStore
+    private sealed class TrackingStore : IConfigPollingStore
     {
-        private readonly IConfigStore _inner;
+        /// <summary>The underlying store used to seed entries in tests.</summary>
+        public InMemoryConfigStore Inner { get; }
 
         public int GetAllForAllTenantsCallCount { get; private set; }
 
         public int GetAllScopedForAllTenantsCallCount { get; private set; }
 
-        public TrackingStore(IConfigStore inner) => _inner = inner;
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(string scope, string environment, CancellationToken ct)
-            => _inner.GetAllAsync(scope, environment, ct);
-
-        public Task<ConfigEntryRecord?> GetAsync(string scope, string environment, string key, CancellationToken ct)
-            => _inner.GetAsync(scope, environment, key, ct);
+        public TrackingStore(InMemoryConfigStore inner) => Inner = inner;
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAsync(string scope, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcAsync(scope, environment, ct);
-
-        public Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
-            => _inner.UpsertAsync(entry, ct);
-
-        public Task DeleteAsync(string scope, string environment, string key, CancellationToken ct)
-            => _inner.DeleteAsync(scope, environment, key, ct);
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedAsync(
-            IReadOnlyList<string> scopes, string environment, CancellationToken ct)
-            => _inner.GetAllScopedAsync(scopes, environment, ct);
+            => Inner.GetLatestModifiedUtcAsync(scope, environment, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(
-            string scope, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetAllForTenantAsync(scope, environment, tenantId, ct);
-
-        public Task<ConfigEntryRecord?> GetForTenantAsync(
-            string scope, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.GetForTenantAsync(scope, environment, tenantId, key, ct);
+            => Inner.GetLatestModifiedUtcScopedAsync(scopes, environment, ct);
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcForTenantAsync(
             string scope, string environment, string tenantId, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcForTenantAsync(scope, environment, tenantId, ct);
-
-        public Task DeleteForTenantAsync(
-            string scope, string environment, string tenantId, string key, CancellationToken ct)
-            => _inner.DeleteForTenantAsync(scope, environment, tenantId, key, ct);
+            => Inner.GetLatestModifiedUtcForTenantAsync(scope, environment, tenantId, ct);
 
         public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForAllTenantsAsync(
             string scope, string environment, CancellationToken ct)
         {
             GetAllForAllTenantsCallCount++;
-            return _inner.GetAllForAllTenantsAsync(scope, environment, ct);
+            return Inner.GetAllForAllTenantsAsync(scope, environment, ct);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcAcrossAllTenantsAsync(
             string scope, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcAcrossAllTenantsAsync(scope, environment, ct);
+            => Inner.GetLatestModifiedUtcAcrossAllTenantsAsync(scope, environment, ct);
 
         public Task<IReadOnlyList<ConfigEntryRecord>> GetAllScopedForAllTenantsAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
         {
             GetAllScopedForAllTenantsCallCount++;
-            return _inner.GetAllScopedForAllTenantsAsync(scopes, environment, ct);
+            return Inner.GetAllScopedForAllTenantsAsync(scopes, environment, ct);
         }
 
         public Task<DateTimeOffset?> GetLatestModifiedUtcScopedAcrossAllTenantsAsync(
             IReadOnlyList<string> scopes, string environment, CancellationToken ct)
-            => _inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(scopes, environment, ct);
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> QueryAsync(
-            string? scope, string? environment, string? tenantId, string? keyPrefix, int take, CancellationToken ct)
-            => _inner.QueryAsync(scope, environment, tenantId, keyPrefix, take, ct);
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllAsync(CancellationToken ct)
-            => _inner.GetAllAsync(ct);
-
-        public Task<ConfigEntryRecord?> GetAsync(string key, CancellationToken ct)
-            => _inner.GetAsync(key, ct);
-
-        public Task<T> GetAsync<T>(CancellationToken ct)
-            where T : class, new()
-            => _inner.GetAsync<T>(ct);
-
-        public Task<IReadOnlyList<ConfigEntryRecord>> GetAllForTenantAsync(string tenantId, CancellationToken ct)
-            => _inner.GetAllForTenantAsync(tenantId, ct);
-
-        public Task<ConfigEntryRecord?> GetForTenantAsync(string tenantId, string key, CancellationToken ct)
-            => _inner.GetForTenantAsync(tenantId, key, ct);
-
-        public Task<T> GetForTenantAsync<T>(string tenantId, CancellationToken ct)
-            where T : class, new()
-            => _inner.GetForTenantAsync<T>(tenantId, ct);
+            => Inner.GetLatestModifiedUtcScopedAcrossAllTenantsAsync(scopes, environment, ct);
     }
 }

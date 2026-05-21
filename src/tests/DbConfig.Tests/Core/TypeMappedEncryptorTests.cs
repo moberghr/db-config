@@ -45,7 +45,7 @@ public sealed class TypeMappedEncryptorTests
             new ConfigEntryRecord(App, Env, string.Empty, "Secret:Key", "ENC:plaintext-secret", true, DateTimeOffset.UtcNow, null),
         ];
 
-        var store = new RawValueStore(App, Env, entries);
+        var store = new RawValueStore(entries);
         var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
@@ -71,7 +71,7 @@ public sealed class TypeMappedEncryptorTests
             new ConfigEntryRecord(App, Env, string.Empty, "Secret:Key", "ENC:plaintext-secret", true, DateTimeOffset.UtcNow, null),
         ];
 
-        var store = new RawValueStore(App, Env, entries);
+        var store = new RawValueStore(entries);
         var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
@@ -103,7 +103,7 @@ public sealed class TypeMappedEncryptorTests
             new ConfigEntryRecord(App, Env, string.Empty, "NonSecret:Key", "visible", false, DateTimeOffset.UtcNow, null),
         ];
 
-        var store = new RawValueStore(App, Env, entries);
+        var store = new RawValueStore(entries);
         var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
@@ -259,7 +259,7 @@ public sealed class TypeMappedEncryptorTests
 
         // Polling-side store carries raw ciphertext — mirrors the post-fix AddDbConfig
         // wiring where the polling EfCoreConfigStore is given encryptor: null.
-        var store = new RawValueStore(App, Env, entries);
+        var store = new RawValueStore(entries);
         var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
@@ -292,7 +292,7 @@ public sealed class TypeMappedEncryptorTests
             new ConfigEntryRecord(App, Env, string.Empty, "Key", "value", false, DateTimeOffset.UtcNow, null),
         ];
 
-        var store = new RawValueStore(App, Env, entries);
+        var store = new RawValueStore(entries);
         var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
@@ -322,7 +322,7 @@ public sealed class TypeMappedEncryptorTests
             new ConfigEntryRecord(App, Env, string.Empty, "Key", "value", false, DateTimeOffset.UtcNow, null),
         ];
 
-        var store = new RawValueStore(App, Env, entries);
+        var store = new RawValueStore(entries);
         var options = new DbConfigOptions { Scope = App, Environment = Env };
         var provider = new DbConfigConfigurationProvider(
             options,
@@ -385,12 +385,8 @@ public sealed class TypeMappedEncryptorTests
     {
         private readonly IReadOnlyList<ConfigEntryRecord> _entries;
 
-        public RawValueStore(string scope, string environment, IReadOnlyList<ConfigEntryRecord> entries)
+        public RawValueStore(IReadOnlyList<ConfigEntryRecord> entries)
         {
-            // Scope and environment are unused — the test seeds entries with matching values
-            // and the polling provider passes the same scope/env through to the store on read.
-            _ = scope;
-            _ = environment;
             _entries = entries;
         }
 

@@ -24,6 +24,18 @@ namespace DbConfig.Core;
 ///     disabled for a given store instance.
 ///   </item>
 /// </list>
+/// <para>
+/// <strong>Lock-held synchronous contract (in-memory store only):</strong>
+/// <see cref="InMemoryConfigStore"/> invokes <see cref="AppendAsync"/> from inside a
+/// <c>lock</c> covering its entry dictionary, bridging the returned <c>ValueTask</c>
+/// synchronously. Implementations consumed by the in-memory store therefore MUST complete
+/// synchronously — no real I/O, no await on a never-completing task — or the calling thread
+/// will block the entire store and any concurrent reader. The shipped
+/// <see cref="NoOpConfigAuditAppender"/> and <see cref="InMemoryConfigAuditAppender"/> are
+/// both fully synchronous. The EF-backed appender does perform a real async operation
+/// (<c>DbSet.AddAsync</c>) but is never invoked under the in-memory lock — it runs inside
+/// <c>EfCoreConfigStore</c>, which holds no in-process lock across the call.
+/// </para>
 /// </remarks>
 public interface IConfigAuditAppender
 {
