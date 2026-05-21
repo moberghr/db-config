@@ -4,6 +4,98 @@ sidebar_position: 99
 
 # Releases
 
+## v0.14.0 (2026-05-21)
+
+Minor release. SOLID refactor pass on the store and provider stack: a new audit-writer
+seam, an interface-segregated `IConfigStore`, and the first decomposition slice of the
+configuration provider. No new features — every observable behavior is unchanged. The
+goal was testability, extensibility, and a cleaner separation of concerns ahead of
+v1.0.
+
+### 1. `IConfigAuditAppender` — audit writes go through a seam
+
+Both stores (`EfCoreConfigStore` and `InMemoryConfigStore`) used to construct
+`ConfigAuditEntryRecord` rows inline at every mutation site (four blocks in EF, three
+in-memory). The shape mixed three concerns into one method body: persistence, audit-row
+mapping, and the "is auditing enabled?" branch — and the two stores diverged on the
+last point, so swapping them in tests silently changed audit behavior.
+
+- New public `IConfigAuditAppender` (in `DbConfig.Core`) is the contract. One method:
+  `ValueTask AppendAsync(ConfigAuditEntryRecord row, CancellationToken ct)`.
+- New `NoOpConfigAuditAppender` (singleton, used when auditing is disabled) and
+  `InMemoryConfigAuditAppender` (wraps `InMemoryConfigAuditStore`).
+- Internal `EfCoreAuditAppender` (in `DbConfig.EntityFrameworkCore`) is constructed
+  per-upsert by the store with the active `DbContext` and adds rows to
+  `AuditEntries` — the §0.7 in-transaction guarantee is preserved by construction:
+  the same `DbContext` commits both the mutation and the audit row in one
+  `SaveChangesAsync`.
+- Tests can now assert on emitted audit content with a spy appender — no DB needed.
+
+### 2. `IConfigStore` split along ISP lines
+
+The interface had grown to 17 methods, 6 of which threw `NotSupportedException` by
+default (the textbook LSP violation: subtypes can't rely on the contract). Consumers
+that only needed a slice (HTTP read endpoint, polling provider, admin query, typed
+binding) were forced to depend on the union of everything.
+
+Split into focused contracts (all under `DbConfig.Core`):
+
+| Interface | Methods | Used by |
+|---|---|---|
+| `IConfigReader` | 5 explicit-arg reads | HTTP read endpoints |
+| `IConfigSnapshotReader` | 2 multi-tenant bulk reads | polling provider |
+| `IConfigWatermark` | 5 watermark queries | polling loop |
+| `IConfigWriter` | `Upsert`, `Delete`, `DeleteForTenant` | HTTP write endpoints |
+| `IConfigQuery` | flat scan with optional filters | admin UI |
+| `IAmbientConfigReader` | 6 implicit-options overloads | `ITenantConfigReader`, typed binds |
+| `IConfigPollingStore` | composite (`IConfigSnapshotReader` + `IConfigWatermark`) | polling provider, narrow custom stores |
+
+`IConfigStore` remains as the composite of all of these. The built-in
+`EfCoreConfigStore` and `InMemoryConfigStore` still implement the full surface; custom
+stores backing alternative storage (Redis cache, flat file, log sink) can now implement
+only the contracts they support. `DbConfigConfigurationProvider` now depends on
+`IConfigPollingStore` — strictly less coupling than before.
+
+### 3. `SecretDecryptionView` extraction
+
+First slice of the larger `DbConfigConfigurationProvider` decomposition. The provider
+used to own seven concerns; this release pulls one out.
+
+- New internal `SecretDecryptionView` (in `DbConfig.Core`) owns the per-tenant secret
+  flag dictionary, the encryptor reference, the "set encryptor twice" guard, and the
+  pre-build secret-read throw.
+- Provider delegates: `SetEncryptor(...)` and `TryGet`'s decrypt call route through
+  the view; `LoadAsync` calls `UpdateSecretFlags` after rebuilding the snapshot.
+- Public surface unchanged: `provider.SetEncryptor(...)` is still what
+  `DbConfigEncryptorActivator` calls; the throw message is byte-identical.
+- Adds 12 unit tests against the view directly — no fixture, no provider, no timer.
+
+Future slices tracked: `TenantDataView` (the per-tenant data dictionary),
+`PollingScheduler` (timer + tick handler + watermark), and removal of the
+`HostServiceProvider` service-locator setter.
+
+### Breaking changes
+
+- **Custom `IConfigStore` implementations must explicitly implement the 6 ambient
+  reads** (`GetAllAsync(ct)`, `GetAsync(key, ct)`, `GetAsync<T>(ct)`,
+  `GetAllForTenantAsync(tenantId, ct)`, `GetForTenantAsync(tenantId, key, ct)`,
+  `GetForTenantAsync<T>(tenantId, ct)`). Before v0.14.0 these had default-throwing
+  bodies; after, they are abstract on `IAmbientConfigReader`. Stores that do not
+  support ambient reads should drop the `IConfigStore` declaration and implement only
+  the narrower contracts (e.g. `IConfigReader + IConfigWriter + IConfigQuery`), or
+  keep `IConfigStore` and explicitly throw from the six methods.
+- **`InMemoryConfigStore`'s `_auditStore` field is gone** — replaced by an
+  `IConfigAuditAppender` derived from the same constructor arguments. The public
+  constructor signature is unchanged; the observable behavior is also unchanged
+  (no audit rows when `auditStore=null` or `enableAuditLog=false`).
+- No DB schema changes, no public HTTP API changes, no UI changes.
+
+### Tests
+
+474/474 green (up from 462; 12 new tests cover `SecretDecryptionView` in isolation).
+The Testcontainers-backed SQL Server and PostgreSQL suites still pass without change —
+behavior is byte-identical.
+
 ## v0.13.0 (2026-05-21)
 
 Minor release. Three independent shifts bundled because they all touched the schema
