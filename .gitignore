@@ -40,3 +40,14 @@ website/.docusaurus/
 ## Playwright
 ui/playwright-report/
 ui/test-results/
+
+## MTK (AI-assisted development)
+tasks/todo.md
+.claude.local.md
+.claude/settings.local.json
+.claude/.mtk-cache/
+.claude/references.index
+
+# MTK eval artifacts (not part of setup)
+run-report.md
+review.md

@@ -1,8 +1,19 @@
-# Security & Data Integrity
+# Security (§1)
 
-- **§1.1** No secrets, connection strings, or credentials in source code. Use `appsettings.Development.json` (gitignored) or environment variables for local dev. The `Warp.TestApp` / `Warp.TestWorker` demo projects ship `appsettings.json` with non-secret defaults only.
-- **§1.2** No PII or sensitive data in log output. Job payloads (`Job.Message`) may contain user data — never log payload contents at Info level or above. Keys for `[Mutex]`, `[Semaphore]`, `[RateLimit]` appear in `JobLog.Message` and the dashboard — keep tenant identifiers tokenised/hashed, not raw PII.
-- **§1.3** All multi-step database mutations use explicit transactions (`BeginTransactionAsync`). Single-`SaveChanges` mutations rely on EF Core's implicit transaction. See `JobCommandService.DeleteJob` for the canonical pattern.
-- **§1.4** Row-level locking via `TagWith(InterceptorConstants.RowLockTableJob)` for any fetch-then-update pattern. EF Core interceptors translate the tag to `FOR UPDATE` (Postgres) / `WITH (UPDLOCK, ROWLOCK)` (SQL Server). Never skip the lock tag on competitive fetches — workers, orchestrator, and `MessageRouter` all race on the same table.
-- **§1.5** Dashboard authorization defaults to **open access**. Production deployments configure either built-in cookie login (`UseBuiltInLogin<TValidator>()` with an `IWarpCredentialValidator`) or a custom `IWarpAuthorizationFilter` + `UnauthorizedRedirectUrl`. Cookies are HTTP-only and ASP.NET-DataProtection-signed (7-day expiry).
-- **§1.6** Provider packages (`Warp.Provider.PostgreSql`, `Warp.Provider.SqlServer`) are the *only* places allowed to use provider-native SQL APIs (`NpgsqlConnection.WaitAsync`, `SqlConnection` Service Broker, `FromSqlRaw` for row-locks). `Warp.Core` must stay provider-agnostic.
+> Cite rules as §1.N in reviews. Pairs with `.claude/references/security-checklist.md`.
+
+## Secrets & Encryption
+
+- **§1.1** `[ENFORCED]` Secret values (`IsSecret=true`) MUST be protected by a real `IConfigEncryptor`. The EF/provider default is `DataProtectionConfigEncryptor` (ASP.NET Data Protection). The in-memory default `PassthroughConfigEncryptor` is a no-op and stores plaintext — only acceptable in tests. Evidence: `DataProtectionConfigEncryptor.cs`, `PassthroughConfigEncryptor.cs`.
+- **§1.2** `[CONVENTION]` Host-supplied encryptors win via `TryAddSingleton<IConfigEncryptor>` — register before `AddDbConfig`. Do not assume the default is secure.
+- **§1.3** `[CONVENTION]` Reads can be audited (`DbConfigOptions.AuditReads`); secret values surface through `SecretDecryptionView` rather than raw decryption everywhere. Don't bypass it.
+
+## UI / Admin API authorization
+
+- **§1.4** `[AMBIGUOUS]` The admin UI is NOT secure-by-default: the two-arg `MapDbConfigUi` overload is intentionally fully open. WHEN wiring the UI for any non-local deployment, supply an authorization filter (`LocalRequestsOnlyAuthorizationFilter`, `CookieAuthorizationFilter`, or `.RequireAuthorization`). Evidence: `OpenAccessByDefaultTests.cs`, `EndpointRouteBuilderExtensions.cs:79-103`.
+- **§1.5** `[CONVENTION]` Built-in login requires a host-registered `IDbConfigCredentialValidator`; it throws if missing. Never ship a stub validator that returns success.
+
+## General
+
+- **§1.6** NEVER log raw secret values or credentials. Audit rows record metadata (action, key, who) — not decrypted secret payloads.
+- **§1.7** NEVER hardcode connection strings or secrets in source. They flow through provider options / host configuration.
