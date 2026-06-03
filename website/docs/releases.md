@@ -4,6 +4,31 @@ sidebar_position: 99
 
 # Releases
 
+## v0.14.1 (2026-06-03)
+
+Patch release. Fixes a silent packaging regression in `Moberg.DbConfig.Ui` — no API or
+behavior changes.
+
+### Embedded UI bundle missing from the published package
+
+`Moberg.DbConfig.Ui` 0.14.0 (and every prior release) shipped **without** the embedded
+React bundle. `<EmbeddedResource Include="dist/**/*" />` was a static `<ItemGroup>`, so
+MSBuild expanded the glob at project-load time — before the `BuildUI` target ran
+`npm run build` to produce `dist/`. On a clean CI checkout the glob matched zero files
+and the `.nupkg` shipped with no UI. At runtime every UI route
+(`/admin/dbconfig`, `/admin/dbconfig/`, `/admin/dbconfig/index.html`) returned
+**200 with an empty body** — `EmbeddedStaticFileMiddleware.BuildIndexHtml` fell into its
+`if (!fileInfo.Exists) return string.Empty;` branch. The HTTP API surface was unaffected.
+
+- The `dist/**/*` glob now lives in a target (`IncludeBuiltUiAsEmbeddedResources`) that
+  runs **after** `BuildUI`, so it embeds exactly what the React build produced. Gated on
+  `dist/` existing so Visual Studio builds (which skip `BuildUI`) still embed a
+  previously-built bundle when one is on disk.
+- `release.yml` gains a "Verify embedded UI bundle" step that fails the release if
+  `DbConfig.Ui.dist.index.html` is absent from the packed DLL — this regression class is
+  silent (200 + empty body), so it now hard-fails at release time rather than at the
+  first consumer to deploy.
+
 ## v0.14.0 (2026-05-21)
 
 Minor release. SOLID refactor pass on the store and provider stack: a new audit-writer
