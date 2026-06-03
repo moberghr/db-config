@@ -62,6 +62,24 @@ jobs:
       working-directory: src/core/DbConfig.Ui
       run: dotnet pack -c Release -p:PackageVersion=${{ env.PACKAGE_VERSION }} -o ${{ github.workspace }}/nupkgs
 
+    # Regression guard: silently shipping a Moberg.DbConfig.Ui nupkg without the embedded
+    # React bundle produces a 200-with-empty-body response at runtime (see
+    # EmbeddedStaticFileMiddleware.BuildIndexHtml). Fail the release if the dist/index.html
+    # resource isn't present in the packed DLL.
+    - name: Verify embedded UI bundle
+      working-directory: ${{ github.workspace }}/nupkgs
+      run: |
+        set -euo pipefail
+        NUPKG="$(ls Moberg.DbConfig.Ui.*.nupkg | head -n1)"
+        echo "Inspecting $NUPKG"
+        TMP="$(mktemp -d)"
+        unzip -p "$NUPKG" lib/net8.0/DbConfig.Ui.dll > "$TMP/DbConfig.Ui.dll"
+        if ! grep -aq "DbConfig.Ui.dist.index.html" "$TMP/DbConfig.Ui.dll"; then
+          echo "::error::Embedded resource 'DbConfig.Ui.dist.index.html' missing from $NUPKG. The UI bundle was not embedded during pack — check that the BuildUI MSBuild target ran and that dist/ items were included after BuildUI completed."
+          exit 1
+        fi
+        echo "✓ UI bundle embedded ($(stat -c%s "$NUPKG") bytes)"
+
     # Providers depend on EntityFrameworkCore (transitively Core) — pack after the
     # transitive package is available on the local feed.
     - name: Pack Moberg.DbConfig.Provider.SqlServer
