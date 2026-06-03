@@ -9,13 +9,6 @@
     <Description>Embedded React + Tailwind admin UI for DbConfig. Mounts via MapDbConfigUi at any route prefix. Talks exclusively to MapDbConfigHttp endpoints — no direct DB access. Tenant-aware, dark mode, hierarchical tree view, demo mode.</Description>
   </PropertyGroup>
 
-  <!-- The built React bundle (ui/dist) is copied into this project's dist/ folder by the
-       BuildUI target below and embedded as resources. Until the UI is built, the glob
-       below matches nothing and the package still compiles. -->
-  <ItemGroup>
-    <EmbeddedResource Include="dist/**/*" />
-  </ItemGroup>
-
   <!-- Rebuild React UI before embedding. Vite writes directly into this project's dist/
        folder (configured in ui/vite.config.ts → outDir). Auto-bootstraps node_modules so
        a fresh checkout + dotnet build does not require a separate npm install step. -->
@@ -29,6 +22,21 @@
           BeforeTargets="BeforeBuild"
           Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)../../../ui/package.json')">
     <Exec Command="npm run build" WorkingDirectory="$(ProjectDir)../../../ui" />
+  </Target>
+
+  <!-- Embed dist/**/* dynamically AFTER BuildUI has populated it. Declaring the items
+       as a static ItemGroup at project-load time evaluates the glob BEFORE BuildUI runs,
+       so on a fresh checkout the .nupkg ships without the UI bundle. Adding the items
+       inside a target keeps the glob expansion deferred until after the React build,
+       and is gated on dist/ existing so VS builds (where BuildUI is skipped) still
+       embed a previously-built bundle when one is present. -->
+  <Target Name="IncludeBuiltUiAsEmbeddedResources"
+          AfterTargets="BuildUI"
+          BeforeTargets="BeforeBuild"
+          Condition="Exists('dist')">
+    <ItemGroup>
+      <EmbeddedResource Include="dist/**/*" />
+    </ItemGroup>
   </Target>
 
   <ItemGroup>
