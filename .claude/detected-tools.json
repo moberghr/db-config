@@ -1,0 +1,9 @@
+{
+  "stack": "dotnet",
+  "framework": ["aspnetcore"],
+  "data_layer": ["efcore"],
+  "test_framework": ["xunit"],
+  "package_manager": "nuget",
+  "deployment": ["self-hosted"],
+  "additional": ["testcontainers", "respawn", "shouldly", "moq", "efcore-postgresql", "efcore-sqlserver", "efcore-naming-conventions", "data-protection", "minimal-api", "stylecop", "roslynator", "sonaranalyzer", "meziantou-analyzer", "time-provider"]
+}

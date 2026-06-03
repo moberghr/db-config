@@ -1,13 +1,11 @@
-# Data Layer
+# Data Layer (§5)
 
-- **§5.1** No raw SQL in `Warp.Core`. All queries use EF Core LINQ. **Exception:** provider-native APIs are allowed inside the provider packages (`src/core/providers/Warp.Provider.PostgreSql/` — LISTEN/NOTIFY via `NpgsqlConnection`, row-lock SQL via `FromSqlRaw`; `src/core/providers/Warp.Provider.SqlServer/` — Service Broker via `SqlConnection`, row-lock SQL). `Warp.Core` must not reference `Npgsql` or `Microsoft.Data.SqlClient`.
-- **§5.2** No `_context.Set<>()` subqueries inside `.Select()` projections. Use **navigation properties** or **two-step fetch** (query IDs first, then load related data). EF Core generates broken SQL for subqueries inside projections.
-- **§5.3** `AsNoTracking()` on read-only queries. `.Select()` projections over `.Include()` for reads — only load full entities when updating.
-- **§5.4** EF Core entity configurations applied via `WarpModelCustomizer` (auto-registered by `AddWarp`). Configurations do **not** call `.ToTable()` — schema is set via `entity.Metadata.SetSchema()` so EF Core naming conventions (e.g., `UseSnakeCaseNamingConvention()`) can transform table/column names freely without re-pinning.
-- **§5.5** DbContext lifetime is `Scoped`. Never register as `Transient` — the outbox pattern requires the publisher and application code to share the same DbContext instance within a scope.
-- **§5.6** Default schema is `"warp"`. Configurable via `WarpConfiguration.Schema`. Set to `null` for the database's default schema.
-- **§5.7** `TimeProvider` for all timestamps in production code. Never `DateTime.UtcNow` outside of test code. Registered as `TryAddSingleton(TimeProvider.System)` in `AddWarp` so test fakes can override it.
-- **§5.8** One `SaveChanges` per handler / operation. Services should not call `SaveChanges` — the caller saves. **Deliberate exceptions:** `RateLimitStore` and `CircuitBreakerStore` commit inside the pipeline scope because the addon must persist live state before yielding to the handler (capture-save-fire pattern, with clear-tracker-on-conflict). `AddOrUpdateRecurringJob` also saves inside its own lock — race-protection trumps §5.7 there.
-- **§5.9** Add entities to the context just before `SaveChanges`, not at the top of the method.
-- **§5.10** Use async EF Core methods (`ToListAsync`, `FirstOrDefaultAsync`, `SaveChangesAsync`). Pass `CancellationToken` through.
-- **§5.11** Row-level locking via `TagWith(InterceptorConstants.RowLockTableJob)` (§1.4). EF Core interceptors translate the tag to `FOR UPDATE` (Postgres) / `WITH (UPDLOCK, ROWLOCK)` (SQL Server).
+> Cite rules as §5.N. EF Core 8. See `.claude/references/dotnet/ef-core-checklist.md`.
+
+- **§5.1** `[ENFORCED]` `DbConfigDbContext.OnModelCreating` MUST NOT contain table/column name literals (`ToTable`/`HasColumnName`). Identifiers come from EF defaults; per-provider casing is applied by the provider pipeline (PostgreSQL `UseSnakeCaseNamingConvention` via EFCore.NamingConventions; SQL Server keeps PascalCase). Literals defeat the rewriter and produce queries targeting the wrong identifiers on PostgreSQL. Evidence: `DbConfigDbContext.cs`.
+- **§5.2** `[CONVENTION]` Read queries use `AsNoTracking()` — all existing reads do (`EfCoreConfigStore.cs`, `EfCoreConfigAuditStore.cs`). Add it to new reads.
+- **§5.3** `[CONVENTION]` Async EF methods (`ToListAsync`/`FirstOrDefaultAsync`) with a propagated `CancellationToken`. Keep filtering in the database.
+- **§5.4** `[CONVENTION]` No raw/interpolated SQL in production paths (`FromSqlRaw`/`ExecuteSqlRaw` → 0 hits in src). Schema bootstrap ships as static per-provider SQL files (`src/core/providers/DbConfig.Provider.PostgreSql/Sql/InitialCreate.sql`, `src/core/providers/DbConfig.Provider.SqlServer/Sql/InitialCreate.sql`); if you must run raw SQL, keep it parameterized and out of hot read paths.
+- **§5.5** `[CONVENTION]` Entity identity is the composite `(Scope, Environment, TenantId, Key)` unique index; `ModifiedUtc` round-trips via `UtcDateTimeOffsetConverter`. Preserve these when adding columns.
+- **§5.6** `[CONVENTION]` Multi-tenancy is a first-class `TenantId` column; tenant reads support optional fallback to non-tenant values. Don't add tenant filtering ad-hoc — use `ITenantConfigReader`/`ITenantResolver`.
+- **§5.7** `[CONVENTION]` Package versions are declared inline per `.csproj` (no central `Directory.Packages.props`). Keep EF/provider versions aligned at the `8.0.x` line.
