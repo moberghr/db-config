@@ -10,7 +10,11 @@ public sealed class InMemoryConfigStore : IConfigStore
 {
     // Key: (Scope, Environment, TenantId, Key) — stored case-insensitively on Key; TenantId is case-sensitive.
     private readonly Dictionary<(string Scope, string Environment, string TenantId, string Key), ConfigEntryRecord> _entries = [];
+#if NET9_0_OR_GREATER
+    private readonly System.Threading.Lock _lock = new();
+#else
     private readonly object _lock = new();
+#endif
     private readonly IConfigEncryptor _encryptor;
     private readonly IConfigAuditAppender _auditAppender;
     private readonly DbConfigOptions? _options;

@@ -1,17 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>Moberg.DbConfig.EntityFrameworkCore</PackageId>
     <Title>Moberg.DbConfig (EF Core) — TRANSITIVE</Title>
-    <Description>[TRANSITIVE — do not install directly] EF Core 8 plumbing for DbConfig: DbContext, EfCoreConfigStore, default DataProtection-backed encryptor, audit store, AddDbConfig single-call DI. Pulled in by provider packages (SqlServer / PostgreSql).</Description>
+    <Description>[TRANSITIVE — do not install directly] EF Core plumbing for DbConfig (EF Core 8 on net8.0, EF Core 10 on net10.0): DbContext, EfCoreConfigStore, default DataProtection-backed encryptor, audit store, AddDbConfig single-call DI. Pulled in by provider packages (SqlServer / PostgreSql).</Description>
     <PackageTags>internal;transitive;dbconfig;efcore</PackageTags>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
   </ItemGroup>
 
   <ItemGroup>

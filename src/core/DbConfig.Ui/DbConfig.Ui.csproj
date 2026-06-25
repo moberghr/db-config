@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>Moberg.DbConfig.Ui</PackageId>
@@ -18,20 +18,28 @@
     <Exec Command="npm install" WorkingDirectory="$(ProjectDir)../../../ui" />
   </Target>
 
+  <!-- Hook the React build to DispatchToInnerBuilds (the outer, TFM-agnostic build) so
+       npm runs EXACTLY ONCE for the multi-targeted project. Hooking BeforeBuild instead
+       would fire in every inner-TFM build, and MSBuild runs those in parallel — two
+       concurrent `npm run build` into the same ui/dist would race and corrupt the bundle.
+       NOTE: DispatchToInnerBuilds only runs for a normal (whole-project) build — a direct
+       single-TFM build (`dotnet build -f net10.0` / `-p:TargetFramework=...`) skips it and
+       embeds whatever dist/ already exists. Solution builds and `dotnet pack` go through the
+       outer build, so the release pipeline is unaffected. -->
   <Target Name="BuildUI"
-          BeforeTargets="BeforeBuild"
+          BeforeTargets="DispatchToInnerBuilds"
           Condition="'$(BuildingInsideVisualStudio)' != 'true' And Exists('$(ProjectDir)../../../ui/package.json')">
     <Exec Command="npm run build" WorkingDirectory="$(ProjectDir)../../../ui" />
   </Target>
 
-  <!-- Embed dist/**/* dynamically AFTER BuildUI has populated it. Declaring the items
+  <!-- Embed dist/**/* dynamically once BuildUI has populated it. Declaring the items
        as a static ItemGroup at project-load time evaluates the glob BEFORE BuildUI runs,
        so on a fresh checkout the .nupkg ships without the UI bundle. Adding the items
-       inside a target keeps the glob expansion deferred until after the React build,
+       inside a target keeps the glob expansion deferred until after the React build.
+       This runs per inner-TFM build (BuildUI populated dist/ once in the outer build),
        and is gated on dist/ existing so VS builds (where BuildUI is skipped) still
        embed a previously-built bundle when one is present. -->
   <Target Name="IncludeBuiltUiAsEmbeddedResources"
-          AfterTargets="BuildUI"
           BeforeTargets="BeforeBuild"
           Condition="Exists('dist')">
     <ItemGroup>

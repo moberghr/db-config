@@ -7,7 +7,11 @@ namespace DbConfig.Core;
 public sealed class InMemoryConfigAuditStore : IConfigAuditStore
 {
     private readonly List<ConfigAuditEntryRecord> _entries = [];
+#if NET9_0_OR_GREATER
+    private readonly System.Threading.Lock _lock = new();
+#else
     private readonly object _lock = new();
+#endif
 
     /// <summary>
     /// All audit entries that have been written, in insertion order.
