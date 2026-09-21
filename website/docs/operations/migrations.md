@@ -152,7 +152,19 @@ public static class SqlServerDbConfigMigrator      // also: PostgreSqlDbConfigMi
     Task   MigrateAsync(string connectionString, string? schema = "configuration", CancellationToken ct = default);
     string GetCreateScript(string? schema = "configuration");
 }
+
+public static class PostgreSqlDbConfigMigrator     // PostgreSQL only
+{
+    Task   MigrateAsync(NpgsqlDataSource dataSource, string? schema = "configuration", CancellationToken ct = default);
+}
 ```
+
+The `NpgsqlDataSource` overload opens its connection from a data source the host built, so a
+migration run from a deploy step or an init container presents the same credentials the
+application does — an Entra ID token from `UsePasswordProvider`, for instance, where there is
+no static password to put in a connection string. Pair it with
+`b.UsePostgreSql(NpgsqlDataSource)` in the host (see
+[Single-call DI](../configuration/single-call-di.md#bringing-your-own-npgsqldatasource)).
 
 - **`MigrateAsync`** — opens a `DbConnection`, substitutes `{schema}`, and executes the
   embedded script. Idempotent.

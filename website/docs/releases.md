@@ -4,6 +4,33 @@ sidebar_position: 99
 
 # Releases
 
+## v0.16.0 (2026-09-21)
+
+Minor release. PostgreSQL hosts can hand DbConfig a data source instead of a connection string.
+
+### `UsePostgreSql(NpgsqlDataSource)` and `PostgreSqlDbConfigMigrator.MigrateAsync(NpgsqlDataSource, …)`
+
+`UsePostgreSql(string)` opened every connection — polling provider, HTTP store, startup
+migrator — from the raw connection string. A database that authenticates with a short-lived
+token rather than a password (Azure Database for PostgreSQL with Entra ID, where the
+connection string carries no password and Npgsql fetches a token per connection through
+`UsePasswordProvider`) therefore could not be reached at all: the first load failed with
+SqlState 28000 before the host was built.
+
+- New `b.UsePostgreSql(NpgsqlDataSource)` overload. The polling provider, the HTTP-side
+  `DbContextFactory` and the `SchemaMode.CreateIfMissing` migrator all open their connections
+  from the data source, so its password provider, TLS settings, type mappings and logging apply
+  to every one of them. DbConfig does not dispose it; the caller owns its lifetime.
+- New `PostgreSqlDbConfigMigrator.MigrateAsync(NpgsqlDataSource, schema, ct)` overload for
+  hosts on `SchemaMode.None` that apply the schema from a deploy step over the same data source.
+- The connection-string overload is unchanged. Both overloads now reject a null or empty
+  argument up front rather than at first connection.
+- SQL Server has no equivalent: `Microsoft.Data.SqlClient` has no `DbDataSource` yet, and its
+  Entra authentication is expressed in the connection string (`Authentication=Active Directory
+  Default`), which the existing overload already carries.
+
+See [Single-call DI](./configuration/single-call-di.md#bringing-your-own-npgsqldatasource).
+
 ## v0.14.1 (2026-06-03)
 
 Patch release. Fixes a silent packaging regression in `Moberg.DbConfig.Ui` — no API or

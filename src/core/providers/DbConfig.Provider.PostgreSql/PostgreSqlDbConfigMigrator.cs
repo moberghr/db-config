@@ -43,13 +43,38 @@ public static class PostgreSqlDbConfigMigrator
     {
         ArgumentException.ThrowIfNullOrEmpty(connectionString);
 
-        var sql = GetCreateScript(schema);
-
         await using var conn = new NpgsqlConnection(connectionString);
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
+        await ApplyAsync(conn, schema, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Applies the DbConfig schema over a connection taken from <paramref name="dataSource"/>.
+    /// Idempotent — safe to call repeatedly. Use this overload when the database is reached through
+    /// a data source the host built itself (an Entra ID password provider, custom TLS or type
+    /// mappings), so the migration presents the same credentials the application does.
+    /// </summary>
+    /// <param name="dataSource">The data source to open the connection from. Not disposed.</param>
+    /// <param name="schema">Database schema for DbConfig tables. Defaults to
+    /// <c>"configuration"</c>; pass <see langword="null"/> to use the database default (<c>public</c>).</param>
+    /// <param name="ct">Cancellation token.</param>
+    public static async Task MigrateAsync(
+        NpgsqlDataSource dataSource,
+        string? schema = DefaultSchema,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(dataSource);
+
+        await using var conn = await dataSource.OpenConnectionAsync(ct).ConfigureAwait(false);
+
+        await ApplyAsync(conn, schema, ct).ConfigureAwait(false);
+    }
+
+    private static async Task ApplyAsync(NpgsqlConnection conn, string? schema, CancellationToken ct)
+    {
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
+        cmd.CommandText = GetCreateScript(schema);
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 

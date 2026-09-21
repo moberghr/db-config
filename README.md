@@ -87,6 +87,7 @@ builder.AddDbConfig(b =>
     b.Options.Environment = builder.Environment.EnvironmentName;
     b.Options.ReloadInterval = TimeSpan.FromSeconds(30);
     b.UseSqlServer(connectionString); // or b.UsePostgreSql(connectionString)
+                                      // or b.UsePostgreSql(npgsqlDataSource) — token auth, custom TLS
 });
 
 // 2. Map the admin surface (UI + API under one prefix, one cookie)
