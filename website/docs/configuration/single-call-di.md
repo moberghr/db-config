@@ -25,6 +25,38 @@ builder.AddDbConfig(b =>
 Both `WebApplicationBuilder` and `HostApplicationBuilder` implement this interface in
 .NET 8+, so the same call works in ASP.NET Core web apps and background worker services.
 
+## Bringing your own `NpgsqlDataSource`
+
+`UsePostgreSql` also accepts an `NpgsqlDataSource`. Every connection DbConfig opens — the
+polling provider's, the HTTP layer's and the startup migrator's — then comes from that data
+source, so whatever it was built with applies to all of them.
+
+```csharp
+var dataSource = new NpgsqlDataSourceBuilder(connectionString)
+    .UsePasswordProvider(
+        passwordProvider: _ => credential.GetToken(scope, default).Token,
+        passwordProviderAsync: async (_, ct) => (await credential.GetTokenAsync(scope, ct)).Token)
+    .Build();
+
+builder.AddDbConfig(b =>
+{
+    b.Options.Scope = "MyApp";
+    b.Options.Environment = builder.Environment.EnvironmentName;
+    b.UsePostgreSql(dataSource);
+});
+```
+
+This is the overload for databases that do not take a static password. Azure Database for
+PostgreSQL with Entra ID authentication is the common case: the connection string carries no
+password and each connection presents a short-lived token, which a connection string cannot
+express. Aspire's `AddAzureNpgsqlDataSource` builds exactly such a data source; note that it
+registers it in DI, and DbConfig needs the instance **before** `Build()` because the first load
+runs synchronously inside `AddDbConfig` — so a host on Aspire either builds a second data source
+the same way or resolves one from a small bootstrap host.
+
+DbConfig never disposes the data source; the caller owns its lifetime, and it has to outlive the
+host.
+
 ## What `AddDbConfig` registers
 
 Internally, `AddDbConfig` runs the user's lambda and then does two things:
