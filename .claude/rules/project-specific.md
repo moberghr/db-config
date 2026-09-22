@@ -1,9 +1,21 @@
+---
+paths:
+  - "src/**"
+  - "samples/**"
+  - "ui/**"
+axes:
+  decision: structure
+  topic: project
+  scope: project
+---
+
 # Project-Specific Patterns
 
 ## §8.1 — `Scope` + `Environment` Scoping
 
 Every `ConfigEntry` is uniquely identified by the composite key `(Scope, Environment, Key)`.
-This triple forms the unique constraint on `DbConfig_Entries`. There is no row-level tenant
+With `TenantId` this forms the unique constraint (`Scope, Environment, TenantId, Key`) on the
+entries table. There is no row-level tenant
 isolation beyond this triple — all entries for the same `(Scope, Environment)` are returned
 together by `GetAllAsync`.
 
@@ -36,25 +48,32 @@ IsSecret=true). The audit read endpoint decrypts before returning to callers.
 
 **Post-hoc flag flip:** flipping `IsSecret` after a row exists produces undefined behavior.
 See §2.12 for the edge case details. Document this to consumers; the package intentionally
-does not silently re-encrypt. This is documented in CLAUDE.md §0.2 and in the README Security
+does not silently re-encrypt. This is documented in `architecture.md` §2.12 and in the README Security
 section.
 
-## §8.3 — Hand-Written EF Core Migrations
+## §8.3 — Hand-Written SQL Schema (no EF Core migrations)
 
-Migrations for both SQL Server and PostgreSQL are hand-written (`Designer.cs` +
-`ModelSnapshot.cs` maintained by hand). This is acceptable for the current entity set (one
-table, eight columns).
+There are **no EF Core migrations in this repo** — no `Migrations/` folder, no `Designer.cs`, no
+`ModelSnapshot.cs`, no `MigrationsAssembly` configuration. `DbConfigDbContext.OnModelCreating`
+deliberately carries no table-name literals; names derive from the entity sets plus the configured
+schema.
 
-Switch to `dotnet ef migrations add` when the entity count grows meaningfully. Until then:
+Schema is created by hand-written SQL, one script per provider, executed by that provider's migrator:
 
-- Edit `ConfigEntryEntity` in `DbConfig.EntityFrameworkCore`.
-- Add a new migration file in the relevant provider package (`Provider.SqlServer/Migrations/`
-  or `Provider.PostgreSql/Migrations/`).
-- Update `ModelSnapshot.cs` manually.
-- Run integration tests on both engines to verify the migration applies cleanly.
+- `src/core/providers/DbConfig.Provider.SqlServer/Sql/InitialCreate.sql` — run by
+  `SqlServerDbConfigMigrator` (tables `[ConfigEntries]`, `[AuditEntries]`)
+- `src/core/providers/DbConfig.Provider.PostgreSql/Sql/InitialCreate.sql` — run by
+  `PostgreSqlDbConfigMigrator` (tables `"config_entries"`, `"audit_entries"`, snake_case via
+  `EFCore.NamingConventions`)
 
-`DbConfigDbContext` specifies `MigrationsAssembly` per provider so EF Core knows where to
-look. Never reference `Moberg.DbConfig.EntityFrameworkCore` as the migrations assembly.
+To change the schema:
+
+- Edit the entity (`ConfigEntry` / `AuditEntry`) in `DbConfig.EntityFrameworkCore`.
+- Edit **both** `InitialCreate.sql` scripts — missing one silently breaks that engine only.
+- Run the tests on both engines to verify the schema applies cleanly (§8.4).
+
+If the entity set ever grows enough to warrant real EF migrations, that is a decision to record in
+`.claude/references/decisions.md`, not an incremental change.
 
 ## §8.4 — Dual-Database Testing
 
@@ -91,20 +110,21 @@ known xUnit v3 / MTP interop issue.
 
 Always run tests by invoking the test executable directly:
 
-```powershell
+```bash
 cd src/tests/DbConfig.Tests/bin/Debug/net8.0
-./DbConfig.Tests.exe
+./DbConfig.Tests            # ./DbConfig.Tests.exe on Windows
 ```
 
 Or with a filter:
 
-```powershell
-./DbConfig.Tests.exe --filter-trait "Category=Unit"
-./DbConfig.Tests.exe --filter-trait "Category=SqlServer"
-./DbConfig.Tests.exe --filter-trait "Category=PostgreSql"
+```bash
+./DbConfig.Tests --filter-trait "Category=Unit"
+./DbConfig.Tests --filter-trait "Category=SqlServer"
+./DbConfig.Tests --filter-trait "Category=PostgreSql"
 ```
 
-The target count for v0.2.0 is 83 tests (83/83 green). Any new behavior requires at least one
+Current suite: 447 tests (verified 2026-09-21 via `--list-tests`). Packages and tests multi-target,
+so pick the `bin/Debug/net8.0` or `bin/Debug/net10.0` executable deliberately. Any new behavior requires at least one
 test. Any new store-touching behavior requires tests on both engines.
 
 ## §8.6 — Watermark-Based Polling + DELETE Caveat
@@ -123,7 +143,7 @@ The HTTP `DELETE /{scope}/{env}/{*key}` endpoint:
 Step 2 forces an immediate reload regardless of the watermark. Direct-SQL mutations (DBA
 tools, migrations) skip this signal and are therefore invisible until the watermark moves.
 
-Document this in any tooling that directly mutates `DbConfig_Entries`. Never attempt to
+Document this in any tooling that directly mutates the entries table. Never attempt to
 "fix" it inside the provider — the invariant is by design for v0.1.0.
 
 ## §8.7 — Demo Auth (NOT for Production)
@@ -145,7 +165,7 @@ either:
   JWT scheme on the host (works on both the unified `MapDbConfigAdmin` return
   values and the v0.9.0 split form).
 
-See CLAUDE.md §0.3 for the layered auth options and `architecture.md` §2.8 for the
+See `security.md` §1.6 for the auth boundary and `architecture.md` §2.8 for the
 composition patterns. The package never owns identity; the consumer-implemented
 `IDbConfigCredentialValidator` is the security boundary for the built-in cookie
 flow.
@@ -207,14 +227,14 @@ days; old keys retained for decryption indefinitely until you explicitly revoke 
 
 ```sql
 -- SQL Server (weekly job)
-DELETE FROM DbConfig_AuditEntries
+DELETE FROM AuditEntries
 WHERE ModifiedUtc < DATEADD(day, -90, SYSUTCDATETIME());
 ```
 
 ```sql
 -- PostgreSQL (weekly job)
-DELETE FROM "DbConfig_AuditEntries"
-WHERE "ModifiedUtc" < (NOW() - INTERVAL '90 days');
+DELETE FROM "audit_entries"
+WHERE "modified_utc" < (NOW() - INTERVAL '90 days');
 ```
 
 90 days is a reasonable default for non-regulated workloads. Compliance scenarios (PCI,
@@ -225,7 +245,7 @@ HIPAA, SOX) may require longer; check your auditor.
 reads from that host return 403.
 
 **Direct DB mutations:** if someone runs a SQL `UPDATE` or `INSERT` directly on
-`DbConfig_Entries` (bypassing the store), NO audit row is written. The audit log is
+the entries table (bypassing the store), NO audit row is written. The audit log is
 only as good as your discipline about always going through the API.
 
 **Audit values encrypted:** IsSecret old/new values are stored as ciphertext. Querying
@@ -235,7 +255,7 @@ audit reader (which has the encryptor) can decrypt them.
 ### Migration runbook for collation change
 
 The `20260517000001_CaseSensitiveScopeColumns` migration acquires `Sch-M` (SQL Server) or
-`AccessExclusiveLock` (PostgreSQL) on `DbConfig_Entries` and `DbConfig_AuditEntries` for the
+`AccessExclusiveLock` (PostgreSQL) on the entries and audit tables (`ConfigEntries`/`AuditEntries` on SQL Server, `config_entries`/`audit_entries` on PostgreSQL) for the
 duration of the ALTER. For tables under live read load, quiesce the host (or use a maintenance
 window) before applying. SQL Server does NOT support `ONLINE = ON` for collation changes. For
 PostgreSQL, the lock is brief (text→text type change) but still blocks readers.
@@ -247,10 +267,10 @@ produces a row. Recommended retention is shorter than for mutations:
 
 ```sql
 -- SQL Server: keep read audits for 30 days, mutation audits for 90
-DELETE FROM DbConfig_AuditEntries
+DELETE FROM AuditEntries
 WHERE Action = 'Read' AND ModifiedUtc < DATEADD(day, -30, SYSUTCDATETIME());
 
-DELETE FROM DbConfig_AuditEntries
+DELETE FROM AuditEntries
 WHERE Action IN ('Insert', 'Update', 'Delete')
   AND ModifiedUtc < DATEADD(day, -90, SYSUTCDATETIME());
 ```
@@ -264,7 +284,7 @@ these separately if you want to track "list accesses" vs "single-key accesses":
 
 ```sql
 -- Single-key reads (compliance-relevant for secret accesses)
-SELECT * FROM DbConfig_AuditEntries
+SELECT * FROM AuditEntries
 WHERE Action = 'Read' AND Key != '*' AND ModifiedUtc > @since;
 ```
 
@@ -310,7 +330,7 @@ adapter for deterministic screenshots and offline browsing.
 
 **Bundle size guard:** the demo adapter is in a lazy chunk (~9 KB gzipped). Production
 builds without `?demo` triggers do NOT load it. NEVER import demo files from production
-code paths — always go through the runtime-gated dynamic import in `api/client.ts`.
+code paths — always go through the runtime-gated dynamic import in `ui/src/api/client.ts`.
 
 **Screenshot tests (`ui/e2e/screenshots.spec.ts`):** Playwright starts Vite in
 `--mode demo` on port 5179. Each test navigates to `/?demo`, drives the UI to a known
@@ -357,7 +377,7 @@ the store layer.
 `IOptions<T>` is singleton-cached; the factory runs at startup with no request context;
 the resolver returns null; the cached T has global values forever. Consumers MUST use
 `IOptionsSnapshot<T>` (scoped per-request) for any tenant-aware type. Document this
-constraint loudly. See CLAUDE.md §0.8 and architecture.md §2.15.
+constraint loudly. See AGENTS.md's tenancy pointer and `architecture.md` §2.15.
 
 **Recommended memory ceiling: ~10K tenants × 100 keys (~200 MB).**
 The polling provider loads ALL tenants into memory on each reload. Beyond this ceiling,

@@ -1,0 +1,13 @@
+{
+  "_comment": "dotnet test is intentionally NOT allowlisted: the xUnit v3 MTP runner can exit 5 ('zero tests ran') and look green. Run the built test executable directly - see AGENTS.md Tech Stack and .claude/rules/project-specific.md 8.5.",
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(dotnet format:*)"
+    ],
+    "deny": [
+      "Read(**/appsettings.Production.json)",
+      "Bash(dotnet publish:*)"
+    ]
+  }
+}
