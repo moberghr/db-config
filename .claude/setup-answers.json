@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "captured": "2026-09-21T15:45:00Z",
+  "source": "engineer-interview",
+  "answers": {
+    "hard_nevers": [
+      "Never push to remote without explicit approval, even with green CI",
+      "Never block on the configuration provider's first load",
+      "Never let the React UI reach the database directly",
+      "Never write to a scope outside the configured scopeFilter from the same host",
+      "Never refactor mutation audit writes to fire-and-forget"
+    ],
+    "failure_modes": [
+      "Citing warp types (WarpWorkerService, JobCommandService, InterceptorConstants) that do not exist in db-config",
+      "Assuming net8.0 only when packages multi-target net8.0;net10.0",
+      "Running dotnet test and trusting exit code 5 instead of invoking the test executable"
+    ],
+    "invisible_conventions": [
+      "TenantId empty string is the global-default sentinel, not NULL",
+      "All four scope columns use case-sensitive collation",
+      "Tenant fallback lives in DbConfigConfigurationProvider.TryGet, never in the store layer",
+      "Audit Action reflects the DB state transition at SaveChangesAsync, not caller intent"
+    ],
+    "branch_pr_workflow": "Hierarchical branches with / (feat/, fix/, chore/, docs/, test/, bug/). Conventional-commit prefixes in recent history (feat:, fix:, test:, chore:, refactor:) alongside vX.Y.Z release headers. PRs merged via GitHub UI after review; assign @me.",
+    "compliance_constraints": [
+      "Mutation audit rows must commit in the same SaveChangesAsync as the mutation",
+      "Read audits are fire-and-forget by design (documented exception)",
+      "IsSecret values encrypted at rest; audit old/new values carry the same ciphertext form"
+    ],
+    "done_definition": [
+      "dotnet build clean with zero warnings (TreatWarningsAsErrors=true)",
+      "Tests green on BOTH SQL Server and PostgreSQL via Testcontainers",
+      "Tests run by invoking the test executable directly, not dotnet test (MTP runner exit-5 quirk)",
+      "Docs/website updated when public API or behavior changes"
+    ],
+    "product_purpose": "A database-backed IConfiguration provider for .NET with an embedded React editor UI, letting teams change application configuration at runtime without a redeploy."
+  },
+  "skipped": [],
+  "resolved_ambiguities": {}
+}

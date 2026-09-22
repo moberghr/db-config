@@ -1,3 +1,14 @@
+---
+paths:
+  - "src/core/**"
+  - "src/core/providers/**"
+  - "samples/**"
+axes:
+  decision: structure
+  topic: architecture
+  scope: project
+---
+
 # Architecture Patterns
 
 ## §2.1 — Single-Call Registration
@@ -198,18 +209,21 @@ provider packages.
 ## §2.7 — `DbConfigDbContext` and Migrations
 
 `DbConfigDbContext` lives in `Moberg.DbConfig.EntityFrameworkCore` (shared across both
-providers). It owns the `DbConfig_Entries` table model with its composite unique constraint on
-`(Scope, Environment, Key)` and the polling index on `(Scope, Environment, ModifiedUtc DESC)`.
+providers). It owns the entries model — `[ConfigEntries]` on SQL Server, `"config_entries"` on
+PostgreSQL — with its composite unique constraint on `(Scope, Environment, TenantId, Key)` and the
+polling index on `(Scope, Environment, TenantId, ModifiedUtc)` (`DbConfigDbContext.cs:82,85`).
 
-Migrations live in each provider package. Both providers configure:
+Schema creation lives in each provider package as a hand-written SQL script, not as EF Core
+migrations. There is no `MigrationsAssembly` configuration and no `Migrations/` folder anywhere:
 
-```csharp
-options.MigrationsAssembly("Moberg.DbConfig.Provider.SqlServer"); // or PostgreSql
+```
+Provider.SqlServer/Sql/InitialCreate.sql   → run by SqlServerDbConfigMigrator
+Provider.PostgreSql/Sql/InitialCreate.sql  → run by PostgreSqlDbConfigMigrator
 ```
 
-This means `dotnet ef migrations add` must be run from the provider project, not from
-`EntityFrameworkCore`. `Designer.cs` and `ModelSnapshot.cs` are maintained by hand for the
-current small entity set.
+Each migrator executes its script through `DbCommand.CommandText` / `ExecuteNonQueryAsync` — one of
+the few sanctioned uses of provider-native SQL (`data-layer.md` §5.1). Schema changes edit the entity
+plus BOTH scripts; see `project-specific.md` §8.3.
 
 Never put `DbConfigDbContext` back into `Core` — the package would pull
 `Microsoft.EntityFrameworkCore.Relational` transitively onto all consumers, including those
@@ -218,7 +232,7 @@ who write custom non-EF stores.
 ## §2.8 — Authorization Composition
 
 The packages ship NO `[Authorize]` attributes, NO hard-coded policies, NO authentication
-middleware. The host owns identity and policy entirely. This mirrors CLAUDE.md §0.3.
+middleware. The host owns identity and policy entirely. This mirrors `security.md` §1.6.
 Hosts have three composition shapes.
 
 ### Option A (common case, v0.10.0+) — Unified `MapDbConfigAdmin`
@@ -395,7 +409,7 @@ to decide whether to decrypt, return as-is, or throw.
 
 ## §2.13 — Audit Log Integration
 
-`DbConfig_AuditEntries` is a sibling table to `DbConfig_Entries`. Schema mirrors the spec.
+The audit table (`AuditEntries` / `audit_entries`) is a sibling to the entries table. Schema mirrors the spec.
 No foreign key (entries may be deleted; audit rows must survive).
 
 **In-transaction writes:** `EfCoreConfigStore.UpsertAsync` and `DeleteAsync` capture the
@@ -498,7 +512,7 @@ The NEW design (B62+) exposes tenant data through `IConfiguration[key]` reads �
 
 ### IOptions&lt;T&gt; caveat
 
-`IOptions<T>` is singleton-cached. Its factory runs once at first access, typically at app startup when no request scope exists. The resolver returns null. The bound `T` has global values and never changes. Consumers MUST use `IOptionsSnapshot<T>` for tenant-aware types. See also CLAUDE.md §0.8.
+`IOptions<T>` is singleton-cached. Its factory runs once at first access, typically at app startup when no request scope exists. The resolver returns null. The bound `T` has global values and never changes. Consumers MUST use `IOptionsSnapshot<T>` for tenant-aware types. See also `project-specific.md` §8.14.
 
 ## §2.16 — Resolution Order
 
@@ -536,5 +550,5 @@ Steps 2 and 4 resolve in-memory at load time: the load walks scopes lowest-prece
 - Resolver exceptions propagate out of `TryGet`. Resolvers must be exception-safe.
 - Tenant ids are case-sensitive (project-specific.md §8.14).
 - Empty string from `Resolve()` is treated as null (no tenant context, global-only).
-- `IOptions<T>` is singleton-cached and never sees a tenant; use `IOptionsSnapshot<T>` for any tenant-aware type (§2.15, CLAUDE.md §0.8).
+- `IOptions<T>` is singleton-cached and never sees a tenant; use `IOptionsSnapshot<T>` for any tenant-aware type (§2.15, `project-specific.md` §8.14).
 - `IsSecret` post-hoc flag flip is undefined behavior (§2.12).

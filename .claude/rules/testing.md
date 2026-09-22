@@ -1,56 +1,50 @@
+---
+paths:
+  - "src/tests/**"
+  - "ui/e2e/**"
+axes:
+  decision: process
+  topic: testing
+  scope: project
+---
+
 # Testing Standards
 
-> 1,024 tests in `src/tests/Warp.Tests/`, xUnit v3 (`xunit.v3.mtp-v2`) + Shouldly + Moq + Respawn + Testcontainers (Postgres + MSSQL). Full suite ~1m 30s; per-category breakdown ~3s (NoDb) / ~1m 10s (PG) / ~1m 20s (SQL Server).
+> 447 tests in `src/tests/DbConfig.Tests/` (xUnit v3 `xunit.v3.mtp-v2` + Shouldly + Moq + Respawn +
+> Testcontainers MsSql/PostgreSql + `Microsoft.AspNetCore.TestHost`). Counts verified 2026-09-21 via
+> `./DbConfig.Tests --list-tests`.
 
 ## Structure
 
-- **§4.1** Tests are organised by **feature folder** (`Admin/`, `Core/`, `Features/Retry/`, `Worker/`, `Notifications/`, etc.), not by unit-vs-integration split.
-- **§4.2** The `[GenerateDatabaseTests(FixtureKind.X)]` source generator (`src/tests/Warp.Tests.SourceGenerator/`) emits `_PostgreSql` and `_SqlServer` concrete subclasses from a single abstract base. Hand-write only the abstract base; the generator handles fixtures, collections, and the `Category` trait.
-- **§4.3** Test categories (xUnit traits):
-  - `NoDb` — ~135 tests, ~3s. No container, no DB, no fixture. Examples: `PollingBackoffTests`, `MetadataSerializerTests`, `DashboardAuthTests` (uses `Microsoft.AspNetCore.TestHost`).
-  - `PostgreSql` / `SqlServer` — ~445 / ~444 tests. Use `FixtureKind.Default` (unit-style against real DB) or `FixtureKind.Integration` (`WarpTestServer` boots full worker + background tasks). Variants: `FixtureKind.BatchedCompletion`, `FixtureKind.MultiServer`.
+- **§4.1** Tests are organised by **feature folder** (`Core/`, `Ui/`, `Http/`, …), not by a unit-vs-integration split.
+- **§4.2** Dual-engine coverage is explicit, not generated. Every new behavior that can differ by engine — anything reaching the store, the schema, the migrators, or SQL generation — gets a SQL Server class AND a PostgreSQL class, each carrying the matching collection attribute:
+  ```csharp
+  [Collection(SqlServerFixture.CollectionName)]
+  [Collection(PostgreSqlFixture.CollectionName)]
+  ```
+  There is no source generator in this repo — write both classes by hand. `[CONVENTION]`
+- **§4.3** Test categories: `Unit` (no container, `InMemoryConfigStore`), `SqlServer`, `PostgreSql`, `E2E` (full host via `TestHost`, `EndToEndFixture` / `EndToEndPostgreSqlFixture` / `IncludeScopesE2EFixture`).
 
 ## Timing & Determinism
 
-- **§4.4** Every test-affecting attribute defaults to **10s** (`[TimedFact]`, `[TimedTheory]`). A short default surfaces deadlocks and hangs immediately. Tests exercising genuinely slow behaviour (retry chains, end-to-end workloads) opt in explicitly with `[TimedFact(N_000)]`. See `src/tests/Warp.Tests/TestData/TimedFactAttribute.cs`. **NEVER raise the budget to fix a flake** — root-cause via the diagnostics infra.
-- **§4.5** No `Task.Delay` in tests **except** for handlers meant to be cancelled (`CancellableCommand`).
-- **§4.6** Tests needing deterministic timing configure `HealthCheckInterval = null` and call `WarpTestServer.RunHeartbeatOnceAsync` to drive the pause-state holder flip explicitly.
-- **§4.7** No spray-N concurrency tests. Use `BarrierSignal` to pin handlers inside the critical section and assert with `N=2`, not by spraying 50 jobs and hoping.
+- **§4.4** Use `[TimedFact]` — 441 of 447 tests do. It carries a short default budget so deadlocks and hangs surface immediately; tests exercising genuinely slow behavior opt in explicitly with a larger budget. **NEVER raise the budget to fix a flake** — root-cause it.
+- **§4.5** Production code uses `TimeProvider` (`data-layer.md` §5.6) so tests advance time instead of sleeping. Avoid `Task.Delay` in tests.
+- **§4.6** Prefer deterministic reload triggers (`IDbConfigReloadSignal.TriggerReload()` or an explicit watermark advance) over waiting out a real polling interval.
 
 ## Test Construction
 
-- **§4.8** Each test calls exactly ONE public method on ONE class. State set up via direct DB inserts. Fresh `_fixture.CreateContext()` for arrange / act / assert — no shared change tracking.
-- **§4.9** Integration tests (`IntegrationTestBase`) publish jobs and wait for completion via `Server.WaitForCompletion()` / `Server.WaitForJobState()`. Cancel long-running jobs at the end so they don't block teardown (~600ms vs 30s).
-- **§4.10** Test handlers are simple: empty body, throw, increment a counter. No unnecessary abstractions.
-- **§4.11** Test naming: `MethodName_Scenario_ExpectedResult`.
-- **§4.12** Use Shouldly: `job.CurrentState.ShouldBe(State.Completed)`, `result.ShouldNotBeNull()`, etc.
-- **§4.13** Test code may use `DateTime.UtcNow` directly. Production code uses `TimeProvider` (§5.7).
+- **§4.7** Each test calls one public method on one class. Arrange via direct store/DB writes; use a fresh context for arrange / act / assert so no change tracking leaks between phases.
+- **§4.8** Test naming: `MethodName_Scenario_ExpectedResult`.
+- **§4.9** Use Shouldly: `entry.Value.ShouldBe("expected")`, `result.ShouldNotBeNull()`.
+- **§4.10** Test code may use `DateTime.UtcNow` directly; production code may not.
 
-## Writing a Unit Test (template)
+## Running
 
-```csharp
-[GenerateDatabaseTests(FixtureKind.Default)]
-public abstract class MyTestsBase : IAsyncLifetime
-{
-    private readonly IDatabaseFixture _fixture;
-    protected MyTestsBase(IDatabaseFixture fixture) => _fixture = fixture;
-    public async ValueTask InitializeAsync() => await _fixture.ResetAsync();
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-
-    [TimedFact]
-    public async Task MethodName_Scenario_ExpectedResult()
-    {
-        var ctx = _fixture.CreateContext();
-        // arrange: direct DB inserts
-        await ctx.SaveChangesAsync();
-
-        // act: ONE call on ONE service
-        var svc = new JobCommandService<TestContext>(_fixture.CreateContext(), TimeProvider.System, Options.Create(new WarpConfiguration()));
-        await svc.DeleteJob(jobId);
-
-        // assert: fresh context
-        var job = await _fixture.CreateContext().Set<Job>().FindAsync(jobId);
-        job.CurrentState.ShouldBe(State.Deleted);
-    }
-}
-```
+- **§4.11** Run the test executable directly — `dotnet test` can exit 5 ("zero tests ran") on the MTP runner even when tests pass. See `project-specific.md` §8.5.
+  ```bash
+  cd src/tests/DbConfig.Tests/bin/Debug/net8.0
+  ./DbConfig.Tests                                  # ./DbConfig.Tests.exe on Windows
+  ./DbConfig.Tests --filter-trait "Category=Unit"
+  ```
+- **§4.12** Packages and tests multi-target — a green run on one TFM is not a green run on both. Check the framework you built against (`bin/Debug/net8.0` vs `bin/Debug/net10.0`).
+- **§4.13** `ui/` has Playwright screenshot tests only (`ui/e2e/screenshots.spec.ts`, `npm run screenshots`) and no unit-test runner. UI logic that needs unit coverage belongs behind the HTTP API where the C# suite can reach it.

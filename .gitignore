@@ -40,3 +40,17 @@ website/.docusaurus/
 ## Playwright
 ui/playwright-report/
 ui/test-results/
+
+## MTK constitution — MUST stay tracked.
+## Some developers (and some tool defaults) carry a global gitignore that lists AGENTS.md,
+## which would silently exclude this repo's constitution. CLAUDE.md is only a shim that
+## imports it, so losing AGENTS.md leaves every harness with no rules at all.
+## This negation is intentional even if your machine has no such global rule.
+!AGENTS.md
+
+## MTK transient artifacts (regenerated per run / machine-local — not shared state)
+.claude/analytics.json
+.claude/references.index
+.claude/rules/triggers.index
+.claude/.mtk-cache/
+.mtk/

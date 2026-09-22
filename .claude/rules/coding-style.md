@@ -1,3 +1,13 @@
+---
+paths:
+  - "src/**"
+  - "samples/**"
+axes:
+  decision: authoring
+  topic: style
+  scope: project
+---
+
 # Coding Style (Project-Specific Overrides)
 
 > Full Moberg style guide: `.claude/references/coding-guidelines.md`.
