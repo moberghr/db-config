@@ -58,8 +58,18 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
     return [...set]
   })()
 
+  // Toggle and Move re-send the value from the browser. A write-only value never reaches the
+  // browser, so re-sending it would overwrite the secret with null — fail the item instead.
+  // Neither sends isWriteOnly, so a write-only entry already at the target keeps its flag.
+  function rejectWriteOnly(entry: ConfigEntry): void {
+    if (entry.isWriteOnly) {
+      throw new Error('Write-only entry: re-enter its value to change it')
+    }
+  }
+
   // Toggle IsSecret — use entry's own coords (env + tenantId).
   async function executeToggleSecret(entry: ConfigEntry): Promise<void> {
+    rejectWriteOnly(entry)
     await upsertEntry(entry.scope, entry.environment, entry.key, entry.value, !entry.isSecret, entry.tenantId || undefined)
   }
 
@@ -67,6 +77,7 @@ export function BulkActionsToolbar({ visibleEntries }: BulkActionsToolbarProps) 
   // from the source only when PUT succeeded. Axios throws on non-2xx by default,
   // but we add an explicit status check as a belt-and-suspenders guard.
   async function executeMove(entry: ConfigEntry): Promise<void> {
+    rejectWriteOnly(entry)
     const putResponse = await upsertEntry(targetScope, entry.environment, entry.key, entry.value, entry.isSecret, entry.tenantId || undefined)
     if (putResponse.status < 200 || putResponse.status >= 300) {
       throw new Error(`Move failed: PUT returned status ${putResponse.status}`)

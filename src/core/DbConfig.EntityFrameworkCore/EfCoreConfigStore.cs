@@ -132,7 +132,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                     x.Value,
                     x.IsSecret,
                     x.ModifiedUtc,
-                    x.ModifiedBy))
+                    x.ModifiedBy,
+                    x.IsWriteOnly))
             .ToListAsync(ct);
 
         return [.. entities.Select(DecryptEntry)];
@@ -171,7 +172,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                     x.Value,
                     x.IsSecret,
                     x.ModifiedUtc,
-                    x.ModifiedBy))
+                    x.ModifiedBy,
+                    x.IsWriteOnly))
             .FirstOrDefaultAsync(ct);
 
         return entity is null ? null : DecryptEntry(entity);
@@ -227,6 +229,13 @@ public sealed class EfCoreConfigStore : IConfigStore
 
     public async Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
     {
+        // Write-only values must be encrypted at rest; forcing IsSecret keeps every decrypt path
+        // keyed off a single flag.
+        if (entry.IsWriteOnly && !entry.IsSecret)
+        {
+            entry = entry with { IsSecret = true };
+        }
+
         var modifiedUtc = entry.ModifiedUtc == default
             ? _timeProvider.GetUtcNow()
             : entry.ModifiedUtc.ToUniversalTime();
@@ -265,6 +274,7 @@ public sealed class EfCoreConfigStore : IConfigStore
                     Key = entry.Key,
                     Value = storedValue,
                     IsSecret = entry.IsSecret,
+                    IsWriteOnly = entry.IsWriteOnly,
                     ModifiedUtc = modifiedUtc,
                     ModifiedBy = entry.ModifiedBy,
                 };
@@ -277,15 +287,22 @@ public sealed class EfCoreConfigStore : IConfigStore
                         ConfigAuditAction.Insert,
                         oldValue: null,
                         newValue: storedValue,
-                        modifiedUtc),
+                        modifiedUtc,
+                        isWriteOnly: entry.IsWriteOnly),
                     ct);
             }
             else
             {
-                var oldStoredValue = existing.Value; // capture BEFORE mutation
+                // The audit row is flagged with the new IsSecret, so an old plaintext value has to
+                // be encrypted as well or the audit reader would try to decrypt plaintext.
+                var oldStoredValue = !existing.IsSecret && entry.IsSecret && existing.Value is not null
+                    ? _encryptor.Protect(existing.Value)
+                    : existing.Value;
+                var wasWriteOnly = existing.IsWriteOnly;
 
                 existing.Value = storedValue;
                 existing.IsSecret = entry.IsSecret;
+                existing.IsWriteOnly = entry.IsWriteOnly;
                 existing.ModifiedUtc = modifiedUtc;
                 existing.ModifiedBy = entry.ModifiedBy;
 
@@ -295,7 +312,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                         ConfigAuditAction.Update,
                         oldValue: oldStoredValue,
                         newValue: storedValue,
-                        modifiedUtc),
+                        modifiedUtc,
+                        isWriteOnly: wasWriteOnly || entry.IsWriteOnly),
                     ct);
             }
 
@@ -340,7 +358,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                 key,
                 existing.IsSecret,
                 oldValue: oldStoredValue,
-                _timeProvider.GetUtcNow()),
+                _timeProvider.GetUtcNow(),
+                existing.IsWriteOnly),
             ct);
 
         await context.SaveChangesAsync(ct);
@@ -366,7 +385,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                     x.Value,
                     x.IsSecret,
                     x.ModifiedUtc,
-                    x.ModifiedBy))
+                    x.ModifiedBy,
+                    x.IsWriteOnly))
             .ToListAsync(ct);
 
         var decrypted = entities.ConvertAll(DecryptEntry);
@@ -421,7 +441,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                     x.Value,
                     x.IsSecret,
                     x.ModifiedUtc,
-                    x.ModifiedBy))
+                    x.ModifiedBy,
+                    x.IsWriteOnly))
             .ToListAsync(ct);
 
         return [.. entities.Select(DecryptEntry)];
@@ -458,7 +479,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                     x.Value,
                     x.IsSecret,
                     x.ModifiedUtc,
-                    x.ModifiedBy))
+                    x.ModifiedBy,
+                    x.IsWriteOnly))
             .FirstOrDefaultAsync(ct);
 
         return entity is null ? null : DecryptEntry(entity);
@@ -536,7 +558,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                 key,
                 existing.IsSecret,
                 oldValue: oldStoredValue,
-                _timeProvider.GetUtcNow()),
+                _timeProvider.GetUtcNow(),
+                existing.IsWriteOnly),
             ct);
 
         await context.SaveChangesAsync(ct);
@@ -561,7 +584,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                     x.Value,
                     x.IsSecret,
                     x.ModifiedUtc,
-                    x.ModifiedBy))
+                    x.ModifiedBy,
+                    x.IsWriteOnly))
             .ToListAsync(ct);
 
         return [.. entities.Select(DecryptEntry)];
@@ -607,7 +631,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                     x.Value,
                     x.IsSecret,
                     x.ModifiedUtc,
-                    x.ModifiedBy))
+                    x.ModifiedBy,
+                    x.IsWriteOnly))
             .ToListAsync(ct);
 
         var decrypted = entities.ConvertAll(DecryptEntry);
@@ -699,7 +724,8 @@ public sealed class EfCoreConfigStore : IConfigStore
                     x.Value,
                     x.IsSecret,
                     x.ModifiedUtc,
-                    x.ModifiedBy))
+                    x.ModifiedBy,
+                    x.IsWriteOnly))
             .ToListAsync(ct);
 
         return [.. entities.Select(DecryptEntry)];
@@ -812,7 +838,8 @@ public sealed class EfCoreConfigStore : IConfigStore
         ConfigAuditAction action,
         string? oldValue,
         string? newValue,
-        DateTimeOffset modifiedUtc)
+        DateTimeOffset modifiedUtc,
+        bool isWriteOnly)
     {
         return new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
@@ -825,7 +852,8 @@ public sealed class EfCoreConfigStore : IConfigStore
             IsSecret: entry.IsSecret,
             Action: action,
             ModifiedUtc: modifiedUtc,
-            ModifiedBy: entry.ModifiedBy);
+            ModifiedBy: entry.ModifiedBy,
+            IsWriteOnly: isWriteOnly);
     }
 
     private static ConfigAuditEntryRecord BuildAuditRowForDelete(
@@ -835,7 +863,8 @@ public sealed class EfCoreConfigStore : IConfigStore
         string key,
         bool isSecret,
         string? oldValue,
-        DateTimeOffset modifiedUtc)
+        DateTimeOffset modifiedUtc,
+        bool isWriteOnly)
     {
         return new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
@@ -848,6 +877,7 @@ public sealed class EfCoreConfigStore : IConfigStore
             IsSecret: isSecret,
             Action: ConfigAuditAction.Delete,
             ModifiedUtc: modifiedUtc,
-            ModifiedBy: null);
+            ModifiedBy: null,
+            IsWriteOnly: isWriteOnly);
     }
 }

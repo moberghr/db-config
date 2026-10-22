@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { ConfigEntry } from '@/api/entries'
 import { useEntriesStore } from '@/store/entriesStore'
 import { useScopeStore } from '@/store/scopeStore'
@@ -47,6 +47,7 @@ export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDia
   const [key, setKey] = useState(sourceEntry?.key ?? '')
   const [value, setValue] = useState(sourceEntry?.value ?? '')
   const [isSecret, setIsSecret] = useState(sourceEntry?.isSecret ?? false)
+  const [isWriteOnly, setIsWriteOnly] = useState(sourceEntry?.isWriteOnly ?? false)
   const [saving, setSaving] = useState(false)
   const [keyError, setKeyError] = useState<string | null>(null)
   const [scopeError, setScopeError] = useState<string | null>(null)
@@ -54,8 +55,18 @@ export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDia
 
   // Re-seed the form whenever the dialog is opened with a different source entry.
   // (React keeps the same component instance across multiple open/close cycles, so
-  // useState initial values only run on first mount.)
-  useEffect(() => {
+  // useState initial values only run on first mount.) Done while rendering, per React's
+  // "adjusting state when a prop changes", rather than in an effect.
+  const seedInputs = { open, sourceEntry, scope, environment, scopeTenantId }
+  const [seededWith, setSeededWith] = useState<typeof seedInputs | null>(null)
+  const seedChanged = seededWith === null
+    || seededWith.open !== open
+    || seededWith.sourceEntry !== sourceEntry
+    || seededWith.scope !== scope
+    || seededWith.environment !== environment
+    || seededWith.scopeTenantId !== scopeTenantId
+  if (seedChanged) {
+    setSeededWith(seedInputs)
     if (open) {
       setSelectedApp(sourceEntry?.scope ?? scope)
       setSelectedEnv(sourceEntry?.environment ?? environment)
@@ -63,11 +74,12 @@ export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDia
       setKey(sourceEntry?.key ?? '')
       setValue(sourceEntry?.value ?? '')
       setIsSecret(sourceEntry?.isSecret ?? false)
+      setIsWriteOnly(sourceEntry?.isWriteOnly ?? false)
       setKeyError(null)
       setScopeError(null)
       setApiError(null)
     }
-  }, [open, sourceEntry, scope, environment, scopeTenantId])
+  }
 
   function validateKey(k: string): string | null {
     if (!k.trim()) return 'Key is required'
@@ -85,6 +97,7 @@ export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDia
     setKey('')
     setValue('')
     setIsSecret(false)
+    setIsWriteOnly(false)
     setKeyError(null)
     setScopeError(null)
     setApiError(null)
@@ -126,7 +139,8 @@ export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDia
         tenantId: tenantId.trim(),
         key: key.trim(),
         value: value || null,
-        isSecret,
+        isSecret: isSecret || isWriteOnly,
+        isWriteOnly,
       })
       handleClose()
     } catch (e: unknown) {
@@ -246,7 +260,7 @@ export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDia
               id="create-value"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="(empty)"
+              placeholder={sourceEntry?.isWriteOnly ? 'The source is write-only; enter the value again' : '(empty)'}
               rows={4}
               className="min-h-[200px]"
             />
@@ -254,8 +268,15 @@ export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDia
           <Checkbox
             id="create-secret"
             label="Is Secret"
-            checked={isSecret}
+            checked={isSecret || isWriteOnly}
+            disabled={isWriteOnly}
             onChange={(e) => setIsSecret(e.target.checked)}
+          />
+          <Checkbox
+            id="create-write-only"
+            label="Write-only (value can never be shown again)"
+            checked={isWriteOnly}
+            onChange={(e) => setIsWriteOnly(e.target.checked)}
           />
           {apiError && <p className="text-sm text-destructive">{apiError}</p>}
         </div>
@@ -263,7 +284,7 @@ export function CreateEntryDialog({ open, onClose, sourceEntry }: CreateEntryDia
           <Button variant="outline" onClick={handleClose} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => { void handleCreate() }} disabled={saving}>
+          <Button onClick={() => { void handleCreate() }} disabled={saving || ((isWriteOnly || (sourceEntry?.isWriteOnly ?? false)) && value === '')}>
             {saving ? 'Creating…' : 'Create'}
           </Button>
         </DialogFooter>

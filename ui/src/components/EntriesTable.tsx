@@ -122,7 +122,7 @@ export function EntriesTable({ onEdit, onDelete, onHistory, onDuplicate, visible
               </TableCell>
               <TableCell className="font-mono text-xs font-medium">{entry.key}</TableCell>
               <TableCell>
-                <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
+                <SecretValueCell value={entry.value} isSecret={entry.isSecret} isWriteOnly={entry.isWriteOnly} />
               </TableCell>
               <TableCell>
                 <span className="text-xs text-foreground">{entry.scope}</span>

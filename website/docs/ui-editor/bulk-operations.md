@@ -39,6 +39,14 @@ on a fresh `PUT` with the existing value. If the flag and the stored value are m
 entries where you understand the current storage state.
 :::
 
+:::note Write-only entries are skipped
+Toggle IsSecret and Move to scope both re-send each entry's value from the browser. The
+browser never receives a write-only value (`isWriteOnly`), so these actions mark write-only
+entries as failed with *Write-only entry: re-enter its value to change it* instead of
+overwriting the secret with an empty value. Delete selected works on write-only entries as
+usual. To move a write-only secret, create it in the target scope and delete the original.
+:::
+
 ### Move to scope
 
 Moves selected entries to a different scope (different `Scope`). A scope picker dialog

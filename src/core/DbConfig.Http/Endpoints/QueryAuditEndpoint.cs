@@ -99,6 +99,6 @@ internal static class QueryAuditEndpoint
             ct);
 
         httpContext.Response.ContentType = "application/json; charset=utf-8";
-        await JsonSerializer.SerializeAsync(httpContext.Response.Body, entries, JsonOptions.Default, ct);
+        await JsonSerializer.SerializeAsync(httpContext.Response.Body, WriteOnlyRedaction.Redact(entries), JsonOptions.Default, ct);
     }
 }

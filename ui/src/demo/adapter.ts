@@ -22,7 +22,7 @@ import { DEMO_ENTRIES, DEMO_AUDIT_HISTORY } from './data'
 export interface DemoClient {
   queryEntries(q: EntriesQuery): Promise<ConfigEntry[]>
   getEntry(app: string, env: string, key: string, tenantId?: string): Promise<ConfigEntry | null>
-  upsertEntry(app: string, env: string, key: string, value: string | null, isSecret: boolean, tenantId?: string): Promise<{ data: ConfigEntry; status: number; headers: Record<string, string> }>
+  upsertEntry(app: string, env: string, key: string, value: string | null, isSecret: boolean, tenantId?: string, isWriteOnly?: boolean): Promise<{ data: ConfigEntry; status: number; headers: Record<string, string> }>
   deleteEntry(app: string, env: string, key: string, tenantId?: string): Promise<void>
   triggerReload(): Promise<void>
   getAuditHistory(scope: string, environment: string, key: string, take?: number, tenantId?: string): Promise<ConfigAuditEntry[]>
@@ -46,10 +46,24 @@ export function createDemoClient(): DemoClient {
     return `${scope}||${environment}||${tenantId}||${key}`
   }
 
+  // Mirror the server: write-only values never leave the store.
+  function redactEntry(entry: ConfigEntry): ConfigEntry {
+    return entry.isWriteOnly ? { ...entry, value: null } : { ...entry }
+  }
+
+  // Rows of a key that is write-only now are hidden too, even if written before the upgrade.
+  function redactAudit(row: ConfigAuditEntry): ConfigAuditEntry {
+    const current = entries.get(compositeKey(row.scope, row.environment, row.tenantId, row.key))
+    return row.isWriteOnly || current?.isWriteOnly
+      ? { ...row, oldValue: null, newValue: null, isWriteOnly: true }
+      : { ...row }
+  }
+
   function appendAudit(
     entry: ConfigEntry,
     action: ConfigAuditAction,
     oldValue: string | null,
+    isWriteOnly: boolean,
   ): void {
     const row: ConfigAuditEntry = {
       id: `demo-live-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -60,6 +74,7 @@ export function createDemoClient(): DemoClient {
       oldValue,
       newValue: entry.value,
       isSecret: entry.isSecret,
+      isWriteOnly,
       action,
       modifiedUtc: entry.modifiedUtc,
       modifiedBy: entry.modifiedBy,
@@ -81,7 +96,7 @@ export function createDemoClient(): DemoClient {
       if (q.environment && entry.environment.toLowerCase() !== q.environment.toLowerCase()) continue
       if (q.tenantId !== undefined && entry.tenantId !== q.tenantId) continue
       if (keyPrefixLower && !entry.key.toLowerCase().startsWith(keyPrefixLower)) continue
-      result.push({ ...entry })
+      result.push(redactEntry(entry))
     }
     result.sort((a, b) =>
       a.scope.localeCompare(b.scope)
@@ -94,7 +109,7 @@ export function createDemoClient(): DemoClient {
 
   async function getEntry(app: string, env: string, key: string, tenantId?: string): Promise<ConfigEntry | null> {
     const found = entries.get(compositeKey(app, env, tenantId ?? '', key))
-    return found ? { ...found } : null
+    return found ? redactEntry(found) : null
   }
 
   async function upsertEntry(
@@ -104,10 +119,13 @@ export function createDemoClient(): DemoClient {
     value: string | null,
     isSecret: boolean,
     tenantId?: string,
+    requestedWriteOnly?: boolean,
   ): Promise<{ data: ConfigEntry; status: number; headers: Record<string, string> }> {
     const resolvedTenantId = tenantId ?? ''
     const ck = compositeKey(app, env, resolvedTenantId, key)
     const existing = entries.get(ck)
+    // Mirror the server: an omitted flag keeps the existing entry's write-only state.
+    const isWriteOnly = requestedWriteOnly ?? existing?.isWriteOnly ?? false
     const now = new Date().toISOString()
     const action: ConfigAuditAction = existing ? 'Update' : 'Insert'
     const oldValue = existing?.value ?? null
@@ -118,14 +136,15 @@ export function createDemoClient(): DemoClient {
       tenantId: resolvedTenantId,
       key,
       value,
-      isSecret,
+      isSecret: isSecret || isWriteOnly,
+      isWriteOnly,
       modifiedUtc: now,
       modifiedBy: 'demo-user',
     }
     entries.set(ck, updated)
-    appendAudit(updated, action, oldValue)
+    appendAudit(updated, action, oldValue, (existing?.isWriteOnly ?? false) || isWriteOnly)
 
-    return { data: { ...updated }, status: existing ? 200 : 201, headers: {} }
+    return { data: redactEntry(updated), status: existing ? 200 : 201, headers: {} }
   }
 
   async function deleteEntry(app: string, env: string, key: string, tenantId?: string): Promise<void> {
@@ -135,7 +154,7 @@ export function createDemoClient(): DemoClient {
     if (existing) {
       const now = new Date().toISOString()
       const deleted: ConfigEntry = { ...existing, modifiedUtc: now, modifiedBy: 'demo-user' }
-      appendAudit(deleted, 'Delete', existing.value)
+      appendAudit(deleted, 'Delete', existing.value, existing.isWriteOnly)
       entries.delete(ck)
     }
   }
@@ -161,7 +180,7 @@ export function createDemoClient(): DemoClient {
       )
       .sort((a, b) => b.modifiedUtc.localeCompare(a.modifiedUtc))
       .slice(0, take)
-      .map((a) => ({ ...a }))
+      .map(redactAudit)
   }
 
   // Mirror the server's flat-query semantics on the audit log: AND across
@@ -178,7 +197,7 @@ export function createDemoClient(): DemoClient {
       if (q.tenantId !== undefined && entry.tenantId !== q.tenantId) continue
       if (keyPrefixLower && !entry.key.toLowerCase().startsWith(keyPrefixLower)) continue
       if (q.action && entry.action !== q.action) continue
-      result.push({ ...entry })
+      result.push(redactAudit(entry))
     }
     result.sort((a, b) => {
       if (a.modifiedUtc !== b.modifiedUtc) {

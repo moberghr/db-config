@@ -31,6 +31,8 @@ export interface FlatToNestedResult {
   config: Record<string, unknown>
   /** The _dbconfig metadata sidecar. */
   metadata: { _dbconfig: DbConfigSidecar }
+  /** Keys of write-only entries left out of the export: the server never returns their values. */
+  omittedWriteOnlyKeys: string[]
 }
 
 /**
@@ -38,6 +40,8 @@ export interface FlatToNestedResult {
  * object plus a metadata sidecar.
  *
  * - Entries with `value === null` are skipped.
+ * - Write-only entries are skipped and listed in `omittedWriteOnlyKeys`, so re-importing the
+ *   file can never overwrite a write-only secret with an empty value.
  * - Keys are split on `:` to build the nested structure. A key like `Logging:LogLevel:Default`
  *   becomes `{ Logging: { LogLevel: { Default: value } } }`.
  * - The returned `metadata._dbconfig.entries` contains provenance (isSecret, modifiedUtc,
@@ -46,8 +50,13 @@ export interface FlatToNestedResult {
 export function flatToNested(entries: ConfigEntry[]): FlatToNestedResult {
   const config: Record<string, unknown> = {}
   const sidecarEntries: DbConfigSidecar['entries'] = []
+  const omittedWriteOnlyKeys: string[] = []
 
   for (const entry of entries) {
+    if (entry.isWriteOnly) {
+      omittedWriteOnlyKeys.push(entry.key)
+      continue
+    }
     if (entry.value === null) continue
 
     // Build nested object
@@ -73,6 +82,7 @@ export function flatToNested(entries: ConfigEntry[]): FlatToNestedResult {
 
   return {
     config,
+    omittedWriteOnlyKeys,
     metadata: {
       _dbconfig: {
         entries: sidecarEntries,

@@ -361,7 +361,9 @@ always allowed (any group's reload affects only that host's in-process configura
 ## §2.12 — Encryption Strategy
 
 Per-entry encryption tied to `IsSecret` flag. `IConfigEncryptor.Protect()` is called on
-Upsert when `entry.IsSecret == true`; `Unprotect()` on read paths. Non-secret values
+Upsert when `entry.IsSecret == true`; `Unprotect()` on read paths. `IsWriteOnly` forces
+`IsSecret = true` at write time (both stores and `UpsertEntryEndpoint`), so encryption keeps a
+single driver; see `project-specific.md` §8.2 for the HTTP redaction rule. Non-secret values
 flow through verbatim.
 
 Default impl `DataProtectionConfigEncryptor` wraps `IDataProtectionProvider` from
@@ -422,6 +424,12 @@ either both succeed or both roll back.
 
 **Encryption:** OldValue and NewValue carry the same form as the source entry's Value column
 (ciphertext when IsSecret=true). The audit reader decrypts before returning to the caller.
+When an update turns a plain entry secret, the store encrypts the old value for the audit row
+too, so the row's `IsSecret` always describes both values.
+
+**Write-only:** `IsWriteOnly` on an audit row is set when the entry was write-only before or
+after the change, and the audit reader also sets it for rows whose key is write-only now. The
+HTTP layer redacts on that flag alone.
 
 **Read API:** `IConfigAuditStore.GetHistoryAsync(scope, env, key, take, ct)` issues a
 targeted query on the composite index `(Scope, Environment, Key, ModifiedUtc DESC)` and

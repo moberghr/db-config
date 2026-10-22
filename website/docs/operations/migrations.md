@@ -38,6 +38,25 @@ DDL is simpler than the EF tooling.
 | Unique constraint | `IX_ConfigEntries_Scope_Environment_TenantId_Key` | `ix_config_entries_scope_environment_tenant_id_key` |
 | Watermark index | `IX_ConfigEntries_Scope_Environment_TenantId_ModifiedUtc` | `ix_config_entries_scope_environment_tenant_id_modified_utc` |
 | Audit history index | `IX_AuditEntries_Scope_Environment_TenantId_Key_ModifiedUtc` | `ix_audit_entries_scope_environment_tenant_id_key_modified_utc` |
+| Write-only flag (both tables) | `IsWriteOnly bit NOT NULL DEFAULT 0` (`DF_ConfigEntries_IsWriteOnly`, `DF_AuditEntries_IsWriteOnly`) | `is_write_only boolean NOT NULL DEFAULT false` |
+
+The write-only columns (see [write-only secrets](../configuration/encryption.md#write-only-secrets-iswriteonly))
+are added by a guarded `ALTER TABLE ... ADD` (`IF COL_LENGTH(...) IS NULL` on SQL Server,
+an `information_schema.columns` check inside a `DO` block on PostgreSQL, so an
+already-upgraded database takes no table lock at startup). New databases and databases created by an older
+version both get them on the next startup (or the next `MigrateAsync` call under
+`SchemaMode.None`). Existing rows default to `false`, so nothing changes for them. On
+PostgreSQL 11+ adding the column is metadata-only. On SQL Server it is metadata-only on
+Enterprise edition and Azure SQL; other editions update every row, so for a large
+`AuditEntries` table apply the upgrade in a quiet window. The migrator uses the connection's
+default 30-second command timeout; if the `ALTER` needs longer, run it once ahead of the
+deploy with `SchemaMode.None` and `SqlServerDbConfigMigrator.MigrateAsync` on a connection
+string with a larger `Command Timeout`.
+
+The guards are check-then-act. If several instances start on the old schema at the same moment
+(a rolling deploy), more than one can attempt the `ALTER`, and the losers fail startup with a
+duplicate-column error; a restart succeeds. To avoid it, apply the schema once before the
+rollout (the same `SchemaMode.None` + `MigrateAsync` step as above).
 
 Scoping columns (`Scope`, `Environment`, `TenantId`, `Key`) are created with
 case-sensitive collation:
@@ -224,8 +243,7 @@ table or column, the updated SQL script ships in the next release of the provide
 package. Apply the new package and the next startup re-runs the idempotent script;
 the new objects are created, existing ones are left alone.
 
-For library maintainers: edit `Sql/InitialCreate.sql` directly. If a future version
-needs to alter an existing table (rather than create a new one), the script's
-idempotency guards must be extended to detect-and-add the new column / constraint
-in-place, or a versioned migration mechanism must be introduced (out of scope for
-v0.13.0).
+For library maintainers: edit `Sql/InitialCreate.sql` directly. To add a column to an
+existing table, append a guarded `ALTER TABLE ... ADD` after the `CREATE TABLE` rather than
+editing the `CREATE TABLE` itself, so fresh and upgraded databases take the same path. The
+`IsWriteOnly` columns are the reference example.

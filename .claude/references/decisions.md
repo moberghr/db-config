@@ -54,3 +54,15 @@ global values forever. Both documented loudly — AGENTS.md pointer, `architectu
 **Why:** consumers on the LTS should not be forced forward to get fixes.
 **Cost:** a green test run on one TFM is not a green run on both; CI and local runs must be explicit
 about which executable they invoked.
+
+## D8 — Schema evolution by guarded `ALTER` in `InitialCreate.sql` (write-only secrets, 2026-10-21)
+**Decision:** new columns on existing tables are added by an idempotent, guarded
+`ALTER TABLE ... ADD` appended after the `CREATE TABLE` in both provider scripts
+(`COL_LENGTH` on SQL Server; an `information_schema` check inside a `DO` block on PostgreSQL,
+because `ADD COLUMN IF NOT EXISTS` takes an ACCESS EXCLUSIVE lock even when it is a no-op). The
+`CREATE TABLE` itself is not edited, so fresh and upgraded databases run the same statement.
+**Why:** it keeps the single idempotent script from v0.13.0 working for upgrades without
+introducing a versioned migration mechanism for one column.
+**Cost:** guards are check-then-act, so concurrent first starts on an old schema can race (apply
+the schema once before a multi-instance rollout), and the script grows one block per column. A
+versioned mechanism remains the path if schema changes become frequent.

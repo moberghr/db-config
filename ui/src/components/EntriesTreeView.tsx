@@ -150,7 +150,7 @@ function TreeRows({
               </TableCell>
               {/* Value */}
               <TableCell>
-                <SecretValueCell value={entry.value} isSecret={entry.isSecret} />
+                <SecretValueCell value={entry.value} isSecret={entry.isSecret} isWriteOnly={entry.isWriteOnly} />
               </TableCell>
               {/* Scope */}
               <TableCell>

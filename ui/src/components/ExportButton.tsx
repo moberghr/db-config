@@ -9,6 +9,7 @@ export function ExportButton() {
   const scope = useScopeStore((s) => s.scope)
   const environment = useScopeStore((s) => s.environment)
   const [exporting, setExporting] = useState(false)
+  const [omittedCount, setOmittedCount] = useState(0)
 
   async function handleExport() {
     if (!scope || !environment) return
@@ -16,7 +17,8 @@ export function ExportButton() {
     try {
       const entries = await queryEntries({ scope, environment, tenantId: '' })
 
-      const { config, metadata } = flatToNested(entries)
+      const { config, metadata, omittedWriteOnlyKeys } = flatToNested(entries)
+      setOmittedCount(omittedWriteOnlyKeys.length)
 
       // Guard against a user entry literally named '_dbconfig', which would be silently
       // overwritten by the metadata sidecar. Explicit failure is better than silent data loss.
@@ -48,15 +50,22 @@ export function ExportButton() {
   }
 
   return (
-    <Button
-      size="sm"
-      variant="outline"
-      className="gap-1.5"
-      disabled={!scope || !environment || exporting}
-      onClick={() => { void handleExport() }}
-    >
-      <Download className="h-3.5 w-3.5" />
-      {exporting ? 'Exporting…' : 'Export'}
-    </Button>
+    <span className="inline-flex items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
+        disabled={!scope || !environment || exporting}
+        onClick={() => { void handleExport() }}
+      >
+        <Download className="h-3.5 w-3.5" />
+        {exporting ? 'Exporting…' : 'Export'}
+      </Button>
+      {omittedCount > 0 && (
+        <span className="text-xs text-muted-foreground">
+          {omittedCount} write-only {omittedCount === 1 ? 'entry was' : 'entries were'} omitted
+        </span>
+      )}
+    </span>
   )
 }

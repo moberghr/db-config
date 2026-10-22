@@ -43,6 +43,7 @@ internal sealed class EfCoreAuditAppender : IConfigAuditAppender
             OldValue = row.OldValue,
             NewValue = row.NewValue,
             IsSecret = row.IsSecret,
+            IsWriteOnly = row.IsWriteOnly,
             Action = row.Action.ToString(),
             ModifiedUtc = row.ModifiedUtc,
             ModifiedBy = row.ModifiedBy,

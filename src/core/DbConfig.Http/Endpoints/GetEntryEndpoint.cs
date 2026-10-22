@@ -55,7 +55,7 @@ internal static class GetEntryEndpoint
         }
 
         httpContext.Response.ContentType = "application/json; charset=utf-8";
-        await JsonSerializer.SerializeAsync(httpContext.Response.Body, entry, JsonOptions.Default, ct);
+        await JsonSerializer.SerializeAsync(httpContext.Response.Body, WriteOnlyRedaction.Redact(entry), JsonOptions.Default, ct);
 
         WriteReadAudit(scope, environment, normalizedKey, httpContext, auditStore, options, logger, timeProvider);
     }

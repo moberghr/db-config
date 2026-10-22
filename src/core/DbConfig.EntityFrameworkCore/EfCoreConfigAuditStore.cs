@@ -6,6 +6,9 @@ namespace DbConfig.EntityFrameworkCore;
 /// <summary>
 /// EF Core implementation of <see cref="IConfigAuditStore"/>. Queries the
 /// <c>AuditEntry</c> table and decrypts secret values before returning them to callers.
+/// Rows whose key is write-only at read time come back with
+/// <see cref="ConfigAuditEntryRecord.IsWriteOnly"/> set, even when they were written before the
+/// entry became write-only.
 /// </summary>
 public sealed class EfCoreConfigAuditStore : IConfigAuditStore
 {
@@ -40,6 +43,7 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
             OldValue = entry.OldValue,
             NewValue = entry.NewValue,
             IsSecret = entry.IsSecret,
+            IsWriteOnly = entry.IsWriteOnly,
             Action = entry.Action.ToString(),
             ModifiedUtc = entry.ModifiedUtc,
             ModifiedBy = entry.ModifiedBy,
@@ -76,6 +80,13 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
                 x.Action,
                 x.ModifiedUtc,
                 x.ModifiedBy,
+                x.IsWriteOnly,
+                IsCurrentlyWriteOnly = context.ConfigEntries
+                    .Where(y => y.Scope == x.Scope)
+                    .Where(y => y.Environment == x.Environment)
+                    .Where(y => y.TenantId == x.TenantId)
+                    .Where(y => y.Key == x.Key)
+                    .Any(y => y.IsWriteOnly),
             })
             .ToListAsync(ct);
 
@@ -102,7 +113,8 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
                 IsSecret: row.IsSecret,
                 Action: action,
                 ModifiedUtc: row.ModifiedUtc,
-                ModifiedBy: row.ModifiedBy);
+                ModifiedBy: row.ModifiedBy,
+                IsWriteOnly: row.IsWriteOnly || row.IsCurrentlyWriteOnly);
         });
     }
 
@@ -166,6 +178,13 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
                 x.Action,
                 x.ModifiedUtc,
                 x.ModifiedBy,
+                x.IsWriteOnly,
+                IsCurrentlyWriteOnly = context.ConfigEntries
+                    .Where(y => y.Scope == x.Scope)
+                    .Where(y => y.Environment == x.Environment)
+                    .Where(y => y.TenantId == x.TenantId)
+                    .Where(y => y.Key == x.Key)
+                    .Any(y => y.IsWriteOnly),
             })
             .ToListAsync(ct);
 
@@ -192,7 +211,8 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
                 IsSecret: row.IsSecret,
                 Action: parsedAction,
                 ModifiedUtc: row.ModifiedUtc,
-                ModifiedBy: row.ModifiedBy);
+                ModifiedBy: row.ModifiedBy,
+                IsWriteOnly: row.IsWriteOnly || row.IsCurrentlyWriteOnly);
         });
     }
 
@@ -233,6 +253,13 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
                 x.Action,
                 x.ModifiedUtc,
                 x.ModifiedBy,
+                x.IsWriteOnly,
+                IsCurrentlyWriteOnly = context.ConfigEntries
+                    .Where(y => y.Scope == x.Scope)
+                    .Where(y => y.Environment == x.Environment)
+                    .Where(y => y.TenantId == x.TenantId)
+                    .Where(y => y.Key == x.Key)
+                    .Any(y => y.IsWriteOnly),
             })
             .ToListAsync(ct);
 
@@ -259,7 +286,8 @@ public sealed class EfCoreConfigAuditStore : IConfigAuditStore
                 IsSecret: row.IsSecret,
                 Action: action,
                 ModifiedUtc: row.ModifiedUtc,
-                ModifiedBy: row.ModifiedBy);
+                ModifiedBy: row.ModifiedBy,
+                IsWriteOnly: row.IsWriteOnly || row.IsCurrentlyWriteOnly);
         });
     }
 }

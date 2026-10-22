@@ -19,7 +19,9 @@ endpoint handlers, and the auth contracts `IDbConfigAuthorizationFilter` /
 - Write endpoints (`PUT`, `DELETE`, `POST /reload`) must call `IDbConfigReloadSignal.TriggerReload()`
   after mutating, so in-process consumers don't wait out the polling interval.
 - `scopeFilter` is enforced at the group level — a write outside it returns 403 (root `AGENTS.md` §0.4).
-- GET responses always return plaintext; the store decrypts before the HTTP layer sees a value.
+- GET responses return plaintext; the store decrypts before the HTTP layer sees a value. The
+  exception is write-only entries and audit rows: every value-serializing endpoint passes its
+  result through `Endpoints/WriteOnlyRedaction`, and any new endpoint must do the same.
 
 ## Dependencies / boundaries
 

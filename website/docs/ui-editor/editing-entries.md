@@ -16,6 +16,16 @@ The edit dialog shows:
 - **Key** — read-only; keys cannot be renamed (delete and re-create instead)
 - **Value** — the current value, decrypted if the entry is a secret
 - **IsSecret toggle** — controls at-rest encryption and UI masking
+- **Write-only toggle** — makes the value unreadable from the UI and the HTTP API (sent as
+  `isWriteOnly`)
+
+For a write-only entry the value field opens **empty**, because the server never sends the
+current value. Saving replaces the stored value, and Save stays disabled until you type one,
+so an accidental Save cannot wipe the secret. Clearing the write-only toggle downgrades the
+entry using whatever you typed; the old value is never shown.
+
+Ticking write-only on an existing entry clears the value field and asks for a new value.
+Rotate the secret: its previous value has already been visible.
 
 :::warning
 Flipping the `IsSecret` toggle on an entry that already has a stored value is an
@@ -41,6 +51,9 @@ The create dialog includes:
 - **Key** — the configuration key; use `:` as the hierarchy separator
 - **Value** — the initial value
 - **IsSecret** — whether the value should be encrypted at rest
+- **Write-only** — whether the value can ever be read back. Checking it also checks (and
+  locks) IsSecret, and Create stays disabled until a value is entered. Duplicating a
+  write-only entry copies the flag but not the value, so type the value again.
 
 ## Revealing secret values
 
@@ -49,9 +62,17 @@ reveal the decrypted value.
 
 <Screenshot light="/img/screenshots/04-secret-revealed.png" dark="/img/screenshots/04-secret-revealed-dark.png" alt="Secret value revealed showing the plaintext connection string" />
 
-The reveal is client-side only — the server always returns the decrypted value in the JSON
+The reveal is client-side only — the server returns the decrypted value in the JSON
 response. The `•••••` masking is a UI affordance to prevent accidental screen sharing
 of sensitive values, not a security boundary.
+
+## Write-only entries
+
+Write-only entries show a lock icon, `••••••••` and **write-only**, with no eye icon. The
+server returns `value: null` for them, so there is nothing to reveal. The history dialog and
+the Audit Log page show `(write-only, hidden)` instead of the old and new values, and the
+character diff is disabled. See [write-only secrets](../configuration/encryption.md#write-only-secrets-iswriteonly)
+for what the flag does and does not protect against.
 
 ## Cross-scope rows
 

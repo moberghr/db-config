@@ -29,6 +29,12 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
     }
 
     /// <summary>
+    /// Set by the <see cref="InMemoryConfigStore"/> that writes to this audit store, so reads can
+    /// flag rows whose key is write-only right now (the same rule as the EF Core audit store).
+    /// </summary>
+    internal Func<ConfigAuditEntryRecord, bool>? IsKeyCurrentlyWriteOnly { get; set; }
+
+    /// <summary>
     /// Adds an audit entry. Called by <see cref="InMemoryConfigStore"/> when configured
     /// with this audit store.
     /// </summary>
@@ -55,39 +61,45 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
     public Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryAsync(
         string scope, string environment, string key, int take, CancellationToken ct)
     {
+        List<ConfigAuditEntryRecord> result;
         lock (_lock)
         {
             // Legacy method: returns only global (TenantId = "") audit entries.
-            var result = _entries
-                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase)
-                    && x.TenantId == string.Empty
-                    && string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(x => x.ModifiedUtc)
-                .Take(take)
-                .ToList();
-
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(result);
+            result =
+            [
+                .. _entries
+                    .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase)
+                        && x.TenantId == string.Empty
+                        && string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x.ModifiedUtc)
+                    .Take(take),
+            ];
         }
+
+        return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(MarkCurrentlyWriteOnly(result));
     }
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<ConfigAuditEntryRecord>> GetHistoryForTenantAsync(
         string scope, string environment, string tenantId, string key, int take, CancellationToken ct)
     {
+        List<ConfigAuditEntryRecord> result;
         lock (_lock)
         {
-            var result = _entries
-                .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(x.TenantId, tenantId, StringComparison.Ordinal)
-                    && string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(x => x.ModifiedUtc)
-                .Take(take)
-                .ToList();
-
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(result);
+            result =
+            [
+                .. _entries
+                    .Where(x => string.Equals(x.Scope, scope, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(x.Environment, environment, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(x.TenantId, tenantId, StringComparison.Ordinal)
+                        && string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x.ModifiedUtc)
+                    .Take(take),
+            ];
         }
+
+        return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(MarkCurrentlyWriteOnly(result));
     }
 
     /// <inheritdoc/>
@@ -100,6 +112,7 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
         int take,
         CancellationToken ct)
     {
+        List<ConfigAuditEntryRecord> result;
         lock (_lock)
         {
             var query = _entries.AsEnumerable();
@@ -129,13 +142,28 @@ public sealed class InMemoryConfigAuditStore : IConfigAuditStore
                 query = query.Where(x => x.Action == action.Value);
             }
 
-            var result = query
-                .OrderByDescending(x => x.ModifiedUtc)
-                .ThenBy(x => x.Key, StringComparer.Ordinal)
-                .Take(take)
-                .ToList();
-
-            return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(result);
+            result =
+            [
+                .. query
+                    .OrderByDescending(x => x.ModifiedUtc)
+                    .ThenBy(x => x.Key, StringComparer.Ordinal)
+                    .Take(take),
+            ];
         }
+
+        return Task.FromResult<IReadOnlyList<ConfigAuditEntryRecord>>(MarkCurrentlyWriteOnly(result));
+    }
+
+    private List<ConfigAuditEntryRecord> MarkCurrentlyWriteOnly(List<ConfigAuditEntryRecord> rows)
+    {
+        var isKeyCurrentlyWriteOnly = IsKeyCurrentlyWriteOnly;
+        if (isKeyCurrentlyWriteOnly is null)
+        {
+            return rows;
+        }
+
+        return rows.ConvertAll(x => !x.IsWriteOnly && isKeyCurrentlyWriteOnly(x)
+            ? x with { IsWriteOnly = true }
+            : x);
     }
 }

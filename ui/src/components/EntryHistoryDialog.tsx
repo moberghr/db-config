@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Eye, EyeOff, GitCompareArrows } from 'lucide-react'
 import type { ConfigAuditAction, ConfigAuditEntry } from '@/api/entries'
 import { getAuditHistory } from '@/api/entries'
@@ -49,8 +49,12 @@ function ActionChip({ action }: { action: ConfigAuditAction }) {
   )
 }
 
-function AuditValueCell({ value, isSecret }: { value: string | null; isSecret: boolean }) {
+function AuditValueCell({ value, isSecret, isWriteOnly }: { value: string | null; isSecret: boolean; isWriteOnly: boolean }) {
   const [revealed, setRevealed] = useState(false)
+
+  if (isWriteOnly) {
+    return <span className="text-muted-foreground italic text-xs">(write-only, hidden)</span>
+  }
 
   if (value === null) {
     return <span className="text-muted-foreground italic">—</span>
@@ -85,24 +89,39 @@ export function EntryHistoryDialog({
   entryKey,
   entryIsSecret,
 }: EntryHistoryDialogProps) {
-  const [loading, setLoading] = useState(false)
-  const [history, setHistory] = useState<ConfigAuditEntry[]>([])
-  const [error, setError] = useState<string | null>(null)
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+  // Each result is tagged with the request it answers and the open-count it was fetched in, so a
+  // reopen or a different key shows "loading" until its own fetch lands — derived during render
+  // instead of reset synchronously in the effect.
+  const [openCount, setOpenCount] = useState(0)
+  const [wasOpen, setWasOpen] = useState(false)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) setOpenCount((c) => c + 1)
+  }
+  const requestKey = `${openCount}|${scope}|${environment}|${tenantId}|${entryKey}`
+  const [result, setResult] = useState<{ key: string; history: ConfigAuditEntry[]; error: string | null } | null>(null)
 
   useEffect(() => {
     if (!open) return
-    setLoading(true)
-    setError(null)
-    setHistory([])
+    let cancelled = false
     getAuditHistory(scope, environment, entryKey, 50, tenantId || undefined)
-      .then((data) => setHistory(data))
+      .then((data) => {
+        if (!cancelled) setResult({ key: requestKey, history: data, error: null })
+      })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Failed to load history'
-        setError(message)
+        if (!cancelled) setResult({ key: requestKey, history: [], error: message })
       })
-      .finally(() => setLoading(false))
-  }, [open, scope, environment, tenantId, entryKey])
+    return () => {
+      cancelled = true
+    }
+  }, [open, requestKey, scope, environment, tenantId, entryKey])
+
+  const current = result?.key === requestKey ? result : null
+  const loading = open && current === null
+  const history = current?.history ?? []
+  const error = current?.error ?? null
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -142,7 +161,7 @@ export function EntryHistoryDialog({
                 {history.map((entry) => {
                   const isExpanded = expandedRowId === entry.id
                   return (
-                    <>
+                    <Fragment key={entry.id}>
                       <TableRow key={entry.id}>
                         <TableCell>
                           <ActionChip action={entry.action} />
@@ -154,10 +173,10 @@ export function EntryHistoryDialog({
                           {entry.modifiedBy ?? '—'}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <AuditValueCell value={entry.oldValue} isSecret={entryIsSecret} />
+                          <AuditValueCell value={entry.oldValue} isSecret={entryIsSecret} isWriteOnly={entry.isWriteOnly} />
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <AuditValueCell value={entry.newValue} isSecret={entryIsSecret} />
+                          <AuditValueCell value={entry.newValue} isSecret={entryIsSecret} isWriteOnly={entry.isWriteOnly} />
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Button
@@ -184,11 +203,12 @@ export function EntryHistoryDialog({
                               oldValue={entry.oldValue}
                               newValue={entry.newValue}
                               isSecret={entryIsSecret}
+                              isWriteOnly={entry.isWriteOnly}
                             />
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   )
                 })}
               </TableBody>

@@ -141,6 +141,7 @@ export function ImportDialog({ open, onClose }: ImportDialogProps) {
       states[i] = { ...states[i], status: 'running' }
       setItemStates([...states, ...skippedItems])
       try {
+        // isWriteOnly is omitted, so the server keeps it on keys that are already write-only.
         await upsertEntry(scope, environment, entry.key, entry.value, entry.isSecret)
         states[i] = { ...states[i], status: 'done' }
       } catch (err: unknown) {
