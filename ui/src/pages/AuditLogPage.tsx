@@ -37,8 +37,12 @@ function ActionChip({ action }: { action: ConfigAuditAction }) {
   )
 }
 
-function AuditValueCell({ value, isSecret }: { value: string | null; isSecret: boolean }) {
+function AuditValueCell({ value, isSecret, isWriteOnly }: { value: string | null; isSecret: boolean; isWriteOnly: boolean }) {
   const [revealed, setRevealed] = useState(false)
+
+  if (isWriteOnly) {
+    return <span className="text-muted-foreground italic text-xs">(write-only, hidden)</span>
+  }
 
   if (value === null) {
     return <span className="text-muted-foreground italic">—</span>
@@ -74,7 +78,7 @@ interface AuditLogPageProps {
 
 export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
   const [entries, setEntries] = useState<ConfigAuditEntry[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const [scopeFilter, setScopeFilter] = useState('')
@@ -85,9 +89,14 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
 
   const [historyEntry, setHistoryEntry] = useState<ConfigAuditEntry | null>(null)
 
-  async function load() {
+  function load() {
     setLoading(true)
     setError(null)
+    void fetchEntries()
+  }
+
+  // Sets state only after awaiting, so the mount effect below never sets state synchronously.
+  async function fetchEntries() {
     try {
       const data = await queryAuditEntries({
         scope: scopeFilter || undefined,
@@ -106,7 +115,7 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
   }
 
   useEffect(() => {
-    void load()
+    void fetchEntries()
     // Intentionally only on mount; filters re-trigger via the Apply button.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -228,10 +237,10 @@ export function AuditLogPage({ header, headerExtras }: AuditLogPageProps) {
                   </TableCell>
                   <TableCell className="font-mono text-xs font-medium">{entry.key}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <AuditValueCell value={entry.oldValue} isSecret={entry.isSecret} />
+                    <AuditValueCell value={entry.oldValue} isSecret={entry.isSecret} isWriteOnly={entry.isWriteOnly} />
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <AuditValueCell value={entry.newValue} isSecret={entry.isSecret} />
+                    <AuditValueCell value={entry.newValue} isSecret={entry.isSecret} isWriteOnly={entry.isWriteOnly} />
                   </TableCell>
                   <TableCell>
                     <span className="text-xs text-foreground">{entry.scope}</span>

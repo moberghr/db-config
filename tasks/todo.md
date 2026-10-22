@@ -138,3 +138,17 @@ Plan: [`docs/plans/2026-05-18-v0.9.0-multi-tenant.md`](../docs/plans/2026-05-18-
 - UI: cross-tenant copy/move workflow — NEW from v0.9.0
 - Override `GetChildKeys` to expose the current tenant's keys to `IConfiguration.Bind` — NEW from v0.9.0/B65 (perf + leak-risk tradeoff documented)
 - Runtime warning when a tenant-aware type is resolved via `IOptions<T>` (instead of `IOptionsSnapshot<T>`) — NEW from v0.9.0
+
+## Write-only secrets (`IsWriteOnly`) — Ready for review
+
+Spec: [`docs/specs/2026-10-21-write-only-secrets.md`](../docs/specs/2026-10-21-write-only-secrets.md)
+Plan: [`docs/plans/2026-10-21-write-only-secrets.md`](../docs/plans/2026-10-21-write-only-secrets.md)
+
+- [x] **Batch 1** — Core records, stores, EF entities, both InitialCreate.sql + store tests (InMemory, SqlServer, PostgreSql) — 21 new tests; suite 499/499 net8.0
+- [x] **Batch 2** — Http: UpsertEntryRequest, WriteOnlyRedaction on 4 read endpoints + Http unit + E2E (both engines) — 9 new tests; suite 508/508 net8.0 + net10.0
+- [x] **Batch 3** — UI: types, cells, create/edit dialogs, history/audit, bulk skip, export omit, import preserve, demo — npm run build ok; demo smoke: lock cell, edit re-seed, history hidden, bulk reject, export omit
+- [x] **Batch 4** — Docs (7 pages) + project-specific.md §8.2 — SC10 grep lists all 7 pages
+- [x] Spec drift check — clean after amendments (approved)
+- [x] Stage 1 review (compliance) — 1C 2H 3M fixed
+- [x] Stage 2 reviews (test, silent-failure, architecture, context-miner) — fixed in round 2
+- [x] Full suite green on net8.0 + net10.0 — 544/544 each

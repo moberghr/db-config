@@ -502,3 +502,48 @@ wanted defense-in-depth against.
 **Rule:** when defense-in-depth dictates an asymmetric API (indexed reads see X; enumeration
 doesn't), document the asymmetry as a feature, not a bug. List the practical consequences
 (`Bind` misses tenant-only keys) so consumers know how to structure their data.
+
+---
+
+# Write-only secrets lessons (2026-10-21)
+
+## L41 — Masking in the browser is not hiding
+
+`SecretValueCell` masked secrets, but every HTTP read endpoint returned plaintext, so the "hidden"
+value sat in the network tab. Write-only had to be enforced where values are serialized
+(`WriteOnlyRedaction` in `DbConfig.Http`). The first design also missed that audit rows written
+*before* an entry became write-only still carried its value; that took a read-time rule in the
+audit store (correlated `EXISTS`), not just a flag on new rows.
+
+**Rule:** for any "can't see X" feature, enumerate every server path that emits X (entries, audit
+history, flat audit, exports) and every historical copy of X, and test the redaction from the HTTP
+response, not the UI.
+
+## L42 — Full-replace PUTs and client loops overwrite what the client cannot see
+
+Bulk Toggle/Move and Import re-send `entry.value` from the browser. Once a value is redacted the
+browser holds `null`, so those loops would have wiped secrets. Likewise a `bool` flag defaulting to
+`false` lets every pre-feature client silently clear it.
+
+**Rule:** when a field becomes unreadable to clients, (a) make the flag tri-state (`bool?`, omitted
+keeps the current value), (b) reject writes that would null an unreadable value, and (c) audit
+every client-side loop that round-trips entity values.
+
+## L43 — Dialogs mounted once never see their `useState` initial values change
+
+`EditValueDialog` is mounted with `entry=null` and reused, so `useState(entry?.value)` ran once:
+every Edit opened empty with IsSecret unchecked, and Save silently stored secrets as plaintext.
+`useEffect` re-seeding trips `react-hooks/set-state-in-effect`; React's "adjust state while
+rendering" pattern (`if (entry !== seededFor) { setSeededFor(entry); … }`) is lint-clean.
+
+**Rule:** a dialog that receives the edited record as a prop must either be keyed on that record or
+re-seed its state when it changes. Check it in the running UI, not only by type-checking.
+
+## L44 — TestServer cannot run `Results.Json` / `Results.Problem`; analyzers beat the style guide
+
+`Results.BadRequest(obj)` / `Results.Problem` throw under TestServer ("PipeWriter does not
+implement UnflushedBytes"); serialize error bodies by hand like the existing endpoints. Separately,
+coding-style §3.8 ("Where before Single") conflicts with S2971/RCS1077, which are build errors here.
+
+**Rule:** write HTTP error bodies with `JsonSerializer.Serialize` + `Results.Text`, and when a style
+rule and an enforced analyzer disagree, follow the analyzer and flag the rule for correction.

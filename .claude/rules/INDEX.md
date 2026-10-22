@@ -15,12 +15,12 @@ always relevant (machine-scoped auto-attach), independent of the axes.
 
 | Rule file | Title | decision | topic | scope | paths | Rules | Lines |
 |---|---|---|---|---|---|---|---|
-| `architecture.md` | Architecture Patterns | structure | architecture | project | src/core/**; src/core/providers/**; samples/** | - | 551 |
+| `architecture.md` | Architecture Patterns | structure | architecture | project | src/core/**; src/core/providers/**; samples/** | - | 562 |
 | `coding-style.md` | Coding Style (Project-Specific Overrides) | authoring | style | project | src/**; samples/** | - | 49 |
-| `data-layer.md` | Data Layer | structure | data-layer | project | src/core/DbConfig.EntityFrameworkCore/**; src/core/providers/** | - | 25 |
+| `data-layer.md` | Data Layer | structure | data-layer | project | src/core/DbConfig.EntityFrameworkCore/**; src/core/providers/** | - | 27 |
 | `git-workflow.md` | Git & Workflow | process | git | project | **   # repo-wide: branch/commit/PR conventions apply to every change | - | 22 |
 | `performance.md` | Performance | structure | performance | project | src/core/DbConfig.Core/**; src/core/DbConfig.EntityFrameworkCore/** | - | 21 |
-| `project-specific.md` | Project-Specific Patterns | structure | project | project | src/**; samples/**; ui/** | - | 377 |
+| `project-specific.md` | Project-Specific Patterns | structure | project | project | src/**; samples/**; ui/** | - | 400 |
 | `security.md` | Security & Data Integrity | security | security | project | **   # repo-wide: secret handling and the auth boundary apply to every file, | - | 20 |
 | `testing.md` | Testing Standards | process | testing | project | src/tests/**; ui/e2e/** | - | 50 |
 

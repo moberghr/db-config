@@ -28,6 +28,9 @@ internal sealed class AuditEntry
 
     public bool IsSecret { get; set; }
 
+    /// <summary><see langword="true"/> when the entry was write-only before or after the mutation.</summary>
+    public bool IsWriteOnly { get; set; }
+
     /// <summary>Stored as a string ('Insert', 'Update', 'Delete') for migration friendliness.</summary>
     public string Action { get; set; } = string.Empty;
 

@@ -5,7 +5,7 @@
 
 ## What this is
 
-The whole suite — 447 tests across unit, SQL Server, PostgreSQL, and end-to-end host fixtures.
+The whole suite — 513 tests across unit, SQL Server, PostgreSQL, and end-to-end host fixtures.
 
 ## Build / test (local)
 
@@ -22,7 +22,7 @@ cd bin/Debug/net8.0          # or net10.0 — packages multi-target
 - Store-touching behavior needs a SQL Server class AND a PostgreSQL class — written by hand, using
   `[Collection(SqlServerFixture.CollectionName)]` / `[Collection(PostgreSqlFixture.CollectionName)]`.
   There is no source generator in this repo.
-- `[TimedFact]` is the default attribute (441 of 447 tests). Never raise a budget to fix a flake.
+- `[TimedFact]` is the default attribute (507 of 513 tests). Never raise a budget to fix a flake.
 - Test code may use `DateTime.UtcNow`; production code uses `TimeProvider`.
 
 ## Dependencies / boundaries

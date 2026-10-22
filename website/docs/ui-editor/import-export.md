@@ -38,6 +38,10 @@ The exported format mirrors `appsettings.json` with a metadata sidecar:
 }
 ```
 
+Write-only entries (`isWriteOnly`) are **left out** of the export, because the server never
+returns their values. The toolbar shows how many were omitted. Re-importing the file
+therefore can never overwrite a write-only secret with an empty value.
+
 The `_dbconfig` block at the top level is a metadata sidecar. It maps flat keys to their
 `isSecret` flags, timestamps, and author information. This sidecar is required for a
 lossless round-trip — without it, an import would not know which entries to encrypt.
@@ -82,6 +86,10 @@ If you need an atomic all-or-nothing import, use the Overwrite policy for idempo
 The sidecar `_dbconfig` block carries `isSecret` flags. An exported entry with
 `isSecret: true` is re-imported as a secret entry (value encrypted at rest). A file
 without the sidecar treats all entries as non-secret.
+
+When **Overwrite** replaces an entry that is currently write-only, it stays write-only: the
+import does not send `isWriteOnly`, and the server keeps the existing flag. The file's value
+becomes the new stored value, and the old one is never shown.
 
 ## Round-trip workflow
 

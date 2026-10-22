@@ -71,6 +71,10 @@ public sealed class DbConfigDbContext : DbContext
                 .HasDefaultValue(false)
                 .IsRequired();
 
+            entity.Property(x => x.IsWriteOnly)
+                .HasDefaultValue(false)
+                .IsRequired();
+
             entity.Property(x => x.ModifiedUtc)
                 .HasConversion(new UtcDateTimeOffsetConverter())
                 .IsRequired();
@@ -115,6 +119,10 @@ public sealed class DbConfigDbContext : DbContext
                 .IsRequired(false);
 
             entity.Property(x => x.IsSecret)
+                .IsRequired();
+
+            entity.Property(x => x.IsWriteOnly)
+                .HasDefaultValue(false)
                 .IsRequired();
 
             entity.Property(x => x.Action)

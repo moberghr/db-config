@@ -40,8 +40,19 @@ add a secondary index on `Key` alone — the composite unique constraint is alre
 When `false`, values flow verbatim — no encrypt/decrypt overhead. This is intentional for
 debuggability (feature flags, log levels, polling intervals, etc. stay readable in DB tools).
 
-**HTTP GET responses always return plaintext** (the store decrypts before returning to the
+**HTTP GET responses return plaintext** (the store decrypts before returning to the
 HTTP layer). Callers do not see ciphertext.
+
+**Exception — `IsWriteOnly`:** a write-only entry is stored with `IsSecret` forced to `true`, and
+every value-serializing endpoint passes it through `WriteOnlyRedaction` (`DbConfig.Http`), which
+nulls `Value` (and `OldValue`/`NewValue` on audit rows flagged `IsWriteOnly`). Audit stores set
+that flag for rows written while the entry was write-only **and** for rows whose key is
+write-only at read time (EF: correlated `EXISTS`). `UpsertEntryRequest.IsWriteOnly` is `bool?`:
+omitted keeps the current flag; `PUT` rejects a `null` value over a write-only entry (400) and
+fails (500) if the store did not persist the flag. Redaction lives in
+the HTTP layer only. Stores and the configuration provider keep returning plaintext, because the
+host reads the value in-process. Any new endpoint that serializes entries or audit rows MUST call
+`WriteOnlyRedaction.Redact`. Like `IsSecret`, write-only is not an authorization boundary (§8.8).
 
 **Audit rows** store OldValue/NewValue in the same form as the main column (ciphertext when
 IsSecret=true). The audit read endpoint decrypts before returning to callers.
@@ -71,6 +82,9 @@ To change the schema:
 - Edit the entity (`ConfigEntry` / `AuditEntry`) in `DbConfig.EntityFrameworkCore`.
 - Edit **both** `InitialCreate.sql` scripts — missing one silently breaks that engine only.
 - Run the tests on both engines to verify the schema applies cleanly (§8.4).
+
+To add a column to an existing table, append a guarded `ALTER TABLE ... ADD` after the
+`CREATE TABLE` in both scripts (decision D8; `IsWriteOnly` is the reference example).
 
 If the entity set ever grows enough to warrant real EF migrations, that is a decision to record in
 `.claude/references/decisions.md`, not an incremental change.
@@ -123,7 +137,7 @@ Or with a filter:
 ./DbConfig.Tests --filter-trait "Category=PostgreSql"
 ```
 
-Current suite: 447 tests (verified 2026-09-21 via `--list-tests`). Packages and tests multi-target,
+Current suite: 513 tests (verified 2026-10-22 via `--list-tests`; 544 cases run once theory rows expand). Packages and tests multi-target,
 so pick the `bin/Debug/net8.0` or `bin/Debug/net10.0` executable deliberately. Any new behavior requires at least one
 test. Any new store-touching behavior requires tests on both engines.
 
@@ -190,7 +204,8 @@ IncludeScopes = ["OrgGlobals", "PlatformDefaults", "Shared"];
 - Separate route prefixes for each group (e.g. `/api/dbconfig` and `/api/dbconfig-shared`)
 
 **Never:** put real production secrets in a shared scope unless ALL apps that include it are
-trusted to read them. `IsSecret` is a UI mask only — every app's process can read every byte.
+trusted to read them. `IsSecret` (and `IsWriteOnly`) protect the value at rest and from HTTP
+readers, not from the apps — every app's process can read every byte (`security.md` §1.4).
 
 **Testing:** when adding scoped behavior, include precedence tests with at least 3 scopes to
 prove the ordering is stable (not just two-scope alternation).

@@ -63,9 +63,19 @@ function App() {
     }
   }, [])
 
+  // Initial check: state is set only from the promise callback, never synchronously in the effect.
   useEffect(() => {
-    void checkAuth()
-  }, [checkAuth])
+    let cancelled = false
+    void fetchAuthStatus().then((status) => {
+      if (cancelled) return
+      setAuth(status.authenticated
+        ? { kind: 'authenticated', hasBuiltInLogin: status.hasBuiltInLogin }
+        : { kind: 'login' })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   if (auth.kind === 'checking') {
     // Empty shell that respects the persisted theme so there's no flash.

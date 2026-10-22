@@ -7,8 +7,10 @@ export interface ConfigEntry {
   environment: string
   tenantId: string
   key: string
+  /** Always null for write-only entries: the server never returns their value. */
   value: string | null
   isSecret: boolean
+  isWriteOnly: boolean
   modifiedUtc: string
   modifiedBy: string | null
 }
@@ -24,6 +26,8 @@ export interface ConfigAuditEntry {
   oldValue: string | null
   newValue: string | null
   isSecret: boolean
+  /** True when the entry was write-only before or after this change; both values are then null. */
+  isWriteOnly: boolean
   action: ConfigAuditAction
   modifiedUtc: string // ISO 8601
   modifiedBy: string | null
@@ -32,6 +36,7 @@ export interface ConfigAuditEntry {
 export interface UpsertEntryRequest {
   value: string | null
   isSecret: boolean
+  isWriteOnly?: boolean
   tenantId?: string
 }
 
@@ -120,15 +125,22 @@ export async function upsertEntry(
   key: string,
   value: string | null,
   isSecret: boolean,
-  tenantId?: string
+  tenantId?: string,
+  /** Omit to keep the entry's current write-only flag; pass false to clear it. */
+  isWriteOnly?: boolean
 ): Promise<AxiosResponse<ConfigEntry>> {
   if (isDemoMode) {
     const client = await getDemoClient()
-    const result = await client.upsertEntry(app, env, key, value, isSecret, tenantId)
+    const result = await client.upsertEntry(app, env, key, value, isSecret, tenantId, isWriteOnly)
     // Return an Axios-shaped response so callers that check .data or .status work.
     return result as AxiosResponse<ConfigEntry>
   }
-  const body: UpsertEntryRequest = { value, isSecret, ...(tenantId ? { tenantId } : {}) }
+  const body: UpsertEntryRequest = {
+    value,
+    isSecret,
+    ...(isWriteOnly !== undefined ? { isWriteOnly } : {}),
+    ...(tenantId ? { tenantId } : {}),
+  }
   return api.put<ConfigEntry>(
     `/${encodeURIComponent(app)}/${encodeURIComponent(env)}/${encodeKey(key)}`,
     body

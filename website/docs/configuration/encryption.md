@@ -25,7 +25,59 @@ When `IsSecret = true`:
 - The React UI masks the value (`•••••`) and requires an explicit click to reveal it
 - `EfCoreConfigStore.UpsertAsync` calls `IConfigEncryptor.Protect()` before writing
 - `EfCoreConfigStore.GetAsync` / `GetAllAsync` call `IConfigEncryptor.Unprotect()` on read
-- HTTP GET responses always return plaintext — the store decrypts before returning
+- HTTP GET responses return plaintext — the store decrypts before returning. Write-only
+  entries are the exception; see below.
+
+## Write-only secrets (`IsWriteOnly`)
+
+Mark an entry `IsWriteOnly = true` when nobody should be able to read it back through the API
+or the UI, the way GitHub Actions secrets work. You can create the value and replace it, but
+you cannot see it again. The host application still reads the plaintext through
+`IConfiguration`, `IOptions<T>` and `IConfigStore`, exactly as it does for any other entry.
+
+- **Always encrypted.** The store forces `IsSecret = true` for a write-only entry, so it is
+  encrypted at rest like any other secret. `IsSecret` on its own stays revealable; the two flags
+  are independent, and existing secrets are not affected.
+- **Redacted by the HTTP API.** `GET /`, `GET /{scope}/{environment}/{*key}`, `GET /audit` and
+  `GET /{scope}/{environment}/audit/{*key}` return `value` (or `oldValue` / `newValue`) as
+  `null` and `isWriteOnly: true`. Redaction happens on the server, so the value never reaches
+  the browser.
+- **Replace, never reveal.** `PUT` always supplies the full value. Omitting `isWriteOnly`
+  keeps the entry's current flag, so older clients and scripts cannot downgrade it by
+  accident. Sending `isWriteOnly: false` explicitly clears the flag, but the request's value
+  replaces the stored one, so the old value is never returned.
+- **Audit rows.** An audit row is marked write-only when the entry was write-only before *or*
+  after the change. The audit endpoints also hide the values of **every** row whose key is
+  write-only right now, including rows written before it became write-only. The values are
+  still stored (encrypted) in the audit table.
+- **Rotate when you upgrade.** Making an existing entry write-only does not make its previous
+  value secret again: anyone who could read it before may have copied it. The UI asks for a
+  new value when you tick write-only on an existing entry.
+
+```csharp
+await store.UpsertAsync(
+    new ConfigEntryRecord("MyApp", "Production", "", "Jwt:SigningKey", signingKey,
+        IsSecret: true, DateTimeOffset.UtcNow, "deploy-bot", IsWriteOnly: true),
+    ct);
+```
+
+:::warning Write-only is not an authorization boundary
+It hides the value from people using the HTTP API and the UI. It does **not** hide it from:
+
+- any application whose host includes the scope (`Scope` or `IncludeScopes`), which reads the
+  plaintext in-process;
+- in-process code calling `IConfigStore` / `IConfigAuditStore` directly;
+- anyone with database access **and** the Data Protection key ring.
+
+Control who can write and who runs the reading applications with the same care as for any
+other secret. See [shared scopes](./scopes.md).
+:::
+
+A custom `IConfigStore` must persist `IsWriteOnly` and force `IsSecret = true` for it. The
+upsert endpoint reads a write-only entry back after writing it and returns `500` (and logs an
+error) if the store dropped the flag. A custom `IConfigAuditStore` must set
+`ConfigAuditEntryRecord.IsWriteOnly` for rows written while the entry was write-only **and** for
+rows whose key is write-only at read time; the shipped stores do both.
 
 ## Default encryptor: ASP.NET Core Data Protection
 
@@ -138,6 +190,7 @@ Non-secret config reads are unaffected. Request handlers, background services, a
 Audit rows store `OldValue` and `NewValue` in the same form as the main `Value` column —
 ciphertext when `IsSecret = true`. The audit read endpoint (`GET .../audit/{key}`) decrypts
 values before returning them to callers. You never see raw ciphertext from the HTTP API.
+Rows for write-only entries come back with both values set to `null`.
 
 ## Flipping `IsSecret` post-hoc
 

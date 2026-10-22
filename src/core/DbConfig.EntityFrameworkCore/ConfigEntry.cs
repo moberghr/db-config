@@ -24,6 +24,8 @@ internal sealed class ConfigEntry
 
     public bool IsSecret { get; set; }
 
+    public bool IsWriteOnly { get; set; }
+
     public DateTimeOffset ModifiedUtc { get; set; }
 
     public string? ModifiedBy { get; set; }

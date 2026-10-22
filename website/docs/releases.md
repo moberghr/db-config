@@ -4,6 +4,47 @@ sidebar_position: 99
 
 # Releases
 
+## v1.0.0 (2026-10-22)
+
+First stable release. Entries can be marked write-only: settable through the API and UI, never readable back.
+
+### Write-only secrets (`IsWriteOnly`)
+
+A new per-entry `IsWriteOnly` flag, modelled on GitHub Actions secrets. A write-only value can
+be created and replaced through the HTTP API and the UI but never read back; the host still
+reads the plaintext in-process. See [write-only secrets](./configuration/encryption.md#write-only-secrets-iswriteonly).
+
+- `ConfigEntryRecord` and `ConfigAuditEntryRecord` gain a trailing `IsWriteOnly = false`
+  parameter; `UpsertEntryRequest` gains `bool? IsWriteOnly = null`, where omitting it keeps the
+  existing flag. Write-only implies `IsSecret = true`; plain `IsSecret` entries are unchanged
+  and stay revealable.
+- The HTTP API returns `value` / `oldValue` / `newValue` as `null` for write-only entries and
+  their audit rows, on every read endpoint, including audit rows written before the entry
+  became write-only.
+- `PUT` returns `400` for a `null` value over a write-only entry, and `500` when the
+  registered `IConfigStore` does not persist the flag.
+- When a plain entry becomes secret, its old value is now encrypted in the audit row too, so
+  reading that history no longer fails.
+- The UI shows write-only entries with a lock and no reveal button. Bulk Toggle IsSecret and
+  Move skip them, Export omits them, and Import keeps the flag when it overwrites one.
+- The schema scripts add `IsWriteOnly` / `is_write_only` to both tables with a guarded
+  `ALTER TABLE`, so existing databases upgrade on the next startup. See
+  [migrations](./operations/migrations.md#what-the-script-creates).
+- Fixed: the Edit dialog did not load the entry it opened (empty value, `IsSecret`
+  unchecked), so saving could silently store a secret as plaintext.
+
+### Dependency fix
+
+- `Moberg.DbConfig.Provider.SqlServer` (net10.0) now pins `System.Security.Cryptography.Pkcs`
+  10.0.13. `Microsoft.Data.SqlClient` 6.1.x pulls 9.0.x, which is affected by
+  GHSA-846f-f764-76mx and GHSA-2fmv-rv2c-59x7 and failed restore under NuGet audit.
+
+### Breaking changes
+
+- **Binary-breaking:** the positional constructors of `ConfigEntryRecord` and
+  `ConfigAuditEntryRecord` have one more parameter. Source that calls them recompiles
+  unchanged; assemblies compiled against an earlier version must be rebuilt.
+
 ## v0.16.0 (2026-09-21)
 
 Minor release. PostgreSQL hosts can hand DbConfig a data source instead of a connection string.

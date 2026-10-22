@@ -15,6 +15,7 @@ export interface UpsertCoords {
   key: string
   value: string | null
   isSecret: boolean
+  isWriteOnly?: boolean
 }
 
 export interface RemoveCoords {
@@ -102,8 +103,8 @@ export const useEntriesStore = create<EntriesState>((set) => ({
     }
   },
 
-  upsert: async ({ scope, environment, tenantId, key, value, isSecret }) => {
-    await upsertEntry(scope, environment, key, value, isSecret, tenantId || undefined)
+  upsert: async ({ scope, environment, tenantId, key, value, isSecret, isWriteOnly }) => {
+    await upsertEntry(scope, environment, key, value, isSecret, tenantId || undefined, isWriteOnly)
     const entries = await reloadEntriesForCurrentScope()
     set({ entries, truncated: entries.length >= DefaultQueryTake })
   },

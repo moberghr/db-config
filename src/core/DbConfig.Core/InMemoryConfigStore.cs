@@ -94,6 +94,11 @@ public sealed class InMemoryConfigStore : IConfigStore
             : NoOpConfigAuditAppender.Instance;
         _options = options;
         _tenantResolver = tenantResolver;
+
+        if (auditStore is not null)
+        {
+            auditStore.IsKeyCurrentlyWriteOnly = IsKeyCurrentlyWriteOnly;
+        }
     }
 
     /// <summary>
@@ -236,6 +241,13 @@ public sealed class InMemoryConfigStore : IConfigStore
 
     public Task UpsertAsync(ConfigEntryRecord entry, CancellationToken ct)
     {
+        // Write-only values must be encrypted at rest; forcing IsSecret keeps every decrypt path
+        // keyed off a single flag.
+        if (entry.IsWriteOnly && !entry.IsSecret)
+        {
+            entry = entry with { IsSecret = true };
+        }
+
         var key = (entry.Scope, entry.Environment, entry.TenantId, entry.Key);
         var stored = EncryptEntry(entry);
 
@@ -243,11 +255,18 @@ public sealed class InMemoryConfigStore : IConfigStore
         {
             ConfigAuditAction action;
             string? oldValue = null;
+            var wasWriteOnly = false;
 
             if (_entries.TryGetValue(key, out var existing))
             {
                 action = ConfigAuditAction.Update;
-                oldValue = existing.Value; // stored ciphertext or plaintext
+
+                // The audit row is flagged with the new IsSecret, so an old plaintext value has to
+                // be encrypted as well or the audit reader would try to decrypt plaintext.
+                oldValue = !existing.IsSecret && entry.IsSecret && existing.Value is not null
+                    ? _encryptor.Protect(existing.Value)
+                    : existing.Value;
+                wasWriteOnly = existing.IsWriteOnly;
             }
             else
             {
@@ -262,7 +281,8 @@ public sealed class InMemoryConfigStore : IConfigStore
                     action,
                     oldValue: oldValue,
                     newValue: stored.Value,
-                    modifiedUtc: entry.ModifiedUtc == default ? DateTimeOffset.UtcNow : entry.ModifiedUtc),
+                    modifiedUtc: entry.ModifiedUtc == default ? DateTimeOffset.UtcNow : entry.ModifiedUtc,
+                    isWriteOnly: wasWriteOnly || entry.IsWriteOnly),
                 ct).AsTask().GetAwaiter().GetResult();
         }
 
@@ -287,7 +307,8 @@ public sealed class InMemoryConfigStore : IConfigStore
                         key,
                         existing.IsSecret,
                         oldValue: existing.Value,
-                        modifiedUtc: DateTimeOffset.UtcNow),
+                        modifiedUtc: DateTimeOffset.UtcNow,
+                        isWriteOnly: existing.IsWriteOnly),
                     ct).AsTask().GetAwaiter().GetResult();
             }
             else
@@ -452,7 +473,8 @@ public sealed class InMemoryConfigStore : IConfigStore
                         key,
                         existing.IsSecret,
                         oldValue: existing.Value,
-                        modifiedUtc: DateTimeOffset.UtcNow),
+                        modifiedUtc: DateTimeOffset.UtcNow,
+                        isWriteOnly: existing.IsWriteOnly),
                     ct).AsTask().GetAwaiter().GetResult();
             }
         }
@@ -665,7 +687,8 @@ public sealed class InMemoryConfigStore : IConfigStore
         ConfigAuditAction action,
         string? oldValue,
         string? newValue,
-        DateTimeOffset modifiedUtc)
+        DateTimeOffset modifiedUtc,
+        bool isWriteOnly)
     {
         return new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
@@ -678,7 +701,8 @@ public sealed class InMemoryConfigStore : IConfigStore
             IsSecret: entry.IsSecret,
             Action: action,
             ModifiedUtc: modifiedUtc,
-            ModifiedBy: entry.ModifiedBy);
+            ModifiedBy: entry.ModifiedBy,
+            IsWriteOnly: isWriteOnly);
     }
 
     private static ConfigAuditEntryRecord BuildAuditRowForDelete(
@@ -688,7 +712,8 @@ public sealed class InMemoryConfigStore : IConfigStore
         string key,
         bool isSecret,
         string? oldValue,
-        DateTimeOffset modifiedUtc)
+        DateTimeOffset modifiedUtc,
+        bool isWriteOnly)
     {
         return new ConfigAuditEntryRecord(
             Id: Guid.NewGuid(),
@@ -701,7 +726,17 @@ public sealed class InMemoryConfigStore : IConfigStore
             IsSecret: isSecret,
             Action: ConfigAuditAction.Delete,
             ModifiedUtc: modifiedUtc,
-            ModifiedBy: null);
+            ModifiedBy: null,
+            IsWriteOnly: isWriteOnly);
+    }
+
+    private bool IsKeyCurrentlyWriteOnly(ConfigAuditEntryRecord row)
+    {
+        lock (_lock)
+        {
+            return _entries.TryGetValue((row.Scope, row.Environment, row.TenantId, row.Key), out var current)
+                && current.IsWriteOnly;
+        }
     }
 
     private ConfigEntryRecord EncryptEntry(ConfigEntryRecord entry)

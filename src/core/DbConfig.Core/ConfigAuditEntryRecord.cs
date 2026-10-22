@@ -29,6 +29,13 @@ public enum ConfigAuditAction
 /// always plaintext; the store handles decryption internally for entries where
 /// <see cref="IsSecret"/> is <see langword="true"/>.
 /// </summary>
+/// <remarks>
+/// <see cref="IsWriteOnly"/> is <see langword="true"/> when the entry was write-only before or
+/// after the mutation, or when its key is write-only at the time the row is read (so history
+/// written before an entry became write-only is covered too). The HTTP API returns
+/// <see cref="OldValue"/> and <see cref="NewValue"/> as <see langword="null"/> for such rows.
+/// Custom <see cref="IConfigAuditStore"/> implementations must apply the same rule.
+/// </remarks>
 public sealed record ConfigAuditEntryRecord(
     Guid Id,
     string Scope,
@@ -40,4 +47,5 @@ public sealed record ConfigAuditEntryRecord(
     bool IsSecret,
     ConfigAuditAction Action,
     DateTimeOffset ModifiedUtc,
-    string? ModifiedBy);
+    string? ModifiedBy,
+    bool IsWriteOnly = false);

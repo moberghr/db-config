@@ -49,7 +49,8 @@ returns `403 Forbidden`; an omitted `scope` is silently substituted with the fil
 
 **Response:** `200 OK` with a JSON array of `ConfigEntry` (empty array when no rows
 match — never `404`). Secret entries are returned **decrypted** in plaintext, just
-like the existing single-key `GET` endpoint.
+like the existing single-key `GET` endpoint. Write-only entries (`isWriteOnly: true`) are
+returned with `value: null`; see [write-only secrets](../configuration/encryption.md#write-only-secrets-iswriteonly).
 
 ```bash
 # All entries (capped at 1000)
@@ -118,10 +119,14 @@ Response (200):
   "key": "Database:ConnectionString",
   "value": "Server=prod-sql;Database=mydb;Integrated Security=true",
   "isSecret": true,
+  "isWriteOnly": false,
   "modifiedUtc": "2026-05-17T12:00:00Z",
   "modifiedBy": "alice@example.com"
 }
 ```
+
+For a write-only entry `value` is always `null` and `isWriteOnly` is `true`. The response
+still carries `modifiedUtc` and `modifiedBy`, so callers can show when the value was last set.
 
 The `tenantId` defaults to the global default sentinel (`""`). Use the `?tenantId=` query
 string parameter on this endpoint to target a tenant-specific row.
@@ -144,12 +149,27 @@ Request body (`UpsertEntryRequest`):
 {
   "value": "the value to store",
   "isSecret": false,
+  "isWriteOnly": false,
   "tenantId": ""
 }
 ```
 
 `value` may be null to store an explicit null entry. `isSecret` defaults to `false` if
 omitted. `tenantId` defaults to `""` (global default).
+
+`isWriteOnly: true` makes the entry write-only and forces `isSecret` to `true`. Omitting
+`isWriteOnly` (or sending `null`) keeps the existing entry's flag, or `false` for a new entry,
+so clients that predate the flag never downgrade a write-only entry. Sending
+`isWriteOnly: false` explicitly downgrades it with the value in the request; the previous
+value is never returned.
+
+- `400 Bad Request` when `value` is `null` and the entry is currently write-only: a write-only
+  value cannot be read, so nulling it is almost always an accident. Use `DELETE` instead.
+- `500 Internal Server Error` when the request makes an entry write-only but the registered
+  `IConfigStore` does not persist the flag (the value would otherwise be served in plaintext).
+  The error is also logged.
+- When `isWriteOnly` is omitted, the endpoint reads the current flag before writing. Two
+  concurrent `PUT`s that change the flag resolve last-writer-wins, like every other field.
 
 Response: `204 No Content`.
 
@@ -214,7 +234,14 @@ Response (200):
 ]
 ```
 
-`oldValue` and `newValue` are decrypted plaintext even for secret entries.
+`oldValue` and `newValue` are decrypted plaintext even for secret entries, except for
+write-only rows, where both are `null` and `isWriteOnly` is `true`. A row is write-only when
+the entry was write-only before or after the change, **or** when its key is write-only now
+(so history written before an upgrade is hidden too). The audit store applies that rule in
+the same query (an `EXISTS` against the entries table), and the same rule applies to
+`GET /audit`. Once a write-only entry is deleted or downgraded, rows written while it was
+write-only stay hidden; rows written before it ever became write-only become visible again,
+because their values were readable at the time.
 `oldValue` is null for `Insert` actions. `newValue` is null for `Delete` actions. Both are
 null for `Read` actions (when read auditing is enabled). `action` is serialized as its
 string name.

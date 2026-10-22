@@ -1,14 +1,29 @@
 import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface SecretValueCellProps {
   value: string | null
   isSecret: boolean
+  isWriteOnly?: boolean
 }
 
-export function SecretValueCell({ value, isSecret }: SecretValueCellProps) {
+export function SecretValueCell({ value, isSecret, isWriteOnly = false }: SecretValueCellProps) {
   const [revealed, setRevealed] = useState(false)
+
+  // The server never returns write-only values, so there is nothing to reveal.
+  if (isWriteOnly) {
+    return (
+      <span
+        className="flex items-center gap-1 text-muted-foreground"
+        title="Write-only: the value can be replaced but never shown"
+      >
+        <Lock className="h-3 w-3" />
+        <span className="font-mono text-xs">••••••••</span>
+        <span className="text-xs italic">write-only</span>
+      </span>
+    )
+  }
 
   if (value === null) {
     return <span className="text-muted-foreground italic">(empty)</span>

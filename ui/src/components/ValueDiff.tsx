@@ -8,6 +8,7 @@ interface ValueDiffProps {
   oldValue: string | null
   newValue: string | null
   isSecret: boolean
+  isWriteOnly?: boolean
 }
 
 const SIZE_LIMIT = 100 * 1024 // 100KB
@@ -134,8 +135,16 @@ function ValueDiffContent({
   )
 }
 
-export function ValueDiff({ oldValue, newValue, isSecret }: ValueDiffProps) {
+export function ValueDiff({ oldValue, newValue, isSecret, isWriteOnly = false }: ValueDiffProps) {
   const [revealed, setRevealed] = useState(false)
+
+  if (isWriteOnly) {
+    return (
+      <div className="text-xs text-muted-foreground italic">
+        Write-only entry: values are never shown, so there is nothing to compare.
+      </div>
+    )
+  }
 
   const oldStr = oldValue ?? ''
   const newStr = newValue ?? ''

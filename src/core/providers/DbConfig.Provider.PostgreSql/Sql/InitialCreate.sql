@@ -28,6 +28,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS "ix_config_entries_scope_environment_tenant_id
 CREATE INDEX IF NOT EXISTS "ix_config_entries_scope_environment_tenant_id_modified_utc"
     ON "{schema}"."config_entries" ("scope", "environment", "tenant_id", "modified_utc" DESC);
 
+-- Added after the initial release; the guarded ADD keeps databases created by older versions in
+-- step. The information_schema check runs first because ALTER TABLE ... ADD COLUMN IF NOT EXISTS
+-- takes an ACCESS EXCLUSIVE lock even when the column already exists, on every host start.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = '{schema}' AND table_name = 'config_entries' AND column_name = 'is_write_only')
+    THEN
+        ALTER TABLE "{schema}"."config_entries"
+            ADD COLUMN "is_write_only" boolean NOT NULL DEFAULT false;
+    END IF;
+END $$;
+
 -- ---------- audit_entries ----------
 CREATE TABLE IF NOT EXISTS "{schema}"."audit_entries"
 (
@@ -47,3 +61,14 @@ CREATE TABLE IF NOT EXISTS "{schema}"."audit_entries"
 
 CREATE INDEX IF NOT EXISTS "ix_audit_entries_scope_environment_tenant_id_key_modified_utc"
     ON "{schema}"."audit_entries" ("scope", "environment", "tenant_id", "key", "modified_utc" DESC);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = '{schema}' AND table_name = 'audit_entries' AND column_name = 'is_write_only')
+    THEN
+        ALTER TABLE "{schema}"."audit_entries"
+            ADD COLUMN "is_write_only" boolean NOT NULL DEFAULT false;
+    END IF;
+END $$;

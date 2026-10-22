@@ -144,12 +144,9 @@ public sealed class SqlServerCustomSchemaTests : IAsyncLifetime
         // trigger it manually so the polling provider picks up the write without waiting
         // for the 30-second default tick.
         var signal = host.Services.GetRequiredService<IDbConfigReloadSignal>();
-        signal.Trigger();
-
-        // Reload is fire-and-forget; give the polling task a brief window to refresh the dictionary.
-        await Task.Delay(250, ct);
-
         var configuration = host.Services.GetRequiredService<IConfiguration>();
+        await TriggerReloadUntilAsync(signal, configuration, () => configuration["MyKey"] is not null, ct);
+
         configuration["MyKey"].ShouldBe("configured-value");
     }
 
@@ -208,6 +205,22 @@ public sealed class SqlServerCustomSchemaTests : IAsyncLifetime
         cmd.Parameters.Add(pk);
 
         return (int)(await cmd.ExecuteScalarAsync(ct) ?? 0);
+    }
+
+    // The reload runs asynchronously against the container, and a signal that lands while a
+    // poll is already in flight can be absorbed by it. Re-trigger and wait on the reload token
+    // until the condition holds, instead of sleeping a fixed interval (testing.md §4.5/§4.6).
+    private static async Task TriggerReloadUntilAsync(
+        IDbConfigReloadSignal signal, IConfiguration configuration, Func<bool> condition, CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            var reloaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var registration = configuration.GetReloadToken().RegisterChangeCallback(_ => reloaded.TrySetResult(), null);
+            signal.Trigger();
+            await Task.WhenAny(reloaded.Task, Task.Delay(TimeSpan.FromMilliseconds(500), ct));
+        }
     }
 
     private static async Task<bool> TableExistsAsync(string connectionString, string schema, string tableName, CancellationToken ct)

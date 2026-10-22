@@ -49,6 +49,14 @@ BEGIN
 END;
 GO
 
+-- Added after the initial release; the guarded ADD keeps databases created by older versions in step.
+IF COL_LENGTH(N'[{schema}].[ConfigEntries]', N'IsWriteOnly') IS NULL
+BEGIN
+    ALTER TABLE [{schema}].[ConfigEntries]
+        ADD [IsWriteOnly] bit NOT NULL CONSTRAINT [DF_ConfigEntries_IsWriteOnly] DEFAULT 0;
+END;
+GO
+
 -- ---------- AuditEntries ----------
 IF NOT EXISTS (
     SELECT 1 FROM sys.tables t
@@ -79,5 +87,12 @@ IF NOT EXISTS (
 BEGIN
     CREATE INDEX [IX_AuditEntries_Scope_Environment_TenantId_Key_ModifiedUtc]
         ON [{schema}].[AuditEntries] ([Scope], [Environment], [TenantId], [Key], [ModifiedUtc] DESC);
+END;
+GO
+
+IF COL_LENGTH(N'[{schema}].[AuditEntries]', N'IsWriteOnly') IS NULL
+BEGIN
+    ALTER TABLE [{schema}].[AuditEntries]
+        ADD [IsWriteOnly] bit NOT NULL CONSTRAINT [DF_AuditEntries_IsWriteOnly] DEFAULT 0;
 END;
 GO

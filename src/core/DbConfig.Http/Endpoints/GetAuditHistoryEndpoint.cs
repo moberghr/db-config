@@ -54,7 +54,7 @@ internal static class GetAuditHistoryEndpoint
         }
 
         httpContext.Response.ContentType = "application/json; charset=utf-8";
-        await JsonSerializer.SerializeAsync(httpContext.Response.Body, history, JsonOptions.Default, ct);
+        await JsonSerializer.SerializeAsync(httpContext.Response.Body, WriteOnlyRedaction.Redact(history), JsonOptions.Default, ct);
     }
 }
 
