@@ -4,9 +4,9 @@ sidebar_position: 99
 
 # Releases
 
-## v0.17.0 (2026-10-22)
+## v1.0.0 (2026-10-22)
 
-Minor release. Entries can be marked write-only: settable through the API and UI, never readable back.
+First stable release. Entries can be marked write-only: settable through the API and UI, never readable back.
 
 ### Write-only secrets (`IsWriteOnly`)
 
