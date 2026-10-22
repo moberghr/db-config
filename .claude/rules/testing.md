@@ -10,8 +10,8 @@ axes:
 
 # Testing Standards
 
-> 447 tests in `src/tests/DbConfig.Tests/` (xUnit v3 `xunit.v3.mtp-v2` + Shouldly + Moq + Respawn +
-> Testcontainers MsSql/PostgreSql + `Microsoft.AspNetCore.TestHost`). Counts verified 2026-09-21 via
+> 513 tests in `src/tests/DbConfig.Tests/` (xUnit v3 `xunit.v3.mtp-v2` + Shouldly + Moq + Respawn +
+> Testcontainers MsSql/PostgreSql + `Microsoft.AspNetCore.TestHost`). Counts verified 2026-10-22 via
 > `./DbConfig.Tests --list-tests`.
 
 ## Structure
@@ -27,7 +27,7 @@ axes:
 
 ## Timing & Determinism
 
-- **§4.4** Use `[TimedFact]` — 441 of 447 tests do. It carries a short default budget so deadlocks and hangs surface immediately; tests exercising genuinely slow behavior opt in explicitly with a larger budget. **NEVER raise the budget to fix a flake** — root-cause it.
+- **§4.4** Use `[TimedFact]` — 507 of 513 tests do. It carries a short default budget so deadlocks and hangs surface immediately; tests exercising genuinely slow behavior opt in explicitly with a larger budget. **NEVER raise the budget to fix a flake** — root-cause it.
 - **§4.5** Production code uses `TimeProvider` (`data-layer.md` §5.6) so tests advance time instead of sleeping. Avoid `Task.Delay` in tests.
 - **§4.6** Prefer deterministic reload triggers (`IDbConfigReloadSignal.TriggerReload()` or an explicit watermark advance) over waiting out a real polling interval.
 

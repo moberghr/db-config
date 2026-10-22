@@ -44,7 +44,7 @@ PostgreSQL providers. Ships as `Moberg.DbConfig.Core`, `.EntityFrameworkCore`, `
 - **Data layer:** EF Core (SQL Server via `Microsoft.EntityFrameworkCore.SqlServer`, PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`) — 0 `.Include(`, 42 `.Select(`, 46 `AsNoTracking`, 0 EF raw-SQL API calls (schema DDL is hand-written SQL in the provider migrators)
 - **Patterns:** ASP.NET Core configuration extensibility (`IConfigurationSource`, `IConfigurationProvider`, `IChangeToken`); pluggable `IConfigStore`. No MediatR, CQRS, FluentValidation, or AutoMapper here — don't introduce them without a decision record.
 - **Database:** SQL Server + PostgreSQL, both first-class; neither is the default
-- **Test stack:** xUnit v3 (`xunit.v3.mtp-v2`) + Shouldly + Moq + Respawn + Testcontainers (MsSql + PostgreSql) + `Microsoft.AspNetCore.TestHost` — 447 tests, `[TimedFact]` on 441 of them
+- **Test stack:** xUnit v3 (`xunit.v3.mtp-v2`) + Shouldly + Moq + Respawn + Testcontainers (MsSql + PostgreSql) + `Microsoft.AspNetCore.TestHost` — 513 tests, `[TimedFact]` on 507 of them
 - **Frontend:** Vite + React + TypeScript + Tailwind + shadcn + Zustand + Axios; Playwright drives screenshot tests only (no unit-test runner in `ui/`)
 
 ---
